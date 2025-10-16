@@ -1,0 +1,20 @@
+[project]
+name = "lagga"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "cupy-cuda12x>=13.6.0",
+  "jax[cuda]>=0.7.2",
+  "jaxtyping>=0.3.3",
+  "numba>=0.62.1",
+  "numpy>=2.3.3",
+  "pandas>=2.3.3",
+  "pgenlib>=0.93.0",
+  "pyarrow>=21.0.0",
+  "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = ["ipython>=9.6.0"]
