@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from jaxtyping import Array, ArrayLike
 import numpy as np
 from scipy.stats import f as f_dist, t as t_dist
 from typing import List
@@ -10,24 +11,29 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pyarrow as pa
 from ._utils import _stdize
+from typing import Optional
 
 
 @jax.jit
 def _step2_block_core(
-    X: jnp.ndarray, Y: jnp.ndarray, Q_covar: jnp.ndarray, anc_ac: jnp.ndarray, eps=1e-8
-) -> dict[str, jnp.ndarray]:
+    G: Array,
+    Y: Array,
+    Q_covar: Array,
+    anc_ac: Array,
+    eps=jnp.float32(1e-8),
+) -> dict[str, Array]:
     n, _ = Y.shape
 
     # Adjust X
-    QX = jnp.einsum("nc,nbk->cbk", Q_covar, X)
-    X_adj = X - jnp.einsum("nc,cbk->nbk", Q_covar, QX)
+    QG = jnp.einsum("nc,nbk->cbk", Q_covar, G)
+    G_adj = G - jnp.einsum("nc,cbk->nbk", Q_covar, QG)
 
     # Fit regression
-    XtX = jnp.einsum("nbk,nbl->bkl", X_adj, X_adj)
-    XtY = jnp.einsum("nbk,np->bkp", X_adj, Y)
-    I_ = jnp.identity(XtX.shape[1], XtX.dtype)
-    beta_hat = jnp.linalg.solve(XtX + eps * I_[None, :, :], XtY)
-    Y_hat = jnp.einsum("nbk,bkp->nbp", X_adj, beta_hat)
+    GtG = jnp.einsum("nbk,nbl->bkl", G_adj, G_adj)
+    GtY = jnp.einsum("nbk,np->bkp", G_adj, Y)
+    I_ = jnp.identity(GtG.shape[1], GtG.dtype)
+    beta_hat = jnp.linalg.solve(GtG + eps * I_[None, :, :], GtY)
+    Y_hat = jnp.einsum("nbk,bkp->nbp", G_adj, beta_hat)
 
     # Compute useful quantities
     df = jnp.sum(anc_ac != 0, axis=1)
@@ -40,10 +46,10 @@ def _step2_block_core(
     f_stat = jnp.where(df[:, None] == 0, jnp.nan, f_stat)
 
     # Ancestry-specific tests
-    XtX_diag = jnp.diagonal(XtX, axis1=1, axis2=2)[:, :, None]
-    XtX_diag_safe = jnp.where(XtX_diag == 0, 1.0, XtX_diag)
-    se = jnp.where(XtX_diag == 0, jnp.nan, jnp.sqrt(mse[:, None, :] / XtX_diag_safe))  # pyright: ignore
-    t_stat = jnp.where(XtX_diag == 0, jnp.nan, beta_hat / se)  # pyright: ignore
+    GtG_diag = jnp.diagonal(GtG, axis1=1, axis2=2)[:, :, None]
+    GtG_diag_safe = jnp.where(GtG_diag == 0, 1.0, GtG_diag)
+    se = jnp.where(GtG_diag == 0, jnp.nan, jnp.sqrt(mse[:, None, :] / GtG_diag_safe))  # pyright: ignore
+    t_stat = jnp.where(GtG_diag == 0, jnp.nan, beta_hat / se)  # pyright: ignore
 
     return {
         "beta_hat": beta_hat,
@@ -57,17 +63,18 @@ def _step2_block_core(
 
 def _step2_block(
     dataset: GenoAncestryDataset,
-    Y: jnp.ndarray,
-    Q_covar: jnp.ndarray,
+    Y: Array,
+    Q_covar: Array,
     block: np.ndarray,
     min_anc_ac: int = 1,
 ):
-    X = dataset.get_lanc_geno(block)
-    anc_ac = X.sum(axis=0)
+    """Perform step 2 for a block of variants"""
+    G = dataset.get_lanc_geno(block)
+    anc_ac = G.sum(axis=0)
 
     anc_variant_mask = anc_ac.sum(axis=1) >= min_anc_ac
 
-    res = _step2_block_core(X, Y, Q_covar, anc_ac)
+    res = _step2_block_core(G, Y, Q_covar, anc_ac)
 
     f_stat = np.array(res["f_stat"])
     t_stat = np.array(res["t_stat"])
@@ -129,12 +136,25 @@ def _step2_block(
 def _step2_dataset(
     dataset: GenoAncestryDataset,
     Y_loco: dict[str, np.ndarray],
-    Q_covar: jnp.ndarray,
+    Q_covar: Array,
     out_prefix: str,
     phenotypes: list[str],
     desc: str,
     B: int = 2000,
 ):
+    """Perform GWAS for a single dataset
+
+    Args:
+        dataset: GenoAncestryDataset
+        Y_loco: A dict where each value is a (N, P) NumPy array with LOCO residuals from step 1
+        Q_covar: (N, C) jax array. The orthogonal matrix Q in the QR decomposition
+        of the covariates
+        out_prefix: Outputs will be written {output_prefix}_{phenotype}.parquet
+        phenotypes: A list of phenotype names
+        desc: A string describing the dataset, used for tracking progress
+        B: The block size (max number of variants to read at once)
+    """
+
     idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
 
     chromosomes = [
@@ -165,35 +185,54 @@ def _step2_dataset(
 
             for block in blocks:
                 result_dfs = _step2_block(
-                    dataset, jnp.array(Y_loco[chrom]), Q_covar, block
+                    dataset, jnp.asarray(Y_loco[chrom]), Q_covar, block
                 )
                 for i, df in enumerate(result_dfs):
                     table = pa.Table.from_pandas(df, preserve_index=False)
                     if writers[i] is None:
-                        writers[i] = pq.ParquetWriter(out_paths[i], table.schema)
+                        writers[i] = pq.ParquetWriter(out_paths[i], table.schema)  # pyright: ignore
                         schemas[i] = table.schema
                     else:
                         table = pa.Table.from_pandas(
                             df, schema=schemas[i], preserve_index=False
                         )
-                    writers[i].write_table(table)
+                    writers[i].write_table(table)  # pyright: ignore
                 pbar.update(1)
 
 
 def step2(
     datasets: list[GenoAncestryDataset],
-    Y: jnp.ndarray | np.ndarray,
-    step1_predictions: dict[str, np.ndarray],
+    Y: ArrayLike,
+    step1_predictions: dict[str, ArrayLike],
     out_prefixes: list[str],
-    phenotypes: list[str] | None = None,
-    covar: jnp.ndarray | np.ndarray | None = None,
+    phenotypes: Optional[list[str]] = None,
+    covar: Optional[ArrayLike] = None,
     B: int = 1000,
 ):
+    """Run step 2 for each dataset
+
+    Args:
+        datasets: A list of GenoAncestryDataset objects
+        Y: An (N, P) array of outcomes
+        step1_predictions: A dict with chromosome-specific predictions from step 1.
+        The values are (N, P) NumPy arrays
+        out_prefixes: A list of prefixes for each dataset. Outputs will be written
+        to {output_prefix}_{phenotype}.parquet
+        phenotypes: A list of phenotype names
+        covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
+        B: The block size (max number of variants to read at once)
+    """
+    # Convert input to jax arrays
+    Y = jnp.asarray(Y, dtype=jnp.float32)
+
     if covar is None:
         covar = jnp.ones((Y.shape[0], 1), dtype=jnp.float32)
     else:
         covar = jnp.hstack(
-            [jnp.ones((Y.shape[0], 1), dtype=jnp.float32), jnp.asarray(covar)]
+            [
+                jnp.ones((Y.shape[0], 1), dtype=jnp.float32),
+                jnp.asarray(covar, dtype=jnp.float32),
+            ]
         )
 
     if phenotypes is None:
@@ -205,7 +244,7 @@ def step2(
 
     step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
     Y_loco = {
-        k: np.array(Y_resid) - (step1_prs - v) for k, v in step1_predictions.items()
+        k: np.asarray(Y_resid) - (step1_prs - v) for k, v in step1_predictions.items()
     }
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"

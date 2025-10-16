@@ -1,9 +1,10 @@
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Arraylike
+from jaxtyping import Array, ArrayLike
 import numpy as np
 from .data import GenoAncestryDataset
 from ._utils import _stdize
+from typing import Optional
 from tqdm import tqdm
 
 ### ─────────────────────────────────────────────────────────────
@@ -41,25 +42,55 @@ def _ridge_impl(
 
 
 def _ridge(
-    X: jnp.ndarray,
-    Y: jnp.ndarray,
-    alphas: jnp.ndarray,
-    idx_train: jnp.ndarray | None = None,
+    G: Array,
+    Y: Array,
+    alphas: Array,
+    idx_train: Optional[Array] = None,
     jit_enabled: bool = True,
-):
+) -> Array:
+    """Get ridge regression predictions for multiple outcomes and penalties
+
+    Call this function with jit_enabled=False for step 1 to avoid recompiling
+    for each dataset/chromosome. Although training samples may be specified
+    with idx_train, predictions will be returned for all samples
+
+    Args:
+        G: An (N, V) jax array of predictors
+        Y: An (N, P) jax array of outcomes
+        alphas: The ridge penalties
+        idx_train: The indices of samples to use for training
+
+    Returns:
+        return_name: Return description
+
+    Raises:
+        exception name: Exception description
+    """
     if jit_enabled:
-        return jax.jit(_ridge_impl)(X, Y, alphas, idx_train)
+        return jax.jit(_ridge_impl)(G, Y, alphas, idx_train)
     else:
-        return _ridge_impl(X, Y, alphas, idx_train)
+        return _ridge_impl(G, Y, alphas, idx_train)
 
 
-def _ridge_cv(
-    X: jnp.ndarray, Y: jnp.ndarray, alphas: jnp.ndarray, k: int = 5, seed: int = 23891
-) -> np.ndarray:
+def _ridge_cv(G0: Array, Y: Array, alphas: Array, key: Array, k: int = 5) -> np.ndarray:
+    """Get cross-validated ridge regression predictions
+
+    Unlike _ridge, this assumes only a single outcome in Y. This is because the predictors
+    X are outcome-specific.
+
+    Args:
+        G0: An (N, G) jax array of predictions from step 0
+        Y: An (N, 1) jax array for a single outcome
+        alphas: The ridge penalties
+        key: Array representing PRNG key
+        k: number of cross-validation folds
+
+    Returns:
+        An (N, 1) NumPy ndarray with the best cross-validated prediction
+    """
     n_samples, n_pheno = Y.shape
     n_alpha = alphas.shape[0]
 
-    key = jax.random.PRNGKey(seed)
     idx = jax.random.permutation(key, n_samples)
     fold_size = n_samples // k
     folds = [idx[i * fold_size : (i + 1) * fold_size] for i in range(k)]
@@ -69,7 +100,7 @@ def _ridge_cv(
     for fold in range(k):
         idx_test = folds[fold]
         idx_train = jnp.concatenate([folds[i] for i in range(k) if i != fold])
-        fold_preds = _ridge(X, Y, alphas, idx_train)[idx_test]
+        fold_preds = _ridge(G0, Y, alphas, idx_train)[idx_test]
         errors = jnp.mean(
             (Y[idx_test, :, None] - fold_preds) ** 2, axis=0
         )  # shape (P, len(alphas))
@@ -78,7 +109,7 @@ def _ridge_cv(
     alpha_best_idx = jnp.argmin(cv_errors, axis=1)
     alpha_best = alphas[alpha_best_idx]
 
-    preds_all = _ridge(X, Y, alpha_best, jit_enabled=False)  # shape (N, P, 1)
+    preds_all = _ridge(G0, Y, alpha_best, jit_enabled=False)  # shape (N, P, 1)
     preds = preds_all[
         jnp.arange(n_samples)[:, None],
         jnp.arange(n_pheno)[None, :],
@@ -95,20 +126,20 @@ def _ridge_cv(
 
 def _predict_block(
     dataset: GenoAncestryDataset,
-    Y: jnp.ndarray,
-    Q_covar: jnp.ndarray,
+    Y: Array,
+    Q_covar: Array,
     block: np.ndarray,
-    alphas: jnp.ndarray,
+    alphas: Array,
 ) -> np.ndarray:
     """Get ridge predictions for a block of variants
 
     Args:
         dataset: GenoAncestryDataset
-        Y: (N, P) ndarray of outcomes
-        Q_covar: (N, C) ndarray representing the orthogonal matrix Q in the QR
+        Y: (N, P) jax array of outcomes, already residualized by Q_covar
+        Q_covar: (N, C) jax array. The orthogonal matrix Q in the QR
         decomposition of C covariates
-        block: 1D ndarray with variant indices of block
-        alphas: A 1D ndarray of ridge regression penalty values
+        block: (V,) NumPy ndarray with indices for a block of variants
+        alphas: The ridge regression penalties
 
     Returns:
         An (N, P,  len(alphas)) NumPy ndarray of ridge predictions
@@ -123,26 +154,25 @@ def _predict_block(
 
 def _predict_dataset(
     dataset: GenoAncestryDataset,
-    Y: jnp.ndarray,
-    Q_covar: jnp.ndarray,
+    Y: Array,
+    Q_covar: Array,
     B: int,
-    alphas: jnp.ndarray,
+    alphas: Array,
     desc: str,
 ) -> dict[str, np.ndarray]:
     """Get ridge predictions for a dataset
 
     Args:
         dataset: GenoAncestryDataset
-        Y: (N x P) ndarray of outcomes
-        Q_covar: (N x C) ndarray representing the orthogonal matrix Q in the QR
-        decomposition of C covariates
-        B: An integer with the block size (max number of variants to read at once)
-        alphas: A list of ridge regression penalty values
-        desc: String describing the dataset, used for tracking progress
+        Y: (N, P) jax array of outcomes, already residualized by Q_covar
+        Q_covar: (N, C) jax array. The orthogonal matrix Q in the QR
+        decomposition of the covariates
+        alphas: The ridge regression penalties
+        desc: A string describing the dataset, used for tracking progress
 
     Returns:
         A dict where keys are chromosomes and values are
-        (N, P, len(alphas) * n_blocks) ndarrays with ridge predictions
+        (N, P, len(alphas) * n_blocks) NumPy ndarrays with ridge predictions
     """
     idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
 
@@ -192,31 +222,33 @@ def merge_predictions(
 
 def step1(
     datasets: list[GenoAncestryDataset],
-    Y: jnp.ndarray | np.ndarray,
-    covar: jnp.ndarray | np.ndarray | None = None,
+    Y: ArrayLike,
+    covar: Optional[ArrayLike] = None,
     B: int = 2000,
-    alphas0: jnp.ndarray | np.ndarray = jnp.array(
-        [0.01, 0.25, 0.5, 0.75, 0.99], dtype=np.float32
-    ),
-    alphas1: jnp.ndarray | np.ndarray = jnp.array(
-        [0.01, 0.25, 0.5, 0.75, 0.99], dtype=np.float32
-    ),
+    alphas0: ArrayLike = jnp.array([0.01, 0.25, 0.5, 0.75, 0.99], dtype=jnp.float32),
+    alphas1: ArrayLike = jnp.array([0.01, 0.25, 0.5, 0.75, 0.99], dtype=jnp.float32),
+    seed: int = 3432142,
 ) -> dict[str, np.ndarray]:
     """Run step 1 and return genomic predictions
 
     Args:
-        datasets: list of GenoAncestryDataset
-        Y: (N x P) ndarray of outcomes
-        covar: (N x C) ndarray of covariates. If not provided, defaults to
-        intercept-only covariate
-        B: block size
-        alphas0: ridge regression penalties for step 0
-        alphas1: ridge regression penalties for step 1
+        datasets: A list of GenoAncestryDataset objects
+        Y: An (N, P) array of outcomes
+        covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariate
+        B: The block size (max number of variants to read at once)
+        alphas0: The ridge regression penalties for step 0
+        alphas1: The ridge regression penalties for step 1
+        seed: A seed for creating a PRNG key
 
     Returns:
-        A dict where each key is a chromosome and each value is an (N x P)
-        ndarray of genomic predictions
+        A dict where each key is a chromosome and each value is an (N, P)
+        NumPy ndarray of genomic predictions
     """
+    key = jax.random.key(seed)
+
+    # Convert input to jax arrays
+    Y = jnp.asarray(Y, dtype=jnp.float32)
+
     if covar is None:
         covar = jnp.ones((Y.shape[0], 1), dtype=jnp.float32)
     else:
@@ -226,13 +258,12 @@ def step1(
                 jnp.asarray(covar, dtype=jnp.float32),
             ]
         )
-
-    Q_covar, _ = jnp.linalg.qr(covar, mode="reduced")
-    Y = jnp.asarray(Y, jnp.float32)
-    Y_resid = _stdize(Y - (Q_covar @ (Q_covar.T @ Y)))
-
     alphas0 = jnp.asarray(alphas0)
     alphas1 = jnp.asarray(alphas1)
+
+    # Regress covariates from phenotypes
+    Q_covar, _ = jnp.linalg.qr(covar, mode="reduced")
+    Y_resid = _stdize(Y - (Q_covar @ (Q_covar.T @ Y)))
 
     dataset_predictions = []
     for ds in datasets:
@@ -249,10 +280,12 @@ def step1(
         unit="chromosomes",
     ) as pbar:
         step1_predictions = {}
-        for chrom, X in step0_predictions.items():
+        for chrom, G0 in step0_predictions.items():
             preds = np.empty((Y_resid.shape[0], Y_resid.shape[1]), dtype=np.float32)
             for j in range(Y.shape[1]):
-                preds[:, j] = _ridge_cv(X[:, j, :], Y_resid[:, j : j + 1], alphas1)[  # pyright: ignore
+                preds[:, j] = _ridge_cv(
+                    jnp.asarray(G0[:, j, :]), Y_resid[:, j : j + 1], alphas1, key
+                )[  # pyright: ignore
                     :, 0
                 ]
             step1_predictions[chrom] = preds
