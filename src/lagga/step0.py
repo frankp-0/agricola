@@ -24,8 +24,8 @@ def _step0_block(
     G = dataset.get_lanc_geno(block).reshape(n_samples, n_variants * n_ancestries)
     G_res = _stdize(G - (Q @ (Q.T @ G)))
 
-    ridge_jit = jax.jit(jax.vmap(_ridge_masked, in_axes=(None, None, 1, 1, None)))
-    result = jnp.sum(ridge_jit(G_res, Y_res, train_mask, test_mask, alphas), axis=0)
+    ridge = jax.vmap(_ridge_masked, in_axes=(None, None, 1, 1, None))
+    result = jnp.sum(ridge(G_res, Y_res, train_mask, test_mask, alphas), axis=0)
     return np.asarray(_stdize(result))
 
 
