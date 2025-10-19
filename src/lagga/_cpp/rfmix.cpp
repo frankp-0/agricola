@@ -158,7 +158,6 @@ py::dict read_rfmix(const std::string &msp_file) {
     }
   }
 
-  // Return as a Python dict (easy to convert to pandas.DataFrame)
   result["sample"] = samples;
   result["chrom"] = chroms;
   result["spos"] = spos_vec;
@@ -169,7 +168,6 @@ py::dict read_rfmix(const std::string &msp_file) {
   return result;
 }
 
-// binding helper (no PYBIND11_MODULE here)
 void bind_rfmix(py::module_ &m) {
   m.def("read_rfmix", &read_rfmix,
         "Read RFMix msp file and return ancestry tracts");

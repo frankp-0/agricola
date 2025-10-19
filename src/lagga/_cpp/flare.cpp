@@ -256,7 +256,6 @@ py::dict read_flare(const std::string &flare_file) {
   return result;
 }
 
-// binding helper (no PYBIND11_MODULE here)
 void bind_flare(py::module_ &m) {
   m.def("read_flare", &read_flare, "Read FLARE VCF and return ancestry tracts");
 }
