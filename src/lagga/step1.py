@@ -8,26 +8,29 @@ from .models import _ridge_masked
 
 
 def _ridge_cv(Z, Y, train_mask, test_mask, alphas):
-    # vmap across CV folds for a single phenotype
-    # (k, n, 1, a) array of masked predictions
-    ridge_pheno = jax.vmap(_ridge_masked, in_axes=(None, None, 1, 1, None))
+    n, p = Y.shape
+    _, k = train_mask.shape
+    a = len(alphas)
+    preds = np.zeros(shape=(n, p, a), dtype=np.float32)
 
-    # vmap the above across phenotypes,
-    # (k, n, p, 1, a) masked predictions
-    ridge_across_phenos = jax.vmap(
-        ridge_pheno, in_axes=(1, 1, None, None, None), out_axes=2
-    )
-    result_masked = ridge_across_phenos(Z, Y, train_mask, test_mask, alphas)
-
-    # Sum over masked k-fold predictions: (n, p, a)
-    result = jnp.sum(jnp.squeeze(result_masked, axis=3), axis=0)
+    ## Would love to vmap this but it uses way too much memory
+    for fold in range(k):
+        for pheno in range(p):
+            ridge_fold = _ridge_masked(
+                Z[:, pheno, :],
+                Y[:, pheno],
+                train_mask[:, fold],
+                test_mask[:, fold],
+                alphas,
+            )
+            preds[:,pheno,:] += ridge_fold[:,0,:]
 
     # Get best CV alpha per-phenotype
-    cv_errors = jnp.mean(result**2, axis=0)  # (p, a)
-    alpha_idx = jnp.argmin(cv_errors, axis=1)  # (p,)
+    cv_errors = np.mean((np.asarray(Y)[:, :, None] - preds) ** 2, axis=0)  # (p, a)
+    alpha_idx = np.argmin(cv_errors, axis=1)  # (p,)
 
     # Get best CV prediction
-    result = jnp.take_along_axis(result, alpha_idx[None, :, None], axis=2).squeeze(
+    result = np.take_along_axis(preds, alpha_idx[None, :, None], axis=2).squeeze(
         axis=2
     )
     return result
