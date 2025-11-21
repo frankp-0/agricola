@@ -80,6 +80,25 @@ def _read_lanc(path: str | Path) -> FlatLanc:
     )
 
 
+def _get_info(pvar: PvarReader, indices: NDArray[np.unsignedinteger]) -> DataFrame:
+    """Query variant information from pvar file
+
+    Args:
+        indices: A (V,) ndarray with indices of variants to query
+
+    Returns:
+        A (V, 6) pandas dataframe which information for each variant
+    """
+    chrom = [pvar.get_variant_chrom(i).decode("utf8") for i in indices]
+    pos = [pvar.get_variant_pos(i) for i in indices]
+    ref = [pvar.get_allele_code(i, 0).decode("utf8") for i in indices]
+    alt = [pvar.get_allele_code(i, 1).decode("utf8") for i in indices]
+    rsid = [pvar.get_variant_id(i).decode("utf8") for i in indices]
+    df = DataFrame({"chrom": chrom, "pos": pos, "ref": ref, "alt": alt, "rsid": rsid})
+    df["pos"] = df["pos"].astype("uint32")
+    return df
+
+
 ### ─────────────────────────────────────────────────────────────
 ### Core
 ### ─────────────────────────────────────────────────────────────
@@ -195,24 +214,7 @@ class GenoAncestryDataset:
         )
 
     def get_info(self, indices: NDArray[np.unsignedinteger]) -> DataFrame:
-        """Query variant information from pvar file
-
-        Args:
-            indices: A (V,) ndarray with indices of variants to query
-
-        Returns:
-            A (V, 6) pandas dataframe which information for each variant
-        """
-        chrom = [self.pvar.get_variant_chrom(i).decode("utf8") for i in indices]
-        pos = [self.pvar.get_variant_pos(i) for i in indices]
-        ref = [self.pvar.get_allele_code(i, 0).decode("utf8") for i in indices]
-        alt = [self.pvar.get_allele_code(i, 1).decode("utf8") for i in indices]
-        rsid = [self.pvar.get_variant_id(i).decode("utf8") for i in indices]
-        df = DataFrame(
-            {"chrom": chrom, "pos": pos, "ref": ref, "alt": alt, "rsid": rsid}
-        )
-        df["pos"] = df["pos"].astype("uint32")
-        return df
+        return _get_info(self.pvar, indices)
 
     def get_lanc(self, indices: NDArray[np.unsignedinteger]) -> NDArray[np.uint8]:
         """Query local ancestries

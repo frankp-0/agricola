@@ -200,13 +200,13 @@ def _step2_dataset(
                 pbar.update(1)
 
 
-def step2(
+def step2_qt(
     datasets: list[GenoAncestryDataset],
-    Y: ArrayLike,
-    step1_predictions: dict[str, ArrayLike],
+    Y: Array,
+    X: Array,
+    step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
-    phenotypes: Optional[list[str]] = None,
-    covar: Optional[ArrayLike] = None,
+    phenotypes: list[str],
     B: int = 1000,
 ):
     """Run step 2 for each dataset
@@ -225,22 +225,9 @@ def step2(
     # Convert input to jax arrays
     Y = jnp.asarray(Y, dtype=jnp.float32)
 
-    if covar is None:
-        covar = jnp.ones((Y.shape[0], 1), dtype=jnp.float32)
-    else:
-        covar = jnp.hstack(
-            [
-                jnp.ones((Y.shape[0], 1), dtype=jnp.float32),
-                jnp.asarray(covar, dtype=jnp.float32),
-            ]
-        )
-
-    if phenotypes is None:
-        phenotypes = [str(i) for i in range(Y.shape[1])]
-
-    Q_covar, _ = jnp.linalg.qr(covar, mode="reduced")
+    Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = jnp.asarray(Y, dtype=jnp.float32)
-    Y_resid = _stdize(Y - (Q_covar @ (Q_covar.T @ Y)))
+    Y_resid = _stdize(Y - (Q @ (Q.T @ Y)))
 
     step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
     Y_loco = {
@@ -249,4 +236,4 @@ def step2(
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 2 results for file: {pgen_path}"
-        _step2_dataset(ds, Y_loco, Q_covar, out_prefixes[i], phenotypes, desc, B)
+        _step2_dataset(ds, Y_loco, Q, out_prefixes[i], phenotypes, desc, B)
