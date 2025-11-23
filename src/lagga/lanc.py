@@ -1,8 +1,12 @@
 from logging import raiseExceptions
-from ._cpp import read_rfmix, read_flare
+
+# from ._cpp import read_rfmix, read_flare
+from lagga._cpp import read_rfmix, read_flare
 import pandas as pd
 from pgenlib import PvarReader, PgenReader
-from .data import _get_info
+
+# from .data import _get_info
+from lagga.data import _get_info
 import numpy as np
 
 
@@ -65,6 +69,10 @@ def convert_lanc(file: str, file_fmt: str, plink_prefix: str, output: str):
         .groupby(["sample", "chrom", "idx"], as_index=False, observed=True)
         .tail(1)  # last row per group
     )
+
+    ## Set ending idx of last tract to extend to end of pvar
+    idxmax_rows = df.groupby("sample", observed=True)["idx"].idxmax()
+    df.loc[idxmax_rows, "idx"] = len(df_pvar)
 
     ## Get .lanc file lines
     df["switch"] = (
