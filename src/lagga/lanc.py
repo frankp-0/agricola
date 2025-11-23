@@ -54,7 +54,7 @@ def convert_lanc(file: str, file_fmt: str, plink_prefix: str, output: str):
 
     ## Clip tracts positions to pgen start, end
     df["epos"] = df["epos"].clip(upper=max_pvar)
-    df["spos"] = df["spos"].clip(upper=min_pvar)
+    df["spos"] = df["spos"].clip(lower=min_pvar)
 
     ## Get index of first pvar pos >= tract epos
     df["idx"] = np.searchsorted(df_pvar["pos"].values, df["epos"].values, side="left")
