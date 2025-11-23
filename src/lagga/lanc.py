@@ -61,7 +61,7 @@ def convert_lanc(file: str, file_fmt: str, plink_prefix: str, output: str):
     df["spos"] = df["spos"].clip(lower=min_pvar)
 
     ## Get index of first pvar pos >= tract epos
-    df["idx"] = np.searchsorted(df_pvar["pos"].values, df["epos"].values, side="left")
+    df["idx"] = np.searchsorted(df_pvar["pos"].values, df["epos"].values, side="right")
 
     ## If multiple tracts have same idx, pick last one
     df = (
@@ -90,4 +90,4 @@ def convert_lanc(file: str, file_fmt: str, plink_prefix: str, output: str):
     ## Write output
     header = f"{len(df_pvar)} {len(df_psam)}"
     with open(output, "w") as f:
-        f.write(header + "\n" + "\n".join(lines.astype(str)))
+        f.write(header + "\n" + "\n".join(lines.astype(str)) + "\n")
