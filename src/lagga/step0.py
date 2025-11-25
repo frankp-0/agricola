@@ -6,6 +6,7 @@ from .data import GenoAncestryDataset
 from ._utils import _stdize
 from tqdm import tqdm
 from .models import _ridge_masked
+from typing import Optional
 
 
 def _step0_block(
@@ -36,10 +37,21 @@ def _step0_dataset(
     train_mask: Array,
     test_mask: Array,
     B: int,
+    variants: Optional[list[str]],
     alphas: Array,
     desc: str,
 ):
-    idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+    if variants is None:
+        idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+    else:
+        dataset_ids = [
+            dataset.pvar.get_variant_id(i).decode("utf8")
+            for i in np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+        ]
+        varset = set(variants)
+        idx_variant = np.array(
+            [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
+        )
 
     chromosomes = [
         dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
@@ -91,6 +103,7 @@ def step0(
     test_mask: Array,
     alphas: Array,
     B: int = 2000,
+    variants: Optional[list[str]] = None,
 ):
     Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
     Y_res = _stdize(Y - (Q @ (Q.T @ Y)))
@@ -100,7 +113,7 @@ def step0(
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 0 predictions for file: {pgen_path}"
         preds = _step0_dataset(
-            ds, Y_res, Q, train_mask, test_mask, B, alphas, desc=desc
+            ds, Y_res, Q, train_mask, test_mask, B, variants, alphas, desc=desc
         )
         dataset_predictions.append(preds)
 

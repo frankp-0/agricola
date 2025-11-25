@@ -21,14 +21,8 @@ dependencies = [
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 
-wheel.exclude = [
-    "data",
-    "result"
-]
-sdist.exclude = [
-    "data",
-    "result"
-]
+wheel.exclude = ["data", "result"]
+sdist.exclude = ["data", "result"]
 
 [tool.uv]
 cache-keys = [
