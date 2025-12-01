@@ -141,6 +141,7 @@ def _step2_dataset(
     phenotypes: list[str],
     desc: str,
     B: int = 2000,
+    variants: Optional[list[str]] = None,
 ):
     """Perform GWAS for a single dataset
 
@@ -155,7 +156,17 @@ def _step2_dataset(
         B: The block size (max number of variants to read at once)
     """
 
-    idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+    if variants is None:
+        idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+    else:
+        dataset_ids = [
+            dataset.pvar.get_variant_id(i).decode("utf8")
+            for i in np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
+        ]
+        varset = set(variants)
+        idx_variant = np.array(
+            [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
+        )
 
     chromosomes = [
         dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
@@ -208,6 +219,7 @@ def step2_qt(
     out_prefixes: list[str],
     phenotypes: list[str],
     B: int = 1000,
+    variants: Optional[list[str]] = None,
 ):
     """Run step 2 for each dataset
 
@@ -236,4 +248,4 @@ def step2_qt(
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 2 results for file: {pgen_path}"
-        _step2_dataset(ds, Y_loco, Q, out_prefixes[i], phenotypes, desc, B)
+        _step2_dataset(ds, Y_loco, Q, out_prefixes[i], phenotypes, desc, B, variants)
