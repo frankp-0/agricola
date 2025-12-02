@@ -234,6 +234,27 @@ class GenoAncestryDataset:
         )
         return np.stack((left, right), axis=-1)
 
+    def get_lanc_unphased(
+        self, indices: NDArray[np.unsignedinteger]
+    ) -> NDArray[np.uint8]:
+        """Query unphased local ancestry
+
+        Args:
+            indices: A (V,) ndarray with indices of variants to query
+
+        Returns:
+            An (N, V, len(self.ancestries) jax array of unphased local ancestries
+        """
+        lanc = jnp.asarray(self.get_lanc(indices), dtype=jnp.uint8)
+        ancestries = jnp.arange(len(self.ancestries), dtype=jnp.uint8)
+        left_haps_mask = (lanc[:, :, 0:1] == ancestries[None, None, :]).astype(
+            jnp.float32
+        )
+        right_haps_mask = (lanc[:, :, 1:2] == ancestries[None, None, :]).astype(
+            jnp.float32
+        )
+        return left_haps_mask + right_haps_mask
+
     def get_geno(self, indices: NDArray[np.unsignedinteger]) -> NDArray[np.int32]:
         """Query phased genotypes
         Args:
