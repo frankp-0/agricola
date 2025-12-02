@@ -18,12 +18,9 @@ def _step0_block(
     block: np.ndarray,
     h2_prior: Array,
 ):
-    n_samples = Y_res.shape[0]
-    n_variants = len(block)
-    n_ancestries = len(dataset.ancestries)
-
-    G = dataset.get_lanc_geno(block).reshape(n_samples, n_variants * n_ancestries)
-    G_res = _stdize(G - (Q @ (Q.T @ G)))
+    G = dataset.get_geno(block)
+    G = G[:, :, 0] + G[:, :, 1]
+    G_res = _stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
     M = G_res.shape[1]
     alphas = M * (1 - h2_prior) / h2_prior
 
