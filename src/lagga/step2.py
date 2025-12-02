@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
-from scipy.stats import f as f_dist, t as t_dist
+from scipy.stats import chi2
 from typing import List
 import pandas as pd
 from .data import GenoAncestryDataset
@@ -12,52 +12,42 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from ._utils import _stdize
 from typing import Optional
+from jax.scipy.linalg import solve
 
 
 @jax.jit
 def _step2_block_core(
     G: Array,
+    L: Array,
     Y: Array,
     Q_covar: Array,
-    anc_ac: Array,
     eps=jnp.float32(1e-8),
 ) -> dict[str, Array]:
-    n, _ = Y.shape
+    k = G.shape[2]
 
     # Adjust X
-    QG = jnp.einsum("nc,nbk->cbk", Q_covar, G)
-    G_adj = G - jnp.einsum("nc,cbk->nbk", Q_covar, QG)
+    X = jnp.concatenate([G, L], axis=-1)
+    QX = jnp.einsum("nc,nbk->cbk", Q_covar, X)
+    X = X - jnp.einsum("nc,cbk->nbk", Q_covar, QX)
 
     # Fit regression
-    GtG = jnp.einsum("nbk,nbl->bkl", G_adj, G_adj)
-    GtY = jnp.einsum("nbk,np->bkp", G_adj, Y)
-    I_ = jnp.identity(GtG.shape[1], GtG.dtype)
-    beta_hat = jnp.linalg.solve(GtG + eps * I_[None, :, :], GtY)
-    Y_hat = jnp.einsum("nbk,bkp->nbp", G_adj, beta_hat)
-
-    # Compute useful quantities
-    df = jnp.sum(anc_ac != 0, axis=1)
-    dfd = n - df[:, None]
-    dfn = df[:, None]
-    mse = ((Y[:, None, :] - Y_hat) ** 2).sum(axis=0) / dfd
-
-    # Global test
-    f_stat = (Y_hat**2).sum(axis=0) / dfn / mse
-    f_stat = jnp.where(df[:, None] == 0, jnp.nan, f_stat)
-
-    # Ancestry-specific tests
-    GtG_diag = jnp.diagonal(GtG, axis1=1, axis2=2)[:, :, None]
-    GtG_diag_safe = jnp.where(GtG_diag == 0, 1.0, GtG_diag)
-    se = jnp.where(GtG_diag == 0, jnp.nan, jnp.sqrt(mse[:, None, :] / GtG_diag_safe))  # pyright: ignore
-    t_stat = jnp.where(GtG_diag == 0, jnp.nan, beta_hat / se)  # pyright: ignore
+    XtX = jnp.einsum("nbc,nbd->bcd", X, X)
+    I_ = jnp.identity(XtX.shape[1], XtX.dtype)
+    XtX_inv = jnp.linalg.inv(XtX + eps * I_[None, :, :])
+    XtY = jnp.einsum("nbc,np->bcp", X, Y)
+    beta_hat = XtX_inv @ XtY
+    beta_G = beta_hat[:, :k, :]
+    ## need to do sig2
+    Yhat = jnp.einsum("nbk,bkp->nbp", X, beta_hat)
+    resid = Y[:, None, :] - Yhat
+    sig2 = jnp.mean(resid**2, axis=0)
+    cov_beta_G = sig2[:, :, None] * XtX_inv[:, :k, :k]
+    W = jnp.einsum("bkp,bkp->bp", beta_G, solve(cov_beta_G, beta_G))
 
     return {
-        "beta_hat": beta_hat,
-        "t_stat": t_stat,  # pyright: ignore
-        "f_stat": f_stat,
-        "dfn": dfn,
-        "dfd": dfd,
-        "se": se,
+        "beta_hat": beta_G,
+        "se": jnp.sqrt(jnp.abs(jnp.diagonal(cov_beta_G, axis1=-2, axis2=-1))),
+        "wald": W,
     }
 
 
@@ -70,30 +60,25 @@ def _step2_block(
 ):
     """Perform step 2 for a block of variants"""
     G = dataset.get_lanc_geno(block)
+    L = dataset.get_lanc_unphased(block)[:, :, 1:]
     anc_ac = G.sum(axis=0)
 
     anc_variant_mask = anc_ac.sum(axis=1) >= min_anc_ac
 
-    res = _step2_block_core(G, Y, Q_covar, anc_ac)
+    res = _step2_block_core(G, L, Y, Q_covar)
 
-    f_stat = np.array(res["f_stat"])
-    t_stat = np.array(res["t_stat"])
-    dfn = np.array(res["dfn"])
-    dfd = np.array(res["dfd"])
+    wald = np.array(res["wald"])
     se = np.array(res["se"])
     beta_hat = np.array(res["beta_hat"])
 
-    log10p_overall = f_dist.logsf(f_stat, dfn=dfn, dfd=dfd) / np.log(10)
-    log10p_anc = (np.log(2) + t_dist.logsf(np.abs(t_stat), dfd[:, :, None])) / np.log(
-        10
-    )
+    log10p_overall = chi2.logsf(wald, G.shape[2]) / np.log(10)
+    log10p_anc = chi2.logsf((beta_hat / se[:, :, None]) ** 2, 1) / np.log(10)
 
     result_arr = np.concatenate(
         [
             beta_hat,
-            f_stat[:, None, :],
             log10p_overall[:, None, :],
-            se,
+            np.repeat(se[:, :, None], beta_hat.shape[2], axis=2),
             log10p_anc,
         ],
         axis=1,
@@ -106,7 +91,6 @@ def _step2_block(
     ancs = dataset.ancestries
     colnames: List[str] = [
         *["beta_" + anc for anc in ancs],
-        "f_overall",
         "log10p_overall",
         *["se_" + anc for anc in ancs],
         *["log10p_" + anc for anc in ancs],
