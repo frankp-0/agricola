@@ -37,16 +37,16 @@ def _step2_block_core(
     XtY = jnp.einsum("nbc,np->bcp", X, Y)
     beta_hat = XtX_inv @ XtY
     beta_G = beta_hat[:, :k, :]
-    ## need to do sig2
-    Yhat = jnp.einsum("nbk,bkp->nbp", X, beta_hat)
-    resid = Y[:, None, :] - Yhat
-    sig2 = jnp.mean(resid**2, axis=0)
-    cov_beta_G = sig2[:, :, None] * XtX_inv[:, :k, :k]
-    W = jnp.einsum("bkp,bkp->bp", beta_G, solve(cov_beta_G, beta_G))
+    sig_e = np.sum(Y**2, axis=0) / (Y.shape[0] - X.shape[2] - Q_covar.shape[1])
+    W = jnp.einsum("bkp,bkp->bp", beta_G, solve(XtX_inv[:, :k, :k], beta_G)) / sig_e
+    se_beta_G = jnp.sqrt(
+        jnp.diagonal(XtX_inv[:, :k, :k], axis1=-2, axis2=-1)[:, :, None]
+        * sig_e[None, None, :]
+    )
 
     return {
         "beta_hat": beta_G,
-        "se": jnp.sqrt(jnp.abs(jnp.diagonal(cov_beta_G, axis1=-2, axis2=-1))),
+        "se": se_beta_G,
         "wald": W,
     }
 
@@ -72,13 +72,13 @@ def _step2_block(
     beta_hat = np.array(res["beta_hat"])
 
     log10p_overall = chi2.logsf(wald, G.shape[2]) / np.log(10)
-    log10p_anc = chi2.logsf((beta_hat / se[:, :, None]) ** 2, 1) / np.log(10)
+    log10p_anc = chi2.logsf((beta_hat / se) ** 2, 1) / np.log(10)
 
     result_arr = np.concatenate(
         [
             beta_hat,
             log10p_overall[:, None, :],
-            np.repeat(se[:, :, None], beta_hat.shape[2], axis=2),
+            se,
             log10p_anc,
         ],
         axis=1,
