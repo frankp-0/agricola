@@ -16,7 +16,7 @@ def _step0_block(
     train_mask: Array,
     test_mask: Array,
     block: np.ndarray,
-    alphas: Array,
+    h2_prior: Array,
 ):
     n_samples = Y_res.shape[0]
     n_variants = len(block)
@@ -24,6 +24,8 @@ def _step0_block(
 
     G = dataset.get_lanc_geno(block).reshape(n_samples, n_variants * n_ancestries)
     G_res = _stdize(G - (Q @ (Q.T @ G)))
+    M = G_res.shape[1]
+    alphas = M * (1 - h2_prior) / h2_prior
 
     ridge = jax.vmap(_ridge_masked, in_axes=(None, None, 1, 1, None))
     result = jnp.sum(ridge(G_res, Y_res, train_mask, test_mask, alphas), axis=0)
@@ -38,7 +40,7 @@ def _step0_dataset(
     test_mask: Array,
     B: int,
     variants: Optional[list[str]],
-    alphas: Array,
+    h2_prior: Array,
     desc: str,
 ):
     if variants is None:
@@ -77,7 +79,7 @@ def _step0_dataset(
             for block in blocks:
                 preds.append(
                     _step0_block(
-                        dataset, Y_res, Q, train_mask, test_mask, block, alphas
+                        dataset, Y_res, Q, train_mask, test_mask, block, h2_prior
                     )
                 )
                 pbar.update(1)
@@ -103,7 +105,7 @@ def step0(
     X: Array,
     train_mask: Array,
     test_mask: Array,
-    alphas: Array,
+    h2_prior: Array,
     B: int = 2000,
     variants: Optional[list[str]] = None,
 ):
@@ -115,7 +117,7 @@ def step0(
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 0 predictions for file: {pgen_path}"
         preds = _step0_dataset(
-            ds, Y_res, Q, train_mask, test_mask, B, variants, alphas, desc=desc
+            ds, Y_res, Q, train_mask, test_mask, B, variants, h2_prior, desc=desc
         )
         dataset_predictions.append(preds)
 

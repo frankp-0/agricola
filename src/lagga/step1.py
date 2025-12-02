@@ -7,11 +7,12 @@ from tqdm import tqdm
 from .models import _ridge_masked
 
 
-def _ridge_cv(Z, Y, train_mask, test_mask, alphas):
+def _ridge_cv(Z, Y, train_mask, test_mask, h2_prior):
     n, p = Y.shape
     _, k = train_mask.shape
-    a = len(alphas)
+    a = len(h2_prior)
     preds = np.zeros(shape=(n, p, a), dtype=np.float32)
+    alphas = Z.shape[2] * (1 - h2_prior) / h2_prior
 
     ## Would love to vmap this but it uses way too much memory
     for fold in range(k):
@@ -23,16 +24,14 @@ def _ridge_cv(Z, Y, train_mask, test_mask, alphas):
                 test_mask[:, fold],
                 alphas,
             )
-            preds[:,pheno,:] += ridge_fold[:,0,:]
+            preds[:, pheno, :] += ridge_fold[:, 0, :]
 
     # Get best CV alpha per-phenotype
     cv_errors = np.mean((np.asarray(Y)[:, :, None] - preds) ** 2, axis=0)  # (p, a)
     alpha_idx = np.argmin(cv_errors, axis=1)  # (p,)
 
     # Get best CV prediction
-    result = np.take_along_axis(preds, alpha_idx[None, :, None], axis=2).squeeze(
-        axis=2
-    )
+    result = np.take_along_axis(preds, alpha_idx[None, :, None], axis=2).squeeze(axis=2)
     return result
 
 
@@ -42,7 +41,7 @@ def step1_qt(
     X: Array,
     train_mask: Array,
     test_mask: Array,
-    alphas: Array,
+    h2_prior: Array,
 ):
     n, p = Y.shape
     Q, _ = jnp.linalg.qr(X, mode="reduced")
@@ -56,7 +55,7 @@ def step1_qt(
         Yhat_dict = {}
         for chrom, Z in Z_dict.items():
             Yhat = np.empty(shape=(n, p), dtype=np.float32)
-            Yhat = _ridge_cv(Z, Y_res, train_mask, test_mask, alphas)
+            Yhat = _ridge_cv(Z, Y_res, train_mask, test_mask, h2_prior)
             Yhat_dict[chrom] = Yhat
             pbar.update(1)
 
