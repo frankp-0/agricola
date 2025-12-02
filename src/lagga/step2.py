@@ -192,7 +192,9 @@ def _step2_dataset(
                 [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
             )
             # Split into blocks
-            blocks = [idx_chrom[i : i + B] for i in range(0, len(idx_chrom), B)]
+            blocks = [
+                idx_variant[idx_chrom[i : i + B]] for i in range(0, len(idx_chrom), B)
+            ]
 
             for block in blocks:
                 result_dfs = _step2_block(
