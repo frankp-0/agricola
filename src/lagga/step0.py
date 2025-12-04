@@ -86,16 +86,6 @@ def _step0_dataset(
     return predictions
 
 
-def _merge_step0(
-    predictions: list[dict[str, np.ndarray]],
-):
-    chrom_keys = sorted({k for d in predictions for k in d})
-    return {
-        chrom: np.concatenate([d[chrom] for d in predictions if chrom in d], axis=2)
-        for chrom in chrom_keys
-    }
-
-
 def step0(
     datasets: list[GenoAncestryDataset],
     Y: Array,
@@ -118,6 +108,12 @@ def step0(
         )
         dataset_predictions.append(preds)
 
-    step0_predictions = _merge_step0(dataset_predictions)
+    chrom_keys = sorted({k for d in dataset_predictions for k in d})
+    step0_predictions = {
+        chrom: np.concatenate(
+            [d[chrom] for d in dataset_predictions if chrom in d], axis=2
+        )
+        for chrom in chrom_keys
+    }
 
     return step0_predictions
