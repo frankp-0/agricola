@@ -75,7 +75,7 @@ def _step0_dataset(
     Returns:
         Z_chroms: A dict where keys are chromosomes and values are (N, N_predictors, P) jax arrays of step 0 predictions
     """
-
+    ## Get variant indices
     if variants is None:
         idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
     else:
@@ -88,16 +88,16 @@ def _step0_dataset(
             [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
         )
 
+    ## Get chromosomes and number of blocks
     chromosomes = [
         dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
     ]
-
     chroms = list(set(chromosomes))  # unique chromosomes
-
     n_blocks = sum(
         (len([c for c in chromosomes if c == chrom]) + B - 1) // B for chrom in chroms
     )
 
+    ## Perform level 0 ridge regression for all blocks
     Z_chroms = {}
     with tqdm(total=n_blocks, desc=desc, unit="block") as pbar:
         for chrom in chroms:
@@ -145,6 +145,7 @@ def step0(
     Returns:
         Z: A dict where keys are chromosomes and values are (N, N_blocks) jax arrays of step 0 predictions
     """
+    ## Residualize and standardize phenotypes
     Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
     Y = _stdize(Y - (Q @ (Q.T @ Y)))
 
