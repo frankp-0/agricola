@@ -143,12 +143,14 @@ def step0(
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
 
     Returns:
-        Z: A dict where keys are chromosomes and values are (N, N_blocks) jax arrays of step 0 predictions
+        Z: A dict where keys are chromosomes and values are (N, N_blocks, P) jax arrays of step 0 predictions
     """
+
     ## Residualize and standardize phenotypes
     Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
     Y = _stdize(Y - (Q @ (Q.T @ Y)))
 
+    ## Perform step 0 for each dataset
     Z_datasets = []
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
