@@ -30,7 +30,7 @@ def _step0_block(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Z_block: A (N, B * len(h2_prior), P) jax array of predictions
+        Z_block: A (N, len(h2_prior), P) jax array of predictions
     """
     ## Standardize genotype block and residualize by covariates
     G = dataset.get_geno(block)
