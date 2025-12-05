@@ -73,7 +73,7 @@ def step1_qt(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Yhat: A dict where keys are chromosomes and values are (N, P) jax arrays of step 0 predictions
+        step1_predictions: A dict where keys are chromosomes and values are (N, P) jax arrays of step 0 predictions
     """
 
     n, p = Y.shape
@@ -88,11 +88,11 @@ def step1_qt(
         desc="Getting step 1 predictions",
         unit="chromosomes",
     ) as pbar:
-        Yhat = {}
+        step1_predictions = {}
         for chrom, Z_chrom in Z.items():
             Yhat_chrom = np.empty(shape=(n, p), dtype=np.float32)
             Yhat_chrom = _ridge_cv(Z_chrom, Y, train_mask, test_mask, h2_prior)
-            Yhat[chrom] = Yhat_chrom
+            step1_predictions[chrom] = Yhat_chrom
             pbar.update(1)
 
-    return Yhat
+    return step1_predictions
