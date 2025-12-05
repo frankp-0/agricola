@@ -70,11 +70,12 @@ def _step0_dataset(
         B: The number of variants per block
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
         h2_prior: A 1D jax array of prior values for snp heritability
-        desc: A string with the description for printing
+        desc: A string describing the dataset, used for tracking progress
 
     Returns:
         Z_chroms: A dict where keys are chromosomes and values are (N, N_predictors, P) numpy arrays of step 0 predictions
     """
+
     ## Get variant indices
     if variants is None:
         idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
