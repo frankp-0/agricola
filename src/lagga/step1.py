@@ -18,7 +18,7 @@ def _ridge_cv(Z, Y, train_mask, test_mask, h2_prior):
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Yhat: A (N, P) jax array of step 0 predictions
+        Yhat: A (N, P) numpy array of step 0 predictions
     """
     ## Assign dimensions
     n, p = Y.shape
@@ -73,7 +73,7 @@ def step1_qt(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        step1_predictions: A dict where keys are chromosomes and values are (N, P) jax arrays of step 0 predictions
+        step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
     """
 
     n, p = Y.shape

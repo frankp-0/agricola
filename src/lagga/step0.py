@@ -30,7 +30,7 @@ def _step0_block(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Z_block: A (N, len(h2_prior), P) jax array of predictions
+        Z_block: A (N, len(h2_prior), P) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
     G = dataset.get_geno(block)
@@ -73,7 +73,7 @@ def _step0_dataset(
         desc: A string with the description for printing
 
     Returns:
-        Z_chroms: A dict where keys are chromosomes and values are (N, N_predictors, P) jax arrays of step 0 predictions
+        Z_chroms: A dict where keys are chromosomes and values are (N, N_predictors, P) numpy arrays of step 0 predictions
     """
     ## Get variant indices
     if variants is None:
@@ -143,7 +143,7 @@ def step0(
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
 
     Returns:
-        Z: A dict where keys are chromosomes and values are (N, N_blocks, P) jax arrays of step 0 predictions
+        Z: A dict where keys are chromosomes and values are (N, N_blocks, P) numpy arrays of step 0 predictions
     """
 
     ## Residualize and standardize phenotypes
