@@ -13,6 +13,7 @@ def _stdize(X: jnp.ndarray) -> jnp.ndarray:
 
 
 def _get_cv_mask(n, k, key):
+    """ "Returns tuple of boolean of training set mask and test set mask"""
     idx = jax.random.permutation(key, n)
     fold_size = n // k
     folds = [idx[i * fold_size : (i + 1) * fold_size] for i in range(k)]
@@ -24,5 +25,4 @@ def _get_cv_mask(n, k, key):
         test_mask[folds[fold], fold] = True
         train_mask[idx_train, fold] = True
 
-    # (n, k) booleans
     return train_mask, test_mask
