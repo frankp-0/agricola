@@ -220,17 +220,11 @@ def step2_qt(
         covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
         B: The block size (max number of variants to read at once)
     """
-    # Convert input to jax arrays
-    Y = jnp.asarray(Y, dtype=jnp.float32)
-
     Q, _ = jnp.linalg.qr(X, mode="reduced")
-    Y = jnp.asarray(Y, dtype=jnp.float32)
-    Y_resid = _stdize(Y - (Q @ (Q.T @ Y)))
+    Y = _stdize(Y - (Q @ (Q.T @ Y)))
 
     step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
-    Y_loco = {
-        k: np.asarray(Y_resid) - (step1_prs - v) for k, v in step1_predictions.items()
-    }
+    Y_loco = {k: np.asarray(Y) - (step1_prs - v) for k, v in step1_predictions.items()}
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 2 results for file: {pgen_path}"
