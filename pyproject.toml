@@ -15,6 +15,7 @@ dependencies = [
   "pgenlib>=0.93.0",
   "pyarrow>=21.0.0",
   "tqdm>=4.67.1",
+  "typer>=0.20.0",
 ]
 
 [tool.scikit-build]
@@ -37,3 +38,10 @@ build-backend = "scikit_build_core.build"
 
 [dependency-groups]
 dev = ["ipython>=9.6.0"]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+lagga = "lagga.cli:main_entry"

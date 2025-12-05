@@ -1,6 +1,5 @@
 from logging import raiseExceptions
 
-# from ._cpp import read_rfmix, read_flare
 from lagga._cpp import read_rfmix, read_flare
 import pandas as pd
 from pgenlib import PvarReader, PgenReader
