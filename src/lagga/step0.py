@@ -5,7 +5,7 @@ import numpy as np
 from .data import GenoAncestryDataset
 from ._utils import _stdize
 from tqdm import tqdm
-from .models import _ridge_masked
+from .models import _ridge
 from typing import Optional
 
 
@@ -30,7 +30,7 @@ def _step0_block(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Z_block: A (N, len(h2_prior), P) numpy array of predictions
+        Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
     G = dataset.get_geno(block)
@@ -42,7 +42,7 @@ def _step0_block(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge = jax.vmap(_ridge_masked, in_axes=(None, None, 1, 1, None))
+    ridge = jax.vmap(_ridge, in_axes=(None, None, 1, 1, None))
     Z_block = jnp.sum(ridge(G, Y, train_mask, test_mask, alphas), axis=0)
     Z_block = np.asarray(_stdize(Z_block))
     return Z_block
@@ -73,7 +73,7 @@ def _step0_dataset(
         desc: A string describing the dataset, used for tracking progress
 
     Returns:
-        Z_chroms: A dict where keys are chromosomes and values are (N, N_predictors, P) numpy arrays of step 0 predictions
+        Z_chroms: A dict where keys are chromosomes and values are (N, P, N_predictors) numpy arrays of step 0 predictions
     """
 
     ## Get variant indices
@@ -144,7 +144,7 @@ def step0(
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
 
     Returns:
-        Z: A dict where keys are chromosomes and values are (N, N_blocks, P) numpy arrays of step 0 predictions
+        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) numpy arrays of step 0 predictions
     """
 
     ## Residualize and standardize phenotypes

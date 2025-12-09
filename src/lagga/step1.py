@@ -4,14 +4,19 @@ from jaxtyping import Array
 import numpy as np
 from ._utils import _stdize
 from tqdm import tqdm
-from .models import _ridge_masked
+from .models import _ridge, _logistic_ridge, _logistic_ridge_loo
+from typing import Optional
+
+### ─────────────────────────────────────────────────────────────
+### Quantitative Traits
+### ─────────────────────────────────────────────────────────────
 
 
-def _ridge_cv(Z, Y, train_mask, test_mask, h2_prior):
-    """Get level 1 predictions for a single chromosome
+def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
+    """Get level 1 predictions for a single chromosome for quantitative traits
 
     Args:
-        Z: A (N, N_blocks, P) jax array of step 0 predictions (for a single chromosome)
+        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
         Y: A (N, P) jax array of (residualized, standardize) phenotypes
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
@@ -32,7 +37,7 @@ def _ridge_cv(Z, Y, train_mask, test_mask, h2_prior):
     Yhat_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
     for fold in range(k):
         for pheno in range(p):
-            ridge_fold = _ridge_masked(
+            ridge_fold = _ridge(
                 Z[:, pheno, :],
                 Y[:, pheno],
                 train_mask[:, fold],
@@ -65,7 +70,7 @@ def step1_qt(
     """Perform level 1 ridge regressions for quantitative phenotypes
 
     Args:
-        Z: A dict where keys are chromosomes and values are (N, N_blocks, P) jax arrays of step 0 predictions
+        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
@@ -91,8 +96,153 @@ def step1_qt(
         step1_predictions = {}
         for chrom, Z_chrom in Z.items():
             Yhat_chrom = np.empty(shape=(n, p), dtype=np.float32)
-            Yhat_chrom = _ridge_cv(Z_chrom, Y, train_mask, test_mask, h2_prior)
+            Yhat_chrom = _ridge_cv_qt(Z_chrom, Y, train_mask, test_mask, h2_prior)
             step1_predictions[chrom] = Yhat_chrom
+            pbar.update(1)
+
+    return step1_predictions
+
+
+### ─────────────────────────────────────────────────────────────
+### Binary Traits
+### ─────────────────────────────────────────────────────────────
+
+
+def _ridge_loocv_bt(Z, Y, offset, h2_prior):
+    """Get level 1 LOOCV predictions for a single chromosome for binary traits
+
+    Args:
+        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
+        Y: A (N, P) jax array of phenotypes
+        offset: A (N, P) jax array of offsets from covariate model
+        h2_prior: A 1D jax array of prior values for snp heritability
+
+    """
+    ## Assign dimensions
+    n, p = Y.shape
+    a = len(h2_prior)
+
+    ## Calculate penalties based on prior heritability
+    alphas = Z.shape[2] * (1 - h2_prior) / h2_prior
+
+    ## Would love to vmap this but it uses way too much memory
+    eta_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
+    for pheno in range(p):
+        loocv_model = jax.vmap(
+            _logistic_ridge_loo, in_axes=(None, None, None, 0), out_axes=1
+        )
+        eta_pheno = loocv_model(Z[:, pheno, :], Y[:, pheno], offset[:, pheno], alphas)
+        eta_alphas[:, pheno, :] += eta_pheno
+
+    # Get best CV alpha per-phenotype
+    l_i_alphas = Y[:, :, None] * eta_alphas - jnp.log(1 + jnp.exp(eta_alphas))
+    l_alphas = jnp.sum(l_i_alphas, axis=0)
+    alpha_idx = np.argmax(l_alphas, axis=1)
+
+    # Get best CV prediction
+    eta_hat = np.take_along_axis(eta_alphas, alpha_idx[None, :, None], axis=2).squeeze(
+        axis=2
+    )
+    return eta_hat
+
+
+def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
+    """Get level 1 CV predictions for a single chromosome for binary traits
+
+    Args:
+        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
+        Y: A (N, P) jax array of phenotypes
+        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
+        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
+        offset: A (N, P) jax array of offsets from covariate model
+        h2_prior: A 1D jax array of prior values for snp heritability
+
+    """
+    ## Assign dimensions
+    n, p = Y.shape
+    _, k = train_mask.shape
+    a = len(h2_prior)
+
+    ## Calculate penalties based on prior heritability
+    alphas = Z.shape[2] * (1 - h2_prior) / h2_prior
+
+    ## Would love to vmap this but it uses way too much memory
+    eta_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
+    for fold in range(k):
+        for pheno in range(p):
+            cv_model = jax.vmap(
+                _logistic_ridge, in_axes=(None, None, None, None, 0), out_axes=1
+            )
+            eta_pheno_fold = cv_model(
+                Z[:, pheno, :],
+                Y[:, pheno],
+                offset[:, pheno],
+                train_mask[:, fold],
+                alphas,
+            )
+            eta_pheno_fold = eta_pheno_fold * test_mask[:, fold][:, None]
+            eta_alphas[:, pheno, :] += eta_pheno_fold
+
+    # Get best CV alpha per-phenotype
+    l_i_alphas = Y[:, :, None] * eta_alphas - jnp.log(1 + jnp.exp(eta_alphas))
+    l_alphas = jnp.sum(l_i_alphas, axis=0)
+    alpha_idx = np.argmax(l_alphas, axis=1)
+
+    # Get best CV prediction
+    eta_hat = np.take_along_axis(eta_alphas, alpha_idx[None, :, None], axis=2).squeeze(
+        axis=2
+    )
+    return eta_hat
+
+
+def step1_bt(
+    Z: dict[str, np.ndarray],
+    Y: Array,
+    X: Array,
+    loocv: bool,
+    train_mask: Optional[Array],
+    test_mask: Optional[Array],
+    h2_prior: Array,
+):
+    """Perform level 1 ridge regressions for binary phenotypes
+
+    Args:
+        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
+        Y: A (N, P) jax array of phenotypes
+        X: A (N, C) jax array of covariates
+        loocv: A logical indicating whether to perform LOOCV. If False, train_mask, test_mask must be provided
+        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
+        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
+        h2_prior: A 1D jax array of prior values for snp heritability
+
+    Returns:
+        step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
+    """
+
+    n, p = Y.shape
+
+    ## Covariate-only model
+    covar_model = jax.vmap(
+        _logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
+    )
+    offset = covar_model(X, Y, jnp.zeros(X.shape[0]), jnp.ones(X.shape[0]), 1e-12)
+
+    ## Perform step 1 for each chromosome
+    with tqdm(
+        total=len(Z),
+        desc="Getting step 1 predictions",
+        unit="chromosomes",
+    ) as pbar:
+        step1_predictions = {}
+        for chrom, Z_chrom in Z.items():
+            eta_hat_chrom = np.empty(shape=(n, p), dtype=np.float32)
+            if loocv:
+                eta_hat_chrom = _ridge_loocv_bt(Z_chrom, Y, offset, h2_prior)
+            else:
+                eta_hat_chrom = _ridge_cv_bt(
+                    Z_chrom, Y, train_mask, test_mask, offset, h2_prior
+                )
+            step1_predictions[chrom] = eta_hat_chrom
             pbar.update(1)
 
     return step1_predictions
