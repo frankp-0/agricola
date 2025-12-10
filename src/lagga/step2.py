@@ -103,7 +103,8 @@ def _step2_qt_block(
     beta_hat = np.array(res["beta_hat"])
 
     ## Calculate p-values
-    log10p_overall = chi2.logsf(wald, G.shape[2]) / np.log(10)
+    df_wald = jnp.sum(jnp.sum(G, axis=0) != 0, axis=1)[:, None]
+    log10p_overall = chi2.logsf(wald, df_wald) / np.log(10)
     log10p_anc = chi2.logsf((beta_hat / se) ** 2, 1) / np.log(10)
 
     ## Create array with results
@@ -312,7 +313,7 @@ def _step2_bt_core(
             jax.vmap(_logistic, in_axes=(2, 1, 1, None)), in_axes=(1, None, None, None)
         )
     )
-    beta = logistic_model(X, Y, O, 20)
+    beta = logistic_model(X, Y, O, 10)
     eta = jnp.einsum("nbkp,bpk->nbp", X, beta) + O[:, None, :]
     mu = _sigmoid(eta)
     w = mu * (1 - mu)
@@ -372,7 +373,8 @@ def _step2_bt_block(
     beta_hat = np.array(res["beta_hat"])
 
     ## Calculate p-values
-    log10p_overall = chi2.logsf(wald, G.shape[2]) / np.log(10)
+    df_wald = jnp.sum(jnp.sum(G, axis=0) != 0, axis=1)[:, None]
+    log10p_overall = chi2.logsf(wald, df_wald) / np.log(10)
     log10p_anc = chi2.logsf((beta_hat / se) ** 2, 1) / np.log(10)
 
     ## Create array with results
