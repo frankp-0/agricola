@@ -2,11 +2,11 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array
 import numpy as np
+from tqdm import tqdm
+from typing import Optional
 from .data import GenoAncestryDataset
 from ._utils import _stdize
-from tqdm import tqdm
 from .models import _ridge
-from typing import Optional
 
 
 def _step0_block(

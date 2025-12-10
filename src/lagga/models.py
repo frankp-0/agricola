@@ -88,6 +88,30 @@ def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     return beta_new
 
 
+def _logistic(X, y, offset, max_iter=20, tol=1e-12):
+    """Perform logistic regression
+
+    Returns estimated coefficients
+
+    Args:
+        X: (N, V) jax array of predictors
+        y: (N,) jax array of the outcome
+        offset: (N,) jax array with offset
+        max_iter: max number of iterations
+
+    Returns:
+        beta: (N,) jax array of linear predictors
+    """
+    beta0 = jnp.zeros(X.shape[1])
+
+    def body_fun(i, beta):
+        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), tol)
+
+    beta = lax.fori_loop(0, max_iter, body_fun, beta0)
+
+    return beta
+
+
 def _logistic_ridge(X, y, offset, w_train, alpha, max_iter=50):
     """Perform logistic ridge regression
 

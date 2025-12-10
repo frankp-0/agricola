@@ -2,10 +2,10 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array
 import numpy as np
-from ._utils import _stdize
 from tqdm import tqdm
-from .models import _ridge, _logistic_ridge, _logistic_ridge_loo
 from typing import Optional
+from ._utils import _stdize
+from .models import _ridge, _logistic, _logistic_ridge, _logistic_ridge_loo
 
 ### ─────────────────────────────────────────────────────────────
 ### Quantitative Traits
@@ -222,10 +222,8 @@ def step1_bt(
     n, p = Y.shape
 
     ## Covariate-only model
-    covar_model = jax.vmap(
-        _logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
-    )
-    offset = covar_model(X, Y, jnp.zeros(X.shape[0]), jnp.ones(X.shape[0]), 1e-12)
+    covar_model = jax.vmap(_logistic, in_axes=(None, 1, None), out_axes=1)
+    offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
 
     ## Perform step 1 for each chromosome
     with tqdm(
@@ -235,7 +233,6 @@ def step1_bt(
     ) as pbar:
         step1_predictions = {}
         for chrom, Z_chrom in Z.items():
-            eta_hat_chrom = np.empty(shape=(n, p), dtype=np.float32)
             if loocv:
                 eta_hat_chrom = _ridge_loocv_bt(Z_chrom, Y, offset, h2_prior)
             else:
