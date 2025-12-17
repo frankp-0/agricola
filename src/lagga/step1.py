@@ -4,7 +4,7 @@ from jaxtyping import Array
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
-from ._utils import _stdize
+from ._utils import _stdize, _assert_covar_full_rank
 from .models import _ridge, _logistic, _logistic_ridge, _logistic_ridge_loo
 
 ### ─────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
 def step1_qt(
     Z: dict[str, np.ndarray],
     Y: Array,
-    X: Array,
+    X: Optional[Array],
     train_mask: Array,
     test_mask: Array,
     h2_prior: Array,
@@ -72,7 +72,7 @@ def step1_qt(
     Args:
         Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
         Y: A (N, P) jax array of phenotypes
-        X: A (N, C) jax array of covariates
+        X: A (N, C) jax array of covariates (no intercept)
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
@@ -84,6 +84,12 @@ def step1_qt(
     n, p = Y.shape
 
     ## Residualize and standardize phenotypes
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = _stdize(X)
+    _assert_covar_full_rank(X)
     Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = _stdize(Y - (Q @ (Q.T @ Y)))
 
@@ -198,7 +204,7 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
 def step1_bt(
     Z: dict[str, np.ndarray],
     Y: Array,
-    X: Array,
+    X: Optional[Array],
     loocv: bool,
     train_mask: Optional[Array],
     test_mask: Optional[Array],
@@ -209,7 +215,7 @@ def step1_bt(
     Args:
         Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
         Y: A (N, P) jax array of phenotypes
-        X: A (N, C) jax array of covariates
+        X: An optional (N, C) jax array of covariates (no intercept)
         loocv: A logical indicating whether to perform LOOCV. If False, train_mask, test_mask must be provided
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
@@ -218,10 +224,14 @@ def step1_bt(
     Returns:
         step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
     """
-
-    n, p = Y.shape
-
     ## Covariate-only model
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = _stdize(X)
+    _assert_covar_full_rank(X)
+
     covar_model = jax.vmap(_logistic, in_axes=(None, 1, None), out_axes=1)
     offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
 

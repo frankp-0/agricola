@@ -40,11 +40,9 @@ def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
 
     if covar_file:
         covars = pd.read_csv(covar_file).to_numpy()
-        X = jnp.asarray(
-            np.concatenate([np.ones((len(Y), 1), np.float32), covars], axis=1)
-        )
+        X = jnp.asarray(covars)
     else:
-        X = jnp.ones((len(Y), 1), dtype=np.float32)
+        X = None
 
     return Y, X, df_pheno.columns.to_list()
 

@@ -12,7 +12,7 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from .data import GenoAncestryDataset
-from ._utils import _stdize
+from ._utils import _stdize, _assert_covar_full_rank
 from .models import _logistic
 
 
@@ -31,13 +31,18 @@ def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
         Y: A (N, P) jax array of LOCO phenotypes
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
     """
-    ## Adjust local ancestry and anc-deconvoluted genotypes
-    QG = jnp.einsum("nc,nbk->cbk", Q, G)
-    G = G - jnp.einsum("nc,cbk->nbk", Q, QG)
-    QL = jnp.einsum("nc,nbk->cbk", Q, L)
-    L = L - jnp.einsum("nc,cbk->nbk", Q, QL)
+    ## Make homogeneous anc
+    H = jnp.sum(G, axis=2)
 
-    # Fit null model
+    ## Adjust local ancestry and genotypes
+    QG = jnp.einsum("nc,nbk->cbk", Q, G)
+    QL = jnp.einsum("nc,nbk->cbk", Q, L)
+    QH = jnp.einsum("nc,nb->cb", Q, H)
+    G = G - jnp.einsum("nc,cbk->nbk", Q, QG)
+    L = L - jnp.einsum("nc,cbk->nbk", Q, QL)
+    H = H - jnp.einsum("nc,cb->nb", Q, QH)
+
+    ## Fit null model
     LtL = jnp.einsum("nbc,nbd->bcd", L, L)
     I_ = jnp.identity(LtL.shape[1], LtL.dtype)
     LtL_inv = jnp.linalg.inv(LtL + 1e-8 * I_[None, :, :])
@@ -45,26 +50,48 @@ def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
     beta_L = LtL_inv @ LtY
     r_L = Y[:, None, :] - jnp.einsum("nbc,bcp->nbp", L, beta_L)
 
-    # Score
-    S = jnp.einsum("nbk,nbp->bkp", G, r_L)
-    GtL = jnp.einsum("nbk,nbc->bkc", G, L)
-    G_proj_nL = G - jnp.einsum(
-        "nbc,bkc->nbk", jnp.einsum("nbc,bcd->nbc", L, LtL_inv), GtL
-    )
+    ## MSE under null
     sig2 = jnp.sum(Y**2, axis=0) / (Y.shape[0] - L.shape[2])
-    S_den_inv = jax.scipy.linalg.inv(
-        jnp.einsum("nbk,nbl->bkl", G_proj_nL, G_proj_nL)
+
+    ## Get residualized genotypes
+    GtL = jnp.einsum("nbk,nbc->bkc", G, L)
+    HtL = jnp.einsum("nb,nbc->bc", H, L)
+    G_res = G - jnp.einsum("nbc,bkc->nbk", jnp.einsum("nbc,bcd->nbc", L, LtL_inv), GtL)
+    H_res = H - jnp.einsum("nbc,bc->nb", jnp.einsum("nbc,bcd->nbc", L, LtL_inv), HtL)
+
+    ## Get masks based on variance
+    var_G = jnp.var(G_res, axis=0)
+    var_H = jnp.var(H_res, axis=0)
+    mask_G = var_G > 1e-8
+    mask_H = var_H > 1e-8
+
+    ## Score for anc-deconvoluted genotypes
+    U = jnp.einsum("nbk,nbp->bkp", G, r_L)
+    U = U * mask_G[:, :, None]  # apply mask
+    I22_inv = jax.scipy.linalg.inv(
+        jnp.einsum("nbk,nbl->bkl", G_res, G_res)
         + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
     )
-    score = (
-        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkk->bkp", S, S_den_inv), S)
+    I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
+    chisq_het = (
+        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkk->bkp", U, I22_inv), U)
         / sig2[None, :]
     )
 
-    K = jnp.einsum("nbk,nbl->bkl", G_proj_nL, G_proj_nL)
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
+
+    # Score for genotypes
+    UH = jnp.einsum("nb,nbp->bp", H, r_L)
+    UH = UH * mask_H[:, None]  # apply mask
+    I22_inv_H = 1 / (jnp.einsum("nb,nb->b", H_res, H_res) + 1e-10)
+    I22_inv_H = I22_inv_H * mask_H  # apply mask
+    chisq_hom = (UH**2) * I22_inv_H[:, None]
+
+    K = jnp.einsum("nbk,nbl->bkl", G_res, G_res)
     eigvals = jnp.linalg.eigvalsh(K)
-    df_eff = jnp.sum(eigvals > 1e-8, axis=1)
-    return score, df_eff
+    df_het = jnp.sum(eigvals > 1e-8, axis=1)
+
+    return chisq_het, chisq_hom, beta_anc, df_het
 
 
 def _step2_qt_block(
@@ -72,7 +99,7 @@ def _step2_qt_block(
     Y: Array,
     Q: Array,
     block: np.ndarray,
-    min_anc_ac: int = 1,
+    min_ac: int = 1,
 ):
     """Perform GWAS for quantitative traits for a single block of variants
 
@@ -81,7 +108,7 @@ def _step2_qt_block(
         Y: A (N, P) jax array of LOCO phenotypes
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
         block: A (B,) ndarray with indices of variants in the block
-        min_anc_ac: The minimum count of ancestry-deconvoluted alleles to test
+        min_ac: The minimum count of alleles to test
 
     Returns:
         result_dfs: A list of pandas tables (per-phenotype) with GWAS results
@@ -90,29 +117,31 @@ def _step2_qt_block(
     ## Query local ancestry and anc-deconvoluted genotypes
     G = dataset.get_lanc_geno(block)
     L = dataset.get_lanc_unphased(block)[:, :, 1:]
-    score, df = _step2_qt_core(G, L, Y, Q)
+    chisq_het, chisq_hom, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
 
-    log10p_overall = chi2.logsf(score, df[:, None]) / np.log(10)
+    log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
+    log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
     result_arr = np.concatenate(
         [
-            log10p_overall[:, None, :],
+            log10p_het[:, None, :],
+            log10p_hom[:, None, :],
+            beta_anc,
         ],
         axis=1,
     )
 
     ## Get column names for results
-    colnames: List[str] = [
-        "log10p_overall",
-    ]
+    ancs = dataset.ancestries
+    colnames: List[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
     block_info["N"] = Y.shape[0]
 
-    ## Filter out variants that fail min_anc_ac
-    anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_anc_ac
+    ## Filter out variants that fail min_ac
+    anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
     valid_idx = np.array(anc_variant_mask)
     block_info_filtered = block_info[valid_idx]
     result_arr_filtered = result_arr[valid_idx, :, :]
@@ -239,6 +268,7 @@ def step2_qt(
     """
 
     ## Residualize and standardize phenotypes
+    X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
     Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = _stdize(Y - (Q @ (Q.T @ Y)))
 
@@ -276,30 +306,38 @@ def _step2_bt_core(
         W_sqrt:
         O: A (N, P) jax array of offsets (from covariate-only model)
     """
+
+    ## Residualize G, H, L by covariates
+    H = jnp.sum(G, axis=2)
+    H = H[:, :, None] - jnp.einsum(
+        "ncp,cbp->nbp",
+        Q_w,
+        jnp.einsum("ncp,nbp->cbp", Q_w, H[:, :, None] * W_sqrt[:, None, :]),
+    )
+
     G = G[:, :, :, None] - jnp.einsum(
         "ncp,cbkp->nbkp",
         Q_w,
         jnp.einsum("ncp,nbkp->cbkp", Q_w, G[:, :, :, None] * W_sqrt[:, None, None, :]),
     )
-    G = G - jnp.mean(G, axis=0)
 
     L = L[:, :, :, None] - jnp.einsum(
         "ncp,cbap->nbap",
         Q_w,
         jnp.einsum("ncp,nbap->cbap", Q_w, L[:, :, :, None] * W_sqrt[:, None, None, :]),
     )
-    L = L - jnp.mean(L, axis=0)
 
+    ## Fit L + covariate offset null model
     logistic_model = jax.vmap(
         jax.vmap(_logistic, in_axes=(2, 1, 1, None)), in_axes=(1, None, None, None)
     )
-
     beta = logistic_model(L, Y, O, 10)
     eta = jnp.einsum("nbap,bpa->nbp", L, beta) + O[:, None, :]
     mu = expit(eta)
     R = Y[:, None, :] - mu
     W_L_sqrt = jnp.sqrt(mu * (1 - mu))
 
+    ## Residualize G, H by L
     QL, _ = jnp.linalg.qr(
         jnp.moveaxis(L * W_L_sqrt[:, :, None, :], (0, 1, 2, 3), (2, 0, 3, 1)),
         mode="reduced",
@@ -310,19 +348,38 @@ def _step2_bt_core(
         QL,
         jnp.einsum("nbap,nbkp->bakp", QL, G * W_L_sqrt[:, :, None, :]),
     )
-    G_res = G_res - jnp.mean(G_res, axis=0)
+    H_res = H * W_L_sqrt - jnp.einsum(
+        "nbap,bap->nbp", QL, jnp.einsum("nbap,nbp->bap", QL, H * W_L_sqrt)
+    )
 
+    ## Get masks based on variance
+    var_G = jnp.var(G_res, axis=0)
+    var_H = jnp.var(H_res, axis=0)
+    mask_G = var_G > 1e-8
+    mask_H = var_H > 1e-8
+
+    ## Score for anc-deconvoluted genotypes
+    U = jnp.einsum("nbkp,nbp->bkp", G, R)
+    U = U * mask_G  # apply mask
     I22_inv = jnp.linalg.inv(
         jnp.einsum("nbkp,nblp->bpkl", G_res, G_res)
         + 1e-8 * jnp.eye(G_res.shape[2])[None, None, :, :],
     )
-    U = jnp.einsum("nbkp,nbp->bpk", G, R)
-    score = jnp.einsum("bpk,bpkl,bpl->bp", U, I22_inv, U)
+    I22_inv = I22_inv * jnp.einsum("bkp,blp->bpkl", mask_G, mask_G)  # apply mask
+    chisq_het = jnp.einsum("bkp,bpkl,blp->bp", U, I22_inv, U)
+
+    UH = jnp.einsum("nbp,nbp->bp", H, R)
+    UH = UH * mask_H  # apply mask
+    I22_inv_H = 1 / (jnp.einsum("nbp,nbp->bp", H_res, H_res) + 1e-8)
+    I22_inv_H = I22_inv_H * mask_H
+    chisq_hom = (UH**2) * I22_inv_H
+
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
 
     K = jnp.einsum("nbkp,nblp->bpkl", G, G)
     eigvals = jnp.linalg.eigvalsh(K)
-    df_eff = jnp.sum(eigvals > 1e-8, axis=2)
-    return score, df_eff
+    df_het = jnp.sum(eigvals > 1e-8, axis=2)
+    return chisq_hom, chisq_het, beta_anc, df_het
 
 
 def _step2_bt_block(
@@ -337,22 +394,20 @@ def _step2_bt_block(
     G = dataset.get_lanc_geno(block)
     L = dataset.get_lanc_unphased(block)[:, :, 1:]
 
-    score, df = _step2_bt_core(G, L, Y, Q_w, W_sqrt, O)
+    chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(G, L, Y, Q_w, W_sqrt, O)
 
-    log10p_overall = chi2.logsf(score, df) / np.log(10)
+    log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
+    log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
     result_arr = np.concatenate(
-        [
-            log10p_overall[:, None, :],
-        ],
+        [log10p_het[:, None, :], log10p_hom[:, None, :], beta_anc],
         axis=1,
     )
 
     ## Get column names for results
-    colnames: List[str] = [
-        "log10p_overall",
-    ]
+    ancs = dataset.ancestries
+    colnames: List[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
@@ -475,7 +530,7 @@ def _step2_bt_dataset(
 def step2_bt(
     datasets: list[GenoAncestryDataset],
     Y: Array,
-    X: Array,
+    X: Optional[Array],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
     phenotypes: list[str],
@@ -495,6 +550,13 @@ def step2_bt(
         B: The block size (max number of variants to read at once)
     """
     ## Fit covariate-only model
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = _stdize(X)
+    _assert_covar_full_rank(X)
+
     covar_model = jax.vmap(_logistic, in_axes=(None, 1, None), out_axes=1)
     offset_covar = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
 

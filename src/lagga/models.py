@@ -85,7 +85,7 @@ def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     return beta_new
 
 
-def _logistic(X, y, offset, max_iter=20, tol=1e-12):
+def _logistic(X, y, offset, max_iter=20, alpha=0):
     """Perform logistic regression
 
     Returns estimated coefficients
@@ -102,7 +102,7 @@ def _logistic(X, y, offset, max_iter=20, tol=1e-12):
     beta0 = jnp.zeros(X.shape[1])
 
     def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), tol)
+        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), alpha)
 
     beta = lax.fori_loop(0, max_iter, body_fun, beta0)
 
