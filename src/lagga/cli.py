@@ -2,6 +2,7 @@ import logging
 import pickle
 import typer
 from typing import Optional, List
+import os
 
 from . import __version__
 
@@ -14,6 +15,13 @@ logger = logging.getLogger("lagga")
 # ---------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------
+
+
+def _configure_jax_logging():
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+    os.environ.setdefault("ABSL_LOGGING_MIN_LEVEL", "3")
+
+
 def list_from_csv(arg: Optional[str]) -> Optional[List[str]]:
     return None if arg is None else [x.strip() for x in arg.split(",")]
 
@@ -315,6 +323,7 @@ def all_steps(
 
 
 def main_entry():
+    _configure_jax_logging()
     try:
         app()
     except Exception as exc:
