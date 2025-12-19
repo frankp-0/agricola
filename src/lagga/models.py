@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.lax as lax
+from jax.scipy.special import expit
 
 ### ─────────────────────────────────────────────────────────────
 ### Quantitative Traits
@@ -57,10 +58,6 @@ def _ridge(X, Y, w_train, w_test, alphas):
 ### ─────────────────────────────────────────────────────────────
 
 
-def _sigmoid(x):
-    return jnp.clip(0.5 * (1.0 + jax.nn.tanh(0.5 * x)), 1e-12, 1 - 1e-12)
-
-
 def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     """Updates coefficients in logistic ridge regression
 
@@ -77,7 +74,7 @@ def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     """
 
     eta = X @ beta + offset
-    mu = _sigmoid(eta)
+    mu = expit(eta)
     r = (y - mu) * w_train
     w = mu * (1 - mu) * w_train
     XW = X * w[:, None]
@@ -88,7 +85,7 @@ def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     return beta_new
 
 
-def _logistic(X, y, offset, max_iter=20, tol=1e-12):
+def _logistic(X, y, offset, max_iter=20, alpha=0):
     """Perform logistic regression
 
     Returns estimated coefficients
@@ -105,7 +102,7 @@ def _logistic(X, y, offset, max_iter=20, tol=1e-12):
     beta0 = jnp.zeros(X.shape[1])
 
     def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), tol)
+        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), alpha)
 
     beta = lax.fori_loop(0, max_iter, body_fun, beta0)
 
@@ -163,7 +160,7 @@ def _logistic_ridge_loo(X, y, offset, alpha, max_iter=50):
 
     beta = lax.fori_loop(0, max_iter, body_fun, beta0)
     eta = X @ beta + offset
-    mu = _sigmoid(eta)
+    mu = expit(eta)
     w = mu * (1 - mu)
     XW = X * w[:, None]
     H_inv = jax.scipy.linalg.inv((X.T @ XW) + (alpha * jnp.eye(X.shape[1])))

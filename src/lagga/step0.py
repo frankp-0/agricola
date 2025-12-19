@@ -4,8 +4,8 @@ from jaxtyping import Array
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
-from .data import GenoAncestryDataset
-from ._utils import _stdize
+from lanctools import GenoAncestryDataset
+from ._utils import _stdize, _assert_covar_full_rank
 from .models import _ridge
 
 
@@ -33,7 +33,7 @@ def _step0_block(
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
-    G = dataset.get_geno(block)
+    G = jnp.asarray(dataset.get_geno(block), dtype=jnp.float32)
     G = G[:, :, 0] + G[:, :, 1]
     G = _stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
 
@@ -124,7 +124,7 @@ def _step0_dataset(
 def step0(
     datasets: list[GenoAncestryDataset],
     Y: Array,
-    X: Array,
+    X: Optional[Array],
     train_mask: Array,
     test_mask: Array,
     h2_prior: Array,
@@ -136,7 +136,7 @@ def step0(
     Args:
         datasets: A list of GenoAncestryDataset objects (likely one per chromosome)
         Y: A (N, P) jax array of phenotypes
-        X: A (N, C) jax array of covariates
+        X: A (N, C) jax array of covariates (no intercept)
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
@@ -148,6 +148,13 @@ def step0(
     """
 
     ## Residualize and standardize phenotypes
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = _stdize(X)
+    _assert_covar_full_rank(X)
+
     Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
     Y = _stdize(Y - (Q @ (Q.T @ Y)))
 

@@ -2,6 +2,7 @@ import logging
 import pickle
 import typer
 from typing import Optional, List
+import os
 
 from . import __version__
 
@@ -14,6 +15,13 @@ logger = logging.getLogger("lagga")
 # ---------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------
+
+
+def _configure_jax_logging():
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+    os.environ.setdefault("ABSL_LOGGING_MIN_LEVEL", "3")
+
+
 def list_from_csv(arg: Optional[str]) -> Optional[List[str]]:
     return None if arg is None else [x.strip() for x in arg.split(",")]
 
@@ -32,17 +40,15 @@ def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
 
     if covar_file:
         covars = pd.read_csv(covar_file).to_numpy()
-        X = jnp.asarray(
-            np.concatenate([np.ones((len(Y), 1), np.float32), covars], axis=1)
-        )
+        X = jnp.asarray(covars)
     else:
-        X = jnp.ones((len(Y), 1), dtype=np.float32)
+        X = None
 
     return Y, X, df_pheno.columns.to_list()
 
 
 def load_GAD(plinks, lancs, ancestries):
-    from .data import GenoAncestryDataset
+    from lanctools import GenoAncestryDataset
 
     return [
         GenoAncestryDataset.from_plink(plinks[i], lancs[i], ancestries)
@@ -110,12 +116,18 @@ def step1(
     ),
     block_size: int = typer.Option(2000, help="Number of variants per block"),
     seed: int = typer.Option(100, help="Random seed"),
+    trait_type: str = typer.Option(
+        "qt", help="Trait type: quantitative (qt) or binary (bt)"
+    ),
+    loocv: bool = typer.Option(
+        False, help="Use leave-one-out cross-validation (only for rare binary traits)"
+    ),
 ):
     import jax.numpy as jnp
     import jax
     from ._utils import _get_cv_mask
     from .step0 import step0
-    from .step1 import step1_qt
+    from .step1 import step1_qt, step1_bt
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -133,7 +145,11 @@ def step1(
 
     ## Run steps 0 and 1
     Z = step0(datasets, Y, X, train_mask, test_mask, h2_prior_arr, block_size, variants)
-    predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
+
+    if trait_type == "qt":
+        predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
+    else:
+        predictions = step1_bt(Z, Y, X, loocv, train_mask, test_mask, h2_prior_arr)
 
     ## Write predictions
     with open(out_prefix + ".pkl", "wb") as f:
@@ -169,8 +185,11 @@ def step2(
         None, help="File with variants to include, one per line"
     ),
     block_size: int = typer.Option(1000, help="Number of variants per block"),
+    trait_type: str = typer.Option(
+        "qt", help="Trait type: quantitative (qt) or binary (bt)"
+    ),
 ):
-    from .step2 import step2_qt
+    from .step2 import step2_qt, step2_bt
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -187,9 +206,14 @@ def step2(
         predictions = pickle.load(file)
 
     ## Run step 2
-    step2_qt(
-        datasets, Y, X, predictions, out_prefixes, pheno_names, block_size, variants
-    )
+    if trait_type == "qt":
+        step2_qt(
+            datasets, Y, X, predictions, out_prefixes, pheno_names, block_size, variants
+        )
+    else:
+        step2_bt(
+            datasets, Y, X, predictions, out_prefixes, pheno_names, block_size, variants
+        )
 
 
 # ---------------------------------------------------------
@@ -229,13 +253,19 @@ def all_steps(
         1000, help="Number of variants per block in step 2"
     ),
     seed: int = typer.Option(100, help="Random seed"),
+    trait_type: str = typer.Option(
+        "qt", help="Trait type: quantitative (qt) or binary (bt)"
+    ),
+    loocv: bool = typer.Option(
+        False, help="Use leave-one-out cross-validation (only for rare binary traits)"
+    ),
 ):
     import jax.numpy as jnp
     import jax
     from ._utils import _get_cv_mask
     from .step0 import step0
-    from .step1 import step1_qt
-    from .step2 import step2_qt
+    from .step1 import step1_qt, step1_bt
+    from .step2 import step2_qt, step2_bt
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -253,16 +283,36 @@ def all_steps(
     key = jax.random.PRNGKey(seed)
     train_mask, test_mask = _get_cv_mask(len(Y), 5, key)
 
-    ## Run steps 0 and 1
+    ## Run step 0
     Z = step0(
         datasets, Y, X, train_mask, test_mask, h2_prior_arr, block_size0, variants1
     )
-    predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
 
-    ## Run step 2
-    step2_qt(
-        datasets, Y, X, predictions, out_prefixes, pheno_names, block_size2, variants2
-    )
+    ## Run steps 1 and 2
+    if trait_type == "qt":
+        predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
+        step2_qt(
+            datasets,
+            Y,
+            X,
+            predictions,
+            out_prefixes,
+            pheno_names,
+            block_size2,
+            variants2,
+        )
+    else:
+        predictions = step1_bt(Z, Y, X, loocv, train_mask, test_mask, h2_prior_arr)
+        step2_bt(
+            datasets,
+            Y,
+            X,
+            predictions,
+            out_prefixes,
+            pheno_names,
+            block_size2,
+            variants2,
+        )
 
 
 # ---------------------------------------------------------
@@ -271,6 +321,7 @@ def all_steps(
 
 
 def main_entry():
+    _configure_jax_logging()
     try:
         app()
     except Exception as exc:
