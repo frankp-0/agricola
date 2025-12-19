@@ -9,6 +9,7 @@ dependencies = [
   "jax[cuda]>=0.8.0",
   "jaxlib>=0.8.0",
   "jaxtyping>=0.3.3",
+  "lanctools",
   "numba>=0.62.1",
   "numpy>=2.3.4",
   "pandas>=2.3.3",
@@ -27,6 +28,9 @@ dev = ["ipython>=9.6.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv.sources]
+lanctools = { git = "https://github.com/frankp-0/lanctools" }
 
 [project.scripts]
 lagga = "lagga.cli:main_entry"
