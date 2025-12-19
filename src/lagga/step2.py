@@ -11,7 +11,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
-from .data import GenoAncestryDataset
+from lanctools import GenoAncestryDataset
 from ._utils import _stdize, _assert_covar_full_rank
 from .models import _logistic
 
@@ -115,8 +115,8 @@ def _step2_qt_block(
     """
 
     ## Query local ancestry and anc-deconvoluted genotypes
-    G = dataset.get_lanc_geno(block)
-    L = dataset.get_lanc_unphased(block)[:, :, 1:]
+    G = jnp.asarray(dataset.get_lanc_geno(block), dtype=jnp.float32)
+    L = jnp.asarray(dataset.get_lanc_unphased(block)[:, :, 1:], dtype=jnp.float32)
     chisq_het, chisq_hom, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
 
     log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)

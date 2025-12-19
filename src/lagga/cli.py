@@ -48,7 +48,7 @@ def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
 
 
 def load_GAD(plinks, lancs, ancestries):
-    from .data import GenoAncestryDataset
+    from lanctools import GenoAncestryDataset
 
     return [
         GenoAncestryDataset.from_plink(plinks[i], lancs[i], ancestries)

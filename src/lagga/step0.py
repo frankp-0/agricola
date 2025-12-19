@@ -4,7 +4,7 @@ from jaxtyping import Array
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
-from .data import GenoAncestryDataset
+from lanctools import GenoAncestryDataset
 from ._utils import _stdize, _assert_covar_full_rank
 from .models import _ridge
 
@@ -33,7 +33,7 @@ def _step0_block(
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
-    G = dataset.get_geno(block)
+    G = jnp.asarray(dataset.get_geno(block), dtype=jnp.float32)
     G = G[:, :, 0] + G[:, :, 1]
     G = _stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
 

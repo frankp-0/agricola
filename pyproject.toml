@@ -1,6 +1,6 @@
 [project]
 name = "lagga"
-version = "0.1.0"
+version = "0.0.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Frank Ockerman", email = "frank.ockerman@gmail.com" }]
@@ -18,27 +18,12 @@ dependencies = [
   "typer>=0.20.0",
 ]
 
-[tool.scikit-build]
-minimum-version = "build-system.requires"
-build-dir = "build/{wheel_tag}"
-
-wheel.exclude = ["data", "result"]
-sdist.exclude = ["data", "result"]
-
-[tool.uv]
-cache-keys = [
-  { file = "pyproject.toml" },
-  { file = "src/**/*.{h,c,hpp,cpp}" },
-  { file = "CMakeLists.txt" },
-]
-
 [build-system]
-requires = ["scikit-build-core>=0.10", "pybind11"]
-build-backend = "scikit_build_core.build"
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = ["ipython>=9.6.0"]
-
 
 [tool.setuptools.packages.find]
 where = ["src"]
