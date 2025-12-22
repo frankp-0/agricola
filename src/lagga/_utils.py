@@ -1,9 +1,9 @@
 import jax
+from jaxtyping import Array
 import jax.numpy as jnp
-import numpy as np
 
 
-def stdize(X: jnp.ndarray) -> jnp.ndarray:
+def stdize(X: Array) -> Array:
     """Safely standardizes an ndarray along the first dimension.
 
     For columns with standard deviation of 0, this function does NOT subtract
@@ -17,7 +17,7 @@ def stdize(X: jnp.ndarray) -> jnp.ndarray:
     return result
 
 
-def get_cv_mask(n, k, key):
+def get_cv_mask(n: int, k: int, key: Array) -> tuple[Array, Array]:
     """Generate boolean train/test masks for k-fold cross-validation."""
     idx = jax.random.permutation(key, n)
     fold_sizes = jnp.full(k, n // k)
@@ -40,7 +40,7 @@ def get_cv_mask(n, k, key):
     return train_mask, test_mask
 
 
-def assert_covar_full_rank(X, rtol=1e-8):
+def assert_covar_full_rank(X: jnp.ndarray, rtol: float = 1e-8):
     """Raises ValueError if X does not have full column rank.
 
     Assumes X is standardized (columns ~ unit variance).
