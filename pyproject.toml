@@ -9,7 +9,7 @@ dependencies = [
   "jax>=0.6.2",
   "jaxlib>=0.6.2",
   "jaxtyping>=0.3.3",
-  "lanctools>=0.1.2",
+  "lanctools==0.1.3",
   "numba>=0.63.1",
   "numpy>=2.2.6",
   "pandas>=2.3.3",
@@ -18,12 +18,6 @@ dependencies = [
   "tqdm>=4.67.1",
   "typer>=0.20.0",
 ]
-
-[project.optional-dependencies]
-cuda = ["jax[cuda]>=0.6.2"]
-tpu = ["jax[tpu]>=0.6.2"]
-metal = ["jax[metal]>=0.6.2"]
-
 
 [build-system]
 requires = ["setuptools>=65.0", "wheel"]
@@ -39,3 +33,8 @@ where = ["src"]
 
 [project.scripts]
 lagga = "lagga.cli:main_entry"
+
+[project.optional-dependencies]
+metal = ["jax-metal>=0.1.1"]
+cuda = ["jax[cuda]>=0.6.2"]
+tpu = ["jax[tpu]>=0.6.2"]
