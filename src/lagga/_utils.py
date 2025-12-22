@@ -45,10 +45,7 @@ def assert_covar_full_rank(X, rtol=1e-8):
 
     Assumes X is standardized (columns ~ unit variance).
     """
-    # singular values sorted descending
     S = jnp.linalg.svd(X, compute_uv=False)
-
-    # effective rank
     rank = jnp.sum(S > rtol * S[0])
 
     if rank < X.shape[1]:
