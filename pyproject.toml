@@ -24,7 +24,7 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = ["ipython>=8.37.0"]
+dev = ["ipython>=8.37.0", "pytest>=9.0.2", "pytest-cov>=7.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -37,3 +37,14 @@ lagga = "lagga.cli:main_entry"
 [project.optional-dependencies]
 cuda = ["jax[cuda]>=0.6.2"]
 tpu = ["jax[tpu]>=0.6.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "--cov=src",
+  "--cov-report=term-missing",
+]
