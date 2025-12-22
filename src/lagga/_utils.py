@@ -23,8 +23,8 @@ def get_cv_mask(n, k, key):
     fold_size = n // k
     folds = [idx[i * fold_size : (i + 1) * fold_size] for i in range(k)]
 
-    train_mask = np.zeros((n, k), dtype=jnp.bool)
-    test_mask = np.zeros((n, k), dtype=jnp.bool)
+    train_mask = np.zeros((n, k), dtype=bool)
+    test_mask = np.zeros((n, k), dtype=bool)
     for fold in range(k):
         idx_train = jnp.concatenate([folds[i] for i in range(k) if i != fold])
         test_mask[folds[fold], fold] = True
