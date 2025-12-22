@@ -18,24 +18,30 @@ def stdize(X: jnp.ndarray) -> jnp.ndarray:
 
 
 def get_cv_mask(n, k, key):
-    """ "Returns tuple of boolean of training set mask and test set mask"""
+    """Generate boolean train/test masks for k-fold cross-validation."""
     idx = jax.random.permutation(key, n)
-    fold_size = n // k
-    folds = [idx[i * fold_size : (i + 1) * fold_size] for i in range(k)]
+    fold_sizes = jnp.full(k, n // k)
+    fold_sizes = fold_sizes.at[: n % k].add(1)
+    folds = []
+    start = 0
+    for size in fold_sizes:
+        folds.append(idx[start : start + size])
+        start += size
 
-    train_mask = np.zeros((n, k), dtype=bool)
-    test_mask = np.zeros((n, k), dtype=bool)
+    train_mask = jnp.zeros((n, k), dtype=bool)
+    test_mask = jnp.zeros((n, k), dtype=bool)
+
     for fold in range(k):
-        idx_train = jnp.concatenate([folds[i] for i in range(k) if i != fold])
-        test_mask[folds[fold], fold] = True
-        train_mask[idx_train, fold] = True
+        test_idx = folds[fold]
+        train_idx = jnp.concatenate([folds[i] for i in range(k) if i != fold])
+        test_mask = test_mask.at[test_idx, fold].set(True)
+        train_mask = train_mask.at[train_idx, fold].set(True)
 
     return train_mask, test_mask
 
 
 def assert_covar_full_rank(X, rtol=1e-8):
-    """
-    Raises ValueError if X does not have full column rank.
+    """Raises ValueError if X does not have full column rank.
 
     Assumes X is standardized (columns ~ unit variance).
     """
