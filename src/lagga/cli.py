@@ -3,18 +3,13 @@ import pickle
 import typer
 from typing import Optional, List
 import os
+from importlib.metadata import version, PackageNotFoundError
 
-from . import __version__
 
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="lagga CLI")
 logger = logging.getLogger("lagga")
-
-
-# ---------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------
 
 
 def _configure_jax_logging():
@@ -33,7 +28,6 @@ def load_variants(path: Optional[str]) -> Optional[List[str]]:
 def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
     import pandas as pd
     import jax.numpy as jnp
-    import numpy as np
 
     df_pheno = pd.read_csv(pheno_file)
     Y = jnp.asarray(df_pheno.to_numpy())
@@ -47,11 +41,11 @@ def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
     return Y, X, df_pheno.columns.to_list()
 
 
-def load_GAD(plinks, lancs, ancestries):
-    from lanctools import GenoAncestryDataset
+def load_lanc_data(plinks, lancs, ancestries):
+    from lanctools import LancData
 
     return [
-        GenoAncestryDataset.from_plink(plinks[i], lancs[i], ancestries)
+        LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
         for i in range(len(plinks))
     ]
 
@@ -66,30 +60,19 @@ def setup_logging(verbose: bool, quiet: bool) -> None:
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
 
-# ---------------------------------------------------------
-# Global options callback
-# ---------------------------------------------------------
+def get_version() -> str:
+    try:
+        return version("lagga")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
-        None,
-        "--version",
-        "-v",
-        callback=lambda v: print(f"myproject {__version__}") if v else None,
-        is_eager=True,
-        help="Show version and exit",
-    ),
     verbose: bool = typer.Option(False, "--verbose"),
     quiet: bool = typer.Option(False, "--quiet"),
 ):
     setup_logging(verbose, quiet)
-
-
-# ---------------------------------------------------------
-# step1
-# ---------------------------------------------------------
 
 
 @app.command()
@@ -136,7 +119,7 @@ def step1(
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
 
     ## Load data
-    datasets = load_GAD(plinks, lancs, ancestries_list)
+    datasets = load_lanc_data(plinks, lancs, ancestries_list)
     Y, X, _ = load_pheno_and_covars(pheno_file, covar_file)
 
     ## Get train/test split
@@ -198,7 +181,7 @@ def step2(
     variants = load_variants(variant_file)
 
     ## Load data
-    datasets = load_GAD(plinks, lancs, ancestries_list)
+    datasets = load_lanc_data(plinks, lancs, ancestries_list)
     Y, X, pheno_names = load_pheno_and_covars(pheno_file, covar_file)
 
     ## Load step1 predictions
@@ -276,7 +259,7 @@ def all_steps(
     out_prefixes = list_from_csv(out_prefix)
 
     ## Load data
-    datasets = load_GAD(plinks, lancs, ancestries_list)
+    datasets = load_lanc_data(plinks, lancs, ancestries_list)
     Y, X, pheno_names = load_pheno_and_covars(pheno_file, covar_file)
 
     ## Get train/test split
