@@ -4,19 +4,19 @@ version = "0.0.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Frank Ockerman", email = "frank.ockerman@gmail.com" }]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
-  "jax[cuda]>=0.8.0",
-  "jaxlib>=0.8.0",
-  "jaxtyping>=0.3.3",
-  "lanctools",
-  "numba>=0.62.1",
-  "numpy>=2.3.4",
-  "pandas>=2.3.3",
-  "pgenlib>=0.93.0",
-  "pyarrow>=21.0.0",
-  "tqdm>=4.67.1",
-  "typer>=0.20.0",
+    "jax[cuda]>=0.6.2",
+    "jaxlib>=0.6.2",
+    "jaxtyping>=0.3.3",
+    "lanctools>=0.1.2",
+    "numba>=0.63.1",
+    "numpy>=2.2.6",
+    "pandas>=2.3.3",
+    "pgenlib>=0.93.0",
+    "pyarrow>=21.0.0",
+    "tqdm>=4.67.1",
+    "typer>=0.20.0",
 ]
 
 [build-system]
@@ -24,13 +24,14 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = ["ipython>=9.6.0"]
+dev = [
+    "ipython>=8.37.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.uv.sources]
-lanctools = { git = "https://github.com/frankp-0/lanctools" }
 
 [project.scripts]
 lagga = "lagga.cli:main_entry"

@@ -4,13 +4,13 @@ from jaxtyping import Array
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
-from lanctools import GenoAncestryDataset
+from lanctools import LancData
 from ._utils import _stdize, _assert_covar_full_rank
 from .models import _ridge
 
 
 def _step0_block(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y: Array,
     Q: Array,
     train_mask: Array,
@@ -21,7 +21,7 @@ def _step0_block(
     """Get level 0 predictions for a single block
 
     Args:
-        dataset: A  GenoAncestryDataset object
+        dataset: A  LancData object
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
@@ -49,7 +49,7 @@ def _step0_block(
 
 
 def _step0_dataset(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y: Array,
     Q: Array,
     train_mask: Array,
@@ -62,7 +62,7 @@ def _step0_dataset(
     """Get level 0 predictions for a dataset
 
     Args:
-        dataset: A  GenoAncestryDataset object
+        dataset: A  LancData object
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
@@ -122,7 +122,7 @@ def _step0_dataset(
 
 
 def step0(
-    datasets: list[GenoAncestryDataset],
+    datasets: list[LancData],
     Y: Array,
     X: Optional[Array],
     train_mask: Array,
@@ -134,7 +134,7 @@ def step0(
     """Perform level 0 ridge regressions
 
     Args:
-        datasets: A list of GenoAncestryDataset objects (likely one per chromosome)
+        datasets: A list of LancData objects (likely one per chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K

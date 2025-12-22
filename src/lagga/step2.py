@@ -11,7 +11,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
-from lanctools import GenoAncestryDataset
+from lanctools import LancData
 from ._utils import _stdize, _assert_covar_full_rank
 from .models import _logistic
 
@@ -95,7 +95,7 @@ def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
 
 
 def _step2_qt_block(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y: Array,
     Q: Array,
     block: np.ndarray,
@@ -104,7 +104,7 @@ def _step2_qt_block(
     """Perform GWAS for quantitative traits for a single block of variants
 
     Args:
-        dataset: GenoAncestryDataset
+        dataset: LancData
         Y: A (N, P) jax array of LOCO phenotypes
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
         block: A (B,) ndarray with indices of variants in the block
@@ -116,7 +116,7 @@ def _step2_qt_block(
 
     ## Query local ancestry and anc-deconvoluted genotypes
     G = jnp.asarray(dataset.get_lanc_geno(block), dtype=jnp.float32)
-    L = jnp.asarray(dataset.get_lanc_unphased(block)[:, :, 1:], dtype=jnp.float32)
+    L = jnp.asarray(dataset.get_lanc_dosage(block)[:, :, 1:], dtype=jnp.float32)
     chisq_het, chisq_hom, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
 
     log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
@@ -163,7 +163,7 @@ def _step2_qt_block(
 
 
 def _step2_qt_dataset(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y_loco: dict[str, np.ndarray],
     Q: Array,
     out_prefix: str,
@@ -175,7 +175,7 @@ def _step2_qt_dataset(
     """Perform GWAS for quantitative traits for a single dataset
 
     Args:
-        dataset: GenoAncestryDataset
+        dataset: LancData
         Y_loco: A dict where each value is a (N, P) NumPy array with LOCO residuals from step 1
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
         out_prefix: Outputs will be written {output_prefix}_{phenotype}.parquet
@@ -245,7 +245,7 @@ def _step2_qt_dataset(
 
 
 def step2_qt(
-    datasets: list[GenoAncestryDataset],
+    datasets: list[LancData],
     Y: Array,
     X: Array,
     step1_predictions: dict[str, np.ndarray],
@@ -257,7 +257,7 @@ def step2_qt(
     """Run step 2 for quantitative traits
 
     Args:
-        datasets: A list of GenoAncestryDataset objects
+        datasets: A list of LancData objects
         Y: An (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
         step1_predictions: A dict with chromosome-specific predictions from step 1. The values are (N, P) NumPy arrays
@@ -383,7 +383,7 @@ def _step2_bt_core(
 
 
 def _step2_bt_block(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y: Array,
     Q_w: Array,
     W_sqrt: Array,
@@ -392,7 +392,7 @@ def _step2_bt_block(
     min_anc_ac: int = 1,
 ):
     G = dataset.get_lanc_geno(block)
-    L = dataset.get_lanc_unphased(block)[:, :, 1:]
+    L = dataset.get_lanc_dosage(block)[:, :, 1:]
 
     chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(G, L, Y, Q_w, W_sqrt, O)
 
@@ -436,7 +436,7 @@ def _step2_bt_block(
 
 
 def _step2_bt_dataset(
-    dataset: GenoAncestryDataset,
+    dataset: LancData,
     Y: Array,
     O_loco: dict[str, np.ndarray],
     X: Array,
@@ -449,7 +449,7 @@ def _step2_bt_dataset(
     """Perform GWAS for quantitative traits for a single dataset
 
     Args:
-        dataset: GenoAncestryDataset
+        dataset: LancData
         Y: A (N, P) jax array of phenotypes
         O_loco: A dict where each value is a (N, P) NumPy array with LOCO offsets from step 1
         out_prefix: Outputs will be written {output_prefix}_{phenotype}.parquet
@@ -528,7 +528,7 @@ def _step2_bt_dataset(
 
 
 def step2_bt(
-    datasets: list[GenoAncestryDataset],
+    datasets: list[LancData],
     Y: Array,
     X: Optional[Array],
     step1_predictions: dict[str, np.ndarray],
@@ -540,7 +540,7 @@ def step2_bt(
     """Run step 2 for quantitative traits
 
     Args:
-        datasets: A list of GenoAncestryDataset objects
+        datasets: A list of LancData objects
         Y: An (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
         step1_predictions: A dict with chromosome-specific linear predictions from step 1. The values are (N, P) NumPy arrays
