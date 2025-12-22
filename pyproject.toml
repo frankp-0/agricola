@@ -6,27 +6,31 @@ readme = "README.md"
 authors = [{ name = "Frank Ockerman", email = "frank.ockerman@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
-    "jax[cuda]>=0.6.2",
-    "jaxlib>=0.6.2",
-    "jaxtyping>=0.3.3",
-    "lanctools>=0.1.2",
-    "numba>=0.63.1",
-    "numpy>=2.2.6",
-    "pandas>=2.3.3",
-    "pgenlib>=0.93.0",
-    "pyarrow>=21.0.0",
-    "tqdm>=4.67.1",
-    "typer>=0.20.0",
+  "jax>=0.6.2",
+  "jaxlib>=0.6.2",
+  "jaxtyping>=0.3.3",
+  "lanctools>=0.1.2",
+  "numba>=0.63.1",
+  "numpy>=2.2.6",
+  "pandas>=2.3.3",
+  "pgenlib>=0.93.0",
+  "pyarrow>=21.0.0",
+  "tqdm>=4.67.1",
+  "typer>=0.20.0",
 ]
+
+[project.optional-dependencies]
+cuda = ["jax[cuda]>=0.6.2"]
+tpu = ["jax[tpu]>=0.6.2"]
+metal = ["jax[metal]>=0.6.2"]
+
 
 [build-system]
 requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = [
-    "ipython>=8.37.0",
-]
+dev = ["ipython>=8.37.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
