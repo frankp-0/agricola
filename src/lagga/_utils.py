@@ -4,7 +4,11 @@ import numpy as np
 
 
 def stdize(X: jnp.ndarray) -> jnp.ndarray:
-    """Safely standardizes an ndarray along the first dimension"""
+    """Safely standardizes an ndarray along the first dimension.
+
+    For columns with standard deviation of 0, this function does NOT subtract
+    the mean. This behavior is intended to preserve an intercept, for example.
+    """
     mean = X.mean(axis=0, keepdims=True)
     std = X.std(axis=0, keepdims=True)
     mean = jnp.where(std == 0, 0, mean)
