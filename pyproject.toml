@@ -35,6 +35,5 @@ where = ["src"]
 lagga = "lagga.cli:main_entry"
 
 [project.optional-dependencies]
-metal = ["jax-metal>=0.1.1"]
 cuda = ["jax[cuda]>=0.6.2"]
 tpu = ["jax[tpu]>=0.6.2"]
