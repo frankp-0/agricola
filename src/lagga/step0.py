@@ -5,8 +5,8 @@ import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from ._utils import _stdize, _assert_covar_full_rank
-from .models import _ridge
+from ._utils import stdize, assert_covar_full_rank
+from .models import ridge
 
 
 def _step0_block(
@@ -35,16 +35,16 @@ def _step0_block(
     ## Standardize genotype block and residualize by covariates
     G = jnp.asarray(dataset.get_geno(block), dtype=jnp.float32)
     G = G[:, :, 0] + G[:, :, 1]
-    G = _stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
+    G = stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
 
     ## Calculate penalties based on prior heritability
     B = G.shape[1]
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge = jax.vmap(_ridge, in_axes=(None, None, 1, 1, None))
-    Z_block = jnp.sum(ridge(G, Y, train_mask, test_mask, alphas), axis=0)
-    Z_block = np.asarray(_stdize(Z_block))
+    ridge_Z = jax.vmap(ridge, in_axes=(None, None, 1, 1, None))
+    Z_block = jnp.sum(ridge_Z(G, Y, train_mask, test_mask, alphas), axis=0)
+    Z_block = np.asarray(stdize(Z_block))
     return Z_block
 
 
@@ -152,11 +152,11 @@ def step0(
         X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
     else:
         X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = _stdize(X)
-    _assert_covar_full_rank(X)
+    X = stdize(X)
+    assert_covar_full_rank(X)
 
     Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
-    Y = _stdize(Y - (Q @ (Q.T @ Y)))
+    Y = stdize(Y - (Q @ (Q.T @ Y)))
 
     ## Perform step 0 for each dataset
     Z_datasets = []

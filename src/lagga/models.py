@@ -8,7 +8,7 @@ from jax.scipy.special import expit
 ### ─────────────────────────────────────────────────────────────
 
 
-def _ridge(X, Y, w_train, w_test, alphas):
+def ridge(X, Y, w_train, w_test, alphas):
     """Perform ridge regression using test/train masks
 
     The w_train and w_test are train/test "weights" for samples.
@@ -85,7 +85,7 @@ def _logistic_ridge_step(beta, X, y, offset, w_train, alpha):
     return beta_new
 
 
-def _logistic(X, y, offset, max_iter=20, alpha=0):
+def logistic(X, y, offset, max_iter=20, alpha=0):
     """Perform logistic regression
 
     Returns estimated coefficients
@@ -109,7 +109,7 @@ def _logistic(X, y, offset, max_iter=20, alpha=0):
     return beta
 
 
-def _logistic_ridge(X, y, offset, w_train, alpha, max_iter=50):
+def logistic_ridge(X, y, offset, w_train, alpha, max_iter=50):
     """Perform logistic ridge regression
 
     Returns estimated coefficients
@@ -136,7 +136,7 @@ def _logistic_ridge(X, y, offset, w_train, alpha, max_iter=50):
     return eta
 
 
-def _logistic_ridge_loo(X, y, offset, alpha, max_iter=50):
+def logistic_ridge_loo(X, y, offset, alpha, max_iter=50):
     """Perform logistic ridge regression with leave-one-out scheme
 
     Returns leave-one-out linear predictor

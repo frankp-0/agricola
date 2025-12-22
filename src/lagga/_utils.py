@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 
 
-def _stdize(X: jnp.ndarray) -> jnp.ndarray:
+def stdize(X: jnp.ndarray) -> jnp.ndarray:
     """Safely standardizes an ndarray along the first dimension"""
     mean = X.mean(axis=0, keepdims=True)
     std = X.std(axis=0, keepdims=True)
@@ -13,7 +13,7 @@ def _stdize(X: jnp.ndarray) -> jnp.ndarray:
     return result
 
 
-def _get_cv_mask(n, k, key):
+def get_cv_mask(n, k, key):
     """ "Returns tuple of boolean of training set mask and test set mask"""
     idx = jax.random.permutation(key, n)
     fold_size = n // k
@@ -29,7 +29,7 @@ def _get_cv_mask(n, k, key):
     return train_mask, test_mask
 
 
-def _assert_covar_full_rank(X, rtol=1e-8):
+def assert_covar_full_rank(X, rtol=1e-8):
     """
     Raises ValueError if X does not have full column rank.
 

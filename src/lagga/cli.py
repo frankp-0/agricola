@@ -108,7 +108,7 @@ def step1(
 ):
     import jax.numpy as jnp
     import jax
-    from ._utils import _get_cv_mask
+    from ._utils import get_cv_mask
     from .step0 import step0
     from .step1 import step1_qt, step1_bt
 
@@ -124,7 +124,7 @@ def step1(
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)
-    train_mask, test_mask = _get_cv_mask(len(Y), 5, key)
+    train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
     ## Run steps 0 and 1
     Z = step0(datasets, Y, X, train_mask, test_mask, h2_prior_arr, block_size, variants)
@@ -245,7 +245,7 @@ def all_steps(
 ):
     import jax.numpy as jnp
     import jax
-    from ._utils import _get_cv_mask
+    from ._utils import get_cv_mask
     from .step0 import step0
     from .step1 import step1_qt, step1_bt
     from .step2 import step2_qt, step2_bt
@@ -264,7 +264,7 @@ def all_steps(
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)
-    train_mask, test_mask = _get_cv_mask(len(Y), 5, key)
+    train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
     ## Run step 0
     Z = step0(
