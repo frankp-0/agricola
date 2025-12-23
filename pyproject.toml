@@ -3,7 +3,7 @@ name = "lagga"
 version = "0.0.0"
 description = "Local ancestry GWAS with GPU Acceleration"
 readme = "README.md"
-authors = [{ name = "Frank Ockerman", email = "frank.ockerman@gmail.com" }]
+authors = [{ name = "Franklin Ockerman", email = "frank.ockerman@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
   "jax>=0.6.2",
