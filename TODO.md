@@ -2,10 +2,12 @@
 
 ## Todo
 
+- [ ] Add license
 - [ ] Tests for models
 - [ ] Tests for step 0
 - [ ] Tests for step 1
 - [ ] Tests for step 2
+- [ ] Fix type hints
 
 ## In progress
 
