@@ -1,6 +1,7 @@
 [project]
 name = "lagga"
 version = "0.0.0"
+license = { text = "MIT" }
 description = "Local ancestry GWAS with GPU Acceleration"
 readme = "README.md"
 authors = [{ name = "Franklin Ockerman", email = "frank.ockerman@gmail.com" }]

@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2025 Franklin Ockerman
+# See LICENSE.txt file for full license text
+
 import jax
 from jaxtyping import Array
 import jax.numpy as jnp
