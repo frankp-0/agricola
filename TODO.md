@@ -6,6 +6,7 @@
 - [ ] Tests for step 0
 - [ ] Tests for step 1
 - [ ] Tests for step 2
+- [ ] Tests for CLI
 - [ ] Fix type hints
 
 ## In progress
