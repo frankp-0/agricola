@@ -116,7 +116,7 @@ def logistic(X, y, offset, max_iter=20, alpha=0):
 def logistic_ridge(X, y, offset, w_train, alpha, max_iter=50):
     """Perform logistic ridge regression
 
-    Returns estimated coefficients
+    Returns linear predictors
 
     Args:
         X: (N, V) jax array of predictors
