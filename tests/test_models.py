@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import jax.numpy as jnp
 import jax
-from lagga.models import ridge
+from lagga.models import ridge, logistic, logistic_ridge, logistic_ridge_loo
 
 
 @pytest.fixture
@@ -19,6 +19,11 @@ def simple_data():
     w_train = jnp.ones((X.shape[0], 1))
     w_test = jnp.ones((X.shape[0], 1))
     return X, Y, w_train, w_test
+
+
+### ─────────────────────────────────────────────────────────────
+### Ridge
+### ─────────────────────────────────────────────────────────────
 
 
 def test_ridge_OLS_when_lambda_0(simple_data):
@@ -73,3 +78,67 @@ def test_ridge_zero_when_null_test_set(simple_data):
         preds,
         jnp.zeros_like(preds),
     )
+
+
+### ─────────────────────────────────────────────────────────────
+### Logistic Regression
+### ─────────────────────────────────────────────────────────────
+
+
+def test_logistic_runs():
+    """test that logistic regression runs and returns correct coefficients"""
+    X = jnp.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 1.0],
+        ]
+    )
+    y = jnp.array([0.0, 0.0, 1.0, 0.0])
+    offset = jnp.zeros(X.shape[0])
+
+    beta = logistic(X, y, offset)
+
+    assert beta.shape == (2,)
+    assert jnp.all(jnp.isfinite(beta))
+    np.testing.assert_allclose(beta, np.array([-0.4196176, -0.4196176]), rtol=1e-6)
+
+
+def test_logistic_ridge_runs():
+    """Ridge regression returns linear predictors of length N."""
+    X = jnp.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 1.0],
+        ]
+    )
+    y = jnp.array([0.0, 0.0, 1.0, 0.0])
+    offset = jnp.zeros(X.shape[0])
+    w_train = jnp.ones(X.shape[0])
+
+    eta = logistic_ridge(X, y, offset, w_train, alpha=1.0)
+
+    assert eta.shape == (4,)
+    assert jnp.all(jnp.isfinite(eta))
+
+
+def test_logistic_ridge_loo_runs():
+    """LOO ridge regression runs and returns finite values."""
+    X = jnp.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 1.0],
+        ]
+    )
+    y = jnp.array([0.0, 0.0, 1.0, 0.0])
+    offset = jnp.zeros(X.shape[0])
+
+    eta = logistic_ridge_loo(X, y, offset, alpha=1.0)
+
+    assert eta.shape == (4,)
+    assert jnp.all(jnp.isfinite(eta))
