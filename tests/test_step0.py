@@ -32,8 +32,8 @@ def valid_inputs(P=3, K=5, C=1, H=4):
     Y = jnp.zeros((N, P))
     key = jax.random.key(8899134)
     X = jax.random.normal(key, shape=(N, C))
-    train_mask = jnp.zeros((N, K))
-    test_mask = jnp.zeros((N, K))
+    train_mask = jnp.ones((N, K))
+    test_mask = jnp.ones((N, K))
     h2_prior = jnp.linspace(0.1, 0.9, H)
     return Y, X, train_mask, test_mask, h2_prior
 
@@ -71,21 +71,21 @@ def test_step0_mask_dim_error(toy_data):
     """Check that 1D train/test mask throws error"""
     Y, X, _, _, h2 = valid_inputs()
     with pytest.raises(ValueError, match="train_mask and test_mask must be 2D"):
-        step0(toy_data, Y, X, jnp.zeros((10,)), jnp.zeros((10, 2)), h2)
+        step0(toy_data, Y, X, jnp.ones((10,)), jnp.ones((10, 2)), h2)
 
 
 def test_step0_mask_shape_mismatch_error(toy_data):
     """Check that train/test mask shape mis-match throws error"""
     Y, X, _, _, h2 = valid_inputs()
     with pytest.raises(ValueError, match="same shape"):
-        step0(toy_data, Y, X, jnp.zeros((10, 2)), jnp.zeros((10, 3)), h2)
+        step0(toy_data, Y, X, jnp.ones((10, 2)), jnp.ones((10, 3)), h2)
 
 
 def test_step0_h2_prior_dim_error(toy_data):
     """Check that h2_prior with wrong dimension throws error"""
     Y, X, train, test, _ = valid_inputs()
     with pytest.raises(ValueError, match="h2_prior must be 1D"):
-        step0(toy_data, Y, X, train, test, jnp.zeros((3, 2)))
+        step0(toy_data, Y, X, train, test, jnp.ones((3, 2)))
 
 
 def test_step0_h2_prior_domain_error(toy_data):
