@@ -151,6 +151,60 @@ def step0(
         Z: A dict where keys are chromosomes and values are (N, P, N_blocks) numpy arrays of step 0 predictions
     """
 
+    ## Type and structure checks for genotype/lanc data
+    if not isinstance(datasets, (list, tuple)):
+        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
+    for i, ds in enumerate(datasets):
+        if not isinstance(ds, LancData):
+            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+
+    ## Array conversions
+    Y = jnp.asarray(Y)
+    train_mask = jnp.asarray(train_mask)
+    test_mask = jnp.asarray(test_mask)
+    h2_prior = jnp.asarray(h2_prior)
+    if X is not None:
+        X = jnp.asarray(X)
+
+    ## Check array shapes
+    if Y.ndim != 2:
+        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
+    N = Y.shape[0]
+
+    if X is not None:
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
+        if X.shape[0] != N:
+            raise ValueError(
+                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
+            )
+
+    if (
+        train_mask.ndim != 2
+        or test_mask.ndim != 2
+        or train_mask.shape != test_mask.shape
+    ):
+        raise ValueError(
+            "train_mask and test_mask must be 2D (N, K) with the same shape"
+        )
+    if train_mask.shape[0] != N or test_mask.shape[0] != N:
+        raise ValueError("train_mask/test_mask must match N of Y")
+
+    if h2_prior.ndim != 1:
+        raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
+    if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
+        raise ValueError("h2_prior values must be in the open interval (0, 1)")
+
+    ## Check B and variants
+    if not isinstance(B, int) or B <= 0:
+        raise ValueError(f"B must be a positive integer, got {B}")
+
+    if variants is not None:
+        if not isinstance(variants, (list, tuple)) or not all(
+            isinstance(v, str) for v in variants
+        ):
+            raise TypeError("variants must be a list of strings")
+
     ## Residualize and standardize phenotypes
     if X is None:
         X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
