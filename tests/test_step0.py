@@ -26,6 +26,18 @@ def toy_data():
 ### ─────────────────────────────────────────────────────────────
 
 
+def valid_inputs(P=3, K=5, C=1, H=4):
+    """Utility for constructing minimal valid inputs."""
+    N = 20
+    Y = jnp.zeros((N, P))
+    key = jax.random.key(8899134)
+    X = jax.random.normal(key, shape=(N, C))
+    train_mask = jnp.zeros((N, K))
+    test_mask = jnp.zeros((N, K))
+    h2_prior = jnp.linspace(0.1, 0.9, H)
+    return Y, X, train_mask, test_mask, h2_prior
+
+
 def test_step0_dataset_elements_type_error():
     """Check that bad datasets throws error"""
     Y, X, train, test, h2 = valid_inputs()
@@ -101,18 +113,6 @@ def test_step0_variants_type_error(toy_data):
 ### ─────────────────────────────────────────────────────────────
 ### Other
 ### ─────────────────────────────────────────────────────────────
-
-
-def valid_inputs(P=3, K=5, C=1, H=4):
-    """Utility for constructing minimal valid inputs."""
-    N = 20
-    Y = jnp.zeros((N, P))
-    key = jax.random.key(8899134)
-    X = jax.random.normal(key, shape=(N, C))
-    train_mask = jnp.zeros((N, K))
-    test_mask = jnp.zeros((N, K))
-    h2_prior = jnp.linspace(0.1, 0.9, H)
-    return Y, X, train_mask, test_mask, h2_prior
 
 
 def test_step0_validation_happy_path(toy_data):
