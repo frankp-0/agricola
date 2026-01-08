@@ -26,8 +26,9 @@ def validate_step1_inputs(
 ):
     ## Array conversions
     Y = jnp.asarray(Y)
-    train_mask = jnp.asarray(train_mask)
-    test_mask = jnp.asarray(test_mask)
+    if not (train_mask is None or test_mask is None):
+        train_mask = jnp.asarray(train_mask)
+        test_mask = jnp.asarray(test_mask)
     h2_prior = jnp.asarray(h2_prior)
     if X is not None:
         X = jnp.asarray(X)
@@ -35,7 +36,7 @@ def validate_step1_inputs(
     ## Check array shapes
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-    N = Y.shape[0]
+    N, P = Y.shape
 
     if not isinstance(Z, dict):
         raise TypeError(f"Z must be a dict, got {type(Z)}")
@@ -72,6 +73,9 @@ def validate_step1_inputs(
 
     if Z_N != N:
         raise ValueError(f"Z arrays have N={Z_N} but Y has N={N}")
+
+    if Z_P != P:
+        raise ValueError(f"Z arrays have P={Z_P} but Y has P={P}")
 
     if X is not None:
         if X.ndim != 2:
@@ -174,6 +178,10 @@ def step1_qt(
     Returns:
         step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
     """
+    ## Validate inputs
+    Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
+        Z, Y, X, train_mask, test_mask, h2_prior
+    )
 
     n, p = Y.shape
 
