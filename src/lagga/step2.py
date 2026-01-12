@@ -84,12 +84,12 @@ def validate_step2_inputs(
             raise TypeError(
                 f"step1_predictions[{chrom}] must be a numpy/jax array, got {type(pred_chrom)}"
             )
-        if pred_chrom.ndim != 3:
+        if pred_chrom.ndim != 2:
             raise ValueError(
-                f"step1_predictions[{chrom}] must be 3D (N, P, N_blocks), got shape {pred_chrom.shape}"
+                f"step1_predictions[{chrom}] must be 2D (N, P), got shape {pred_chrom.shape}"
             )
 
-        n_chrom, p_chrom, _ = pred_chrom.shape
+        n_chrom, p_chrom = pred_chrom.shape
 
         if N_pred is None:
             N_pred = n_chrom
@@ -374,7 +374,6 @@ def step2_qt(
         step1_predictions: A dict with chromosome-specific predictions from step 1. The values are (N, P) NumPy arrays
         out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
-        covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
         B: The block size (max number of variants to read at once)
     """
 
@@ -664,7 +663,6 @@ def step2_bt(
         step1_predictions: A dict with chromosome-specific linear predictions from step 1. The values are (N, P) NumPy arrays
         out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
-        covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
         B: The block size (max number of variants to read at once)
     """
     ## Validate inputs
