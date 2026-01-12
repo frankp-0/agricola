@@ -42,7 +42,7 @@ def test_step0_dataset_elements_type_error():
     """Check that bad datasets throws error"""
     Y, X, train, test, h2 = valid_inputs()
     with pytest.raises(TypeError, match="must be LancData"):
-        step0([object()], Y, X, train, test, h2)
+        step0([object()], Y, X, train, test, h2)  # pyright: ignore
 
 
 def test_step0_Y_dim_error(toy_data):
@@ -107,7 +107,7 @@ def test_step0_variants_type_error(toy_data):
     """Check that bad variants type throws error"""
     Y, X, train, test, h2 = valid_inputs()
     with pytest.raises(TypeError, match="variants must be a list of strings"):
-        step0(toy_data, Y, X, train, test, h2, variants=[1, 2, 3])
+        step0(toy_data, Y, X, train, test, h2, variants=[1, 2, 3])  # pyright: ignore
 
 
 ### ─────────────────────────────────────────────────────────────
