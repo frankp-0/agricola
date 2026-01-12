@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from jaxtyping import Array
 import numpy as np
 from scipy.stats import chi2
-from typing import List
+from typing import List, Tuple
 import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
@@ -18,6 +18,113 @@ from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank
 from .models import logistic
+
+### ─────────────────────────────────────────────────────────────
+### Helper Functions
+### ─────────────────────────────────────────────────────────────
+
+
+def validate_step2_inputs(
+    datasets: list[LancData],
+    Y: Array,
+    X: Optional[Array],
+    step1_predictions: dict[str, np.ndarray],
+    out_prefixes: list[str],
+    phenotypes: list[str],
+    B: int = 1000,
+    variants: Optional[list[str]] = None,
+) -> Tuple[
+    list[LancData],
+    Array,
+    Array,
+    dict[str, np.ndarray],
+    list[str],
+    list[str],
+    int,
+    Optional[list[str]],
+]:
+    ## Type and structure checks for genotype/lanc data
+    if not isinstance(datasets, (list, tuple)):
+        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
+    for i, ds in enumerate(datasets):
+        if not isinstance(ds, LancData):
+            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+
+    ## Array conversions
+    Y = jnp.asarray(Y)
+    if X is not None:
+        X = jnp.asarray(X)
+
+    ## Check array shapes
+    if Y.ndim != 2:
+        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
+    N, P = Y.shape
+
+    if X is not None:
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
+        if X.shape[0] != N:
+            raise ValueError(
+                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
+            )
+
+    ## X
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = stdize(X)
+    assert_covar_full_rank(X)
+
+    ## Check step1 predictions
+    N_pred = None
+    P_pred = None
+    for chrom, pred_chrom in step1_predictions.items():
+        if not isinstance(pred_chrom, (np.ndarray, jnp.ndarray)):
+            raise TypeError(
+                f"step1_predictions[{chrom}] must be a numpy/jax array, got {type(pred_chrom)}"
+            )
+        if pred_chrom.ndim != 3:
+            raise ValueError(
+                f"step1_predictions[{chrom}] must be 3D (N, P, N_blocks), got shape {pred_chrom.shape}"
+            )
+
+        n_chrom, p_chrom, _ = pred_chrom.shape
+
+        if N_pred is None:
+            N_pred = n_chrom
+            P_pred = p_chrom
+        else:
+            if n_chrom != N_pred:
+                raise ValueError(
+                    f"All step1_predictions arrays must have same N; got {N_pred} vs {n_chrom} in step1_predictions[{chrom}]"
+                )
+            if p_chrom != P_pred:
+                raise ValueError(
+                    f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
+                )
+
+    if N_pred != N:
+        raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
+
+    if P_pred != P:
+        raise ValueError(f"step1_predictions arrays have P={P_pred} but Y has P={P}")
+
+    ## Check B and variants
+    if not isinstance(B, int) or B <= 0:
+        raise ValueError(f"B must be a positive integer, got {B}")
+
+    if variants is not None:
+        if not isinstance(variants, (list, tuple)) or not all(
+            isinstance(v, str) for v in variants
+        ):
+            raise TypeError("variants must be a list of strings")
+
+    if not len(out_prefixes) == len(phenotypes):
+        raise ValueError(
+            "out_prefixes and phenotypes must have same number of elements"
+        )
+    return (datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants)
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -251,7 +358,7 @@ def _step2_qt_dataset(
 def step2_qt(
     datasets: list[LancData],
     Y: Array,
-    X: Array,
+    X: Optional[Array],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
     phenotypes: list[str],
@@ -270,6 +377,13 @@ def step2_qt(
         covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
         B: The block size (max number of variants to read at once)
     """
+
+    ## Validate inputs
+    datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants = (
+        validate_step2_inputs(
+            datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants
+        )
+    )
 
     ## Residualize and standardize phenotypes
     X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
@@ -553,13 +667,12 @@ def step2_bt(
         covar: An (N, C) array of covariates. If not provided, defaults to intercept-only covariates
         B: The block size (max number of variants to read at once)
     """
-    ## Fit covariate-only model
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
+    ## Validate inputs
+    datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants = (
+        validate_step2_inputs(
+            datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants
+        )
+    )
 
     covar_model = jax.vmap(logistic, in_axes=(None, 1, None), out_axes=1)
     offset_covar = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
