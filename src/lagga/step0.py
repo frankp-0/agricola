@@ -10,7 +10,7 @@ from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank
-from .models import ridge
+from .models import ridge_masked_predict
 
 
 def _step0_block(
@@ -46,7 +46,7 @@ def _step0_block(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge_Z = jax.vmap(ridge, in_axes=(None, None, 1, 1, None))
+    ridge_Z = jax.vmap(ridge_masked_predict, in_axes=(None, None, 1, 1, None))
     Z_block = jnp.sum(ridge_Z(G, Y, train_mask, test_mask, alphas), axis=0)
     Z_block = np.asarray(stdize(Z_block))
     return Z_block

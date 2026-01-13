@@ -9,7 +9,12 @@ import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from ._utils import stdize, assert_covar_full_rank
-from .models import ridge, logistic, logistic_ridge, logistic_ridge_loo
+from .models import (
+    ridge_masked_predict,
+    logistic_fit,
+    logistic_ridge_predict,
+    logistic_ridge_loo_predict,
+)
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
@@ -135,7 +140,7 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
     Yhat_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
     for fold in range(k):
         for pheno in range(p):
-            ridge_fold = ridge(
+            ridge_fold = ridge_masked_predict(
                 Z[:, pheno, :],
                 Y[:, pheno],
                 train_mask[:, fold],
@@ -237,7 +242,7 @@ def _ridge_loocv_bt(Z, Y, offset, h2_prior):
     eta_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
     for pheno in range(p):
         loocv_model = jax.vmap(
-            logistic_ridge_loo, in_axes=(None, None, None, 0), out_axes=1
+            logistic_ridge_loo_predict, in_axes=(None, None, None, 0), out_axes=1
         )
         eta_pheno = loocv_model(Z[:, pheno, :], Y[:, pheno], offset[:, pheno], alphas)
         eta_alphas[:, pheno, :] += eta_pheno
@@ -279,7 +284,7 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
     for fold in range(k):
         for pheno in range(p):
             cv_model = jax.vmap(
-                logistic_ridge, in_axes=(None, None, None, None, 0), out_axes=1
+                logistic_ridge_predict, in_axes=(None, None, None, None, 0), out_axes=1
             )
             eta_pheno_fold = cv_model(
                 Z[:, pheno, :],
@@ -339,7 +344,7 @@ def step1_bt(
     X = stdize(X)
     assert_covar_full_rank(X)
 
-    covar_model = jax.vmap(logistic, in_axes=(None, 1, None), out_axes=1)
+    covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
     offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
 
     ## Perform step 1 for each chromosome

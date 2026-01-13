@@ -6,7 +6,12 @@ import pytest
 import numpy as np
 import jax.numpy as jnp
 import jax
-from lagga.models import ridge, logistic, logistic_ridge, logistic_ridge_loo
+from lagga.models import (
+    ridge_masked_predict,
+    logistic_fit,
+    logistic_ridge_predict,
+    logistic_ridge_loo_predict,
+)
 
 
 @pytest.fixture
@@ -33,7 +38,7 @@ def test_ridge_OLS_when_lambda_0(simple_data):
     X, Y, w_train, w_test = simple_data
     alphas = jnp.array([0.0])
 
-    preds = ridge(X, Y, w_train, w_test, alphas)
+    preds = ridge_masked_predict(X, Y, w_train, w_test, alphas)
 
     # Closed-form OLS
     beta_ols = jnp.linalg.solve(X.T @ X, X.T @ Y)
@@ -55,7 +60,7 @@ def test_ridge_zero_when_big_lambda(simple_data):
     X, Y, w_train, w_test = simple_data
     alphas = jnp.array([1e6])
 
-    preds = ridge(X, Y, w_train, w_test, alphas)
+    preds = ridge_masked_predict(X, Y, w_train, w_test, alphas)
 
     np.testing.assert_allclose(
         preds,
@@ -72,7 +77,7 @@ def test_ridge_zero_when_null_test_set(simple_data):
     w_test = jnp.zeros((X.shape[0], 1))
     alphas = jnp.array([0.0, 1.0])
 
-    preds = ridge(X, Y, w_train, w_test, alphas)
+    preds = ridge_masked_predict(X, Y, w_train, w_test, alphas)
 
     np.testing.assert_array_equal(
         preds,
@@ -98,7 +103,7 @@ def test_logistic_runs():
     y = jnp.array([0.0, 0.0, 1.0, 0.0])
     offset = jnp.zeros(X.shape[0])
 
-    beta = logistic(X, y, offset)
+    beta = logistic_fit(X, y, offset)
 
     assert beta.shape == (2,)
     assert jnp.all(jnp.isfinite(beta))
@@ -119,7 +124,7 @@ def test_logistic_ridge_runs():
     offset = jnp.zeros(X.shape[0])
     w_train = jnp.ones(X.shape[0])
 
-    eta = logistic_ridge(X, y, offset, w_train, alpha=1.0)
+    eta = logistic_ridge_predict(X, y, offset, w_train, alpha=1.0)
 
     assert eta.shape == (4,)
     assert jnp.all(jnp.isfinite(eta))
@@ -138,7 +143,7 @@ def test_logistic_ridge_loo_runs():
     y = jnp.array([0.0, 0.0, 1.0, 0.0])
     offset = jnp.zeros(X.shape[0])
 
-    eta = logistic_ridge_loo(X, y, offset, alpha=1.0)
+    eta = logistic_ridge_loo_predict(X, y, offset, alpha=1.0)
 
     assert eta.shape == (4,)
     assert jnp.all(jnp.isfinite(eta))

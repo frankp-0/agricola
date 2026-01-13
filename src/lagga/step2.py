@@ -17,7 +17,7 @@ from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank
-from .models import logistic
+from .models import logistic_fit
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
@@ -446,7 +446,7 @@ def _step2_bt_core(
 
     ## Fit L + covariate offset null model
     logistic_model = jax.vmap(
-        jax.vmap(logistic, in_axes=(2, 1, 1, None)), in_axes=(1, None, None, None)
+        jax.vmap(logistic_fit, in_axes=(2, 1, 1, None)), in_axes=(1, None, None, None)
     )
     beta = logistic_model(L, Y, O, 10)
     eta = jnp.einsum("nbap,bpa->nbp", L, beta) + O[:, None, :]
@@ -672,7 +672,7 @@ def step2_bt(
         )
     )
 
-    covar_model = jax.vmap(logistic, in_axes=(None, 1, None), out_axes=1)
+    covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
     offset_covar = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
 
     ## LOCO offsets
@@ -682,7 +682,7 @@ def step2_bt(
     O_loco = {}
     for i, chrom in enumerate(step1_predictions):
         X_leave = np.delete(chromosome_offsets, i, axis=1)
-        beta_chrom = jax.vmap(logistic, in_axes=(2, 1, 1), out_axes=1)(
+        beta_chrom = jax.vmap(logistic_fit, in_axes=(2, 1, 1), out_axes=1)(
             X_leave, Y, offset_covar
         )
         eta_chrom = np.einsum("ncp,cp->np", X_leave, beta_chrom) + offset_covar
