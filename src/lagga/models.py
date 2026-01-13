@@ -168,10 +168,10 @@ def logistic_ridge_loo_predict(X, y, offset, alpha, max_iter=50):
     XW = X * w[:, None]
     H_inv = jax.scipy.linalg.inv((X.T @ XW) + (alpha * jnp.eye(X.shape[1])))
 
-    def foo(x):
+    def _quad_form_Hinv(x):
         return (x @ H_inv) @ x.T
 
-    Gamma = w * jax.vmap(foo, in_axes=0)(X)
+    Gamma = w * jax.vmap(_quad_form_Hinv, in_axes=0)(X)
 
     beta_loo = beta[:, None] - ((H_inv @ X.T) * (y - mu) / (1 - Gamma))
     eta_loo = jnp.sum(X * (beta_loo.T), axis=1) + offset
