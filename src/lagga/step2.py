@@ -120,10 +120,9 @@ def validate_step2_inputs(
         ):
             raise TypeError("variants must be a list of strings")
 
-    if not len(out_prefixes) == len(phenotypes):
-        raise ValueError(
-            "out_prefixes and phenotypes must have same number of elements"
-        )
+    if not len(out_prefixes) == len(datasets):
+        raise ValueError("out_prefixes and datasets must have same number of elements")
+
     return (datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants)
 
 
