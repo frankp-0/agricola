@@ -100,7 +100,7 @@ def logistic_fit(X, y, offset, max_iter=20, alpha=0):
         max_iter: max number of iterations
 
     Returns:
-        beta: (N,) jax array of linear predictors
+        beta: (V,) jax array of coefficients
     """
     beta0 = jnp.zeros(X.shape[1])
 
