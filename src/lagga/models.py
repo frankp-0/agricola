@@ -42,7 +42,7 @@ def ridge_masked_predict(X, Y, train_mask, test_mask, alphas):
 
     ## Perform ridge regression
     XTX = X.T @ (X * train_mask)
-    XTY = X.T @ (Y * test_mask)
+    XTY = X.T @ (Y * train_mask)
     I_ = jnp.eye(b, dtype=jnp.float32)
 
     def ridge_pred(alpha):
