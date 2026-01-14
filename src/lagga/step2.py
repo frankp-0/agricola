@@ -30,18 +30,12 @@ def validate_step2_inputs(
     X: Optional[Array],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
-    phenotypes: list[str],
     B: int = 1000,
+    idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
 ) -> Tuple[
-    list[LancData],
     Array,
     Array,
-    dict[str, np.ndarray],
-    list[str],
-    list[str],
-    int,
-    Optional[list[str]],
 ]:
     ## Type and structure checks for genotype/lanc data
     if not isinstance(datasets, (list, tuple)):
@@ -123,7 +117,18 @@ def validate_step2_inputs(
     if not len(out_prefixes) == len(datasets):
         raise ValueError("out_prefixes and datasets must have same number of elements")
 
-    return (datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants)
+    ## Check samples
+    if idx_sample is None:
+        if not isinstance(idx_sample, np.ndarray):
+            raise TypeError("idx_sample must be ndarray")
+        if idx_sample.ndim != 1:
+            raise TypeError("idx_sample must be 1D")
+        if idx_sample.dtype != np.uint32:
+            raise TypeError("idx_sample must have dtype numpy.uint32")
+        if not set(idx_sample).issubset(np.arange(N, dtype=np.uint32)):
+            raise ValueError("idx_sample outside range of N samples")
+
+    return (Y, X)
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -209,6 +214,7 @@ def _step2_qt_block(
     Y: Array,
     Q: Array,
     block: np.ndarray,
+    idx_sample: Optional[np.ndarray],
     min_ac: int = 1,
 ):
     """Perform GWAS for quantitative traits for a single block of variants
@@ -227,6 +233,11 @@ def _step2_qt_block(
     ## Query local ancestry and anc-deconvoluted genotypes
     G = jnp.asarray(dataset.get_lanc_geno(block), dtype=jnp.float32)
     L = jnp.asarray(dataset.get_lanc_dosage(block)[:, :, 1:], dtype=jnp.float32)
+
+    if idx_sample is None:
+        G = G[idx_sample]
+        L = L[idx_sample]
+
     chisq_het, chisq_hom, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
 
     log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
@@ -276,6 +287,7 @@ def _step2_qt_dataset(
     dataset: LancData,
     Y_loco: dict[str, np.ndarray],
     Q: Array,
+    idx_sample: Optional[np.ndarray],
     out_prefix: str,
     phenotypes: list[str],
     desc: str,
@@ -339,7 +351,7 @@ def _step2_qt_dataset(
 
             for block in blocks:
                 result_dfs = _step2_qt_block(
-                    dataset, jnp.asarray(Y_loco[chrom]), Q, block
+                    dataset, jnp.asarray(Y_loco[chrom]), Q, block, idx_sample=idx_sample
                 )
                 for i, df in enumerate(result_dfs):
                     table = pa.Table.from_pandas(df, preserve_index=False)
@@ -362,6 +374,7 @@ def step2_qt(
     out_prefixes: list[str],
     phenotypes: list[str],
     B: int = 1000,
+    idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
 ):
     """Run step 2 for quantitative traits
@@ -377,10 +390,15 @@ def step2_qt(
     """
 
     ## Validate inputs
-    datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants = (
-        validate_step2_inputs(
-            datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants
-        )
+    Y, X = validate_step2_inputs(
+        datasets,
+        Y,
+        X,
+        step1_predictions,
+        out_prefixes,
+        B,
+        idx_sample,
+        variants,
     )
 
     ## Residualize and standardize phenotypes
@@ -396,7 +414,9 @@ def step2_qt(
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 2 results for file: {pgen_path}"
-        _step2_qt_dataset(ds, Y_loco, Q, out_prefixes[i], phenotypes, desc, B, variants)
+        _step2_qt_dataset(
+            ds, Y_loco, Q, idx_sample, out_prefixes[i], phenotypes, desc, B, variants
+        )
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -505,10 +525,15 @@ def _step2_bt_block(
     W_sqrt: Array,
     O: Array,
     block: np.ndarray,
+    idx_sample: Optional[np.ndarray],
     min_anc_ac: int = 1,
 ):
     G = dataset.get_lanc_geno(block)
     L = dataset.get_lanc_dosage(block)[:, :, 1:]
+
+    if idx_sample is None:
+        G = G[idx_sample]
+        L = L[idx_sample]
 
     chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(G, L, Y, Q_w, W_sqrt, O)
 
@@ -556,6 +581,7 @@ def _step2_bt_dataset(
     Y: Array,
     O_loco: dict[str, np.ndarray],
     X: Array,
+    idx_sample: Optional[np.ndarray],
     out_prefix: str,
     phenotypes: list[str],
     desc: str,
@@ -628,7 +654,13 @@ def _step2_bt_dataset(
 
             for block in blocks:
                 result_dfs = _step2_bt_block(
-                    dataset, Y, Q_w, W_sqrt, jnp.asarray(O_loco[chrom]), block
+                    dataset,
+                    Y,
+                    Q_w,
+                    W_sqrt,
+                    jnp.asarray(O_loco[chrom]),
+                    block,
+                    idx_sample=idx_sample,
                 )
                 for i, df in enumerate(result_dfs):
                     table = pa.Table.from_pandas(df, preserve_index=False)
@@ -651,6 +683,7 @@ def step2_bt(
     out_prefixes: list[str],
     phenotypes: list[str],
     B: int = 1000,
+    idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
 ):
     """Run step 2 for quantitative traits
@@ -665,10 +698,15 @@ def step2_bt(
         B: The block size (max number of variants to read at once)
     """
     ## Validate inputs
-    datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants = (
-        validate_step2_inputs(
-            datasets, Y, X, step1_predictions, out_prefixes, phenotypes, B, variants
-        )
+    Y, X = validate_step2_inputs(
+        datasets,
+        Y,
+        X,
+        step1_predictions,
+        out_prefixes,
+        B,
+        idx_sample,
+        variants,
     )
 
     covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
@@ -692,5 +730,5 @@ def step2_bt(
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 2 results for file: {pgen_path}"
         _step2_bt_dataset(
-            ds, Y, O_loco, X, out_prefixes[i], phenotypes, desc, B, variants
+            ds, Y, O_loco, X, idx_sample, out_prefixes[i], phenotypes, desc, B, variants
         )

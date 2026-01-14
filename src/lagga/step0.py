@@ -17,6 +17,7 @@ def _step0_block(
     dataset: LancData,
     Y: Array,
     Q: Array,
+    idx_sample: Optional[np.ndarray],
     train_mask: Array,
     test_mask: Array,
     block: np.ndarray,
@@ -38,6 +39,8 @@ def _step0_block(
     """
     ## Standardize genotype block and residualize by covariates
     G = jnp.asarray(dataset.get_geno(block), dtype=jnp.float32)
+    if idx_sample is None:
+        G = G[idx_sample]
     G = G[:, :, 0] + G[:, :, 1]
     G = stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
 
@@ -56,6 +59,7 @@ def _step0_dataset(
     dataset: LancData,
     Y: Array,
     Q: Array,
+    idx_sample: Optional[np.ndarray],
     train_mask: Array,
     test_mask: Array,
     B: int,
@@ -116,7 +120,16 @@ def _step0_dataset(
             Z_blocks = []
             for block in blocks:
                 Z_blocks.append(
-                    _step0_block(dataset, Y, Q, train_mask, test_mask, block, h2_prior)
+                    _step0_block(
+                        dataset,
+                        Y,
+                        Q,
+                        idx_sample,
+                        train_mask,
+                        test_mask,
+                        block,
+                        h2_prior,
+                    )
                 )
                 pbar.update(1)
 
@@ -133,6 +146,7 @@ def step0(
     test_mask: Array,
     h2_prior: Array,
     B: int = 2000,
+    idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
 ):
     """Perform level 0 ridge regressions
@@ -205,6 +219,19 @@ def step0(
         ):
             raise TypeError("variants must be a list of strings")
 
+    ## Check samples
+    if idx_sample is None:
+        idx_sample = np.arange(N, dtype=np.uint32)
+    else:
+        if not isinstance(idx_sample, np.ndarray):
+            raise TypeError("idx_sample must be ndarray")
+        if idx_sample.ndim != 1:
+            raise TypeError("idx_sample must be 1D")
+        if idx_sample.dtype != np.uint32:
+            raise TypeError("idx_sample must have dtype numpy.uint32")
+        if not set(idx_sample).issubset(np.arange(N, dtype=np.uint32)):
+            raise ValueError("idx_sample outside range of N samples")
+
     ## Residualize and standardize phenotypes
     if X is None:
         X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
@@ -222,7 +249,16 @@ def step0(
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting step 0 predictions for file: {pgen_path}"
         Z_dataset = _step0_dataset(
-            ds, Y, Q, train_mask, test_mask, B, variants, h2_prior, desc=desc
+            ds,
+            Y,
+            Q,
+            idx_sample,
+            train_mask,
+            test_mask,
+            B,
+            variants,
+            h2_prior,
+            desc=desc,
         )
         Z_datasets.append(Z_dataset)
 

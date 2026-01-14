@@ -175,6 +175,7 @@ def step1(
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
+    samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
     ),
@@ -208,7 +209,15 @@ def step1(
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
     samples_psam = df_psam["IID"].to_list()
-    Y, X, _, samples = load_pheno_and_covars(pheno_file, covar_file, samples_psam)
+
+    if samples_file is not None:
+        with open(samples_file, "r") as f:
+            samples_keep = f.readlines()
+        samples = [sample for sample in samples_psam if sample in samples_keep]
+    else:
+        samples = samples_psam
+
+    Y, X, _, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
@@ -216,7 +225,17 @@ def step1(
     train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
     ## Run steps 0 and 1
-    Z = step0(datasets, Y, X, train_mask, test_mask, h2_prior_arr, block_size, variants)
+    Z = step0(
+        datasets,
+        Y,
+        X,
+        train_mask,
+        test_mask,
+        h2_prior_arr,
+        block_size,
+        idx_sample,
+        variants,
+    )
 
     if trait_type == "qt":
         predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
@@ -253,6 +272,7 @@ def step2(
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
+    samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
     ),
@@ -274,9 +294,15 @@ def step2(
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
     samples_psam = df_psam["IID"].to_list()
-    Y, X, pheno_names, samples = load_pheno_and_covars(
-        pheno_file, covar_file, samples_psam
-    )
+
+    if samples_file is not None:
+        with open(samples_file, "r") as f:
+            samples_keep = f.readlines()
+        samples = [sample for sample in samples_psam if sample in samples_keep]
+    else:
+        samples = samples_psam
+
+    Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Load step1 predictions
@@ -286,11 +312,27 @@ def step2(
     ## Run step 2
     if trait_type == "qt":
         step2_qt(
-            datasets, Y, X, predictions, out_prefixes, pheno_names, block_size, variants
+            datasets,
+            Y,
+            X,
+            predictions,
+            out_prefixes,
+            pheno_names,
+            block_size,
+            idx_sample,
+            variants,
         )
     else:
         step2_bt(
-            datasets, Y, X, predictions, out_prefixes, pheno_names, block_size, variants
+            datasets,
+            Y,
+            X,
+            predictions,
+            out_prefixes,
+            pheno_names,
+            block_size,
+            idx_sample,
+            variants,
         )
 
 
@@ -315,6 +357,7 @@ def all_steps(
     out_prefix: str = typer.Option(
         ..., help="Output prefix(es), comma-separated, one per plink_prefix"
     ),
+    samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file1: Optional[str] = typer.Option(
         None, help="File with variants to include in step 0/1, one per line"
     ),
@@ -358,9 +401,15 @@ def all_steps(
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
     samples_psam = df_psam["IID"].to_list()
-    Y, X, pheno_names, samples = load_pheno_and_covars(
-        pheno_file, covar_file, samples_psam
-    )
+
+    if samples_file is not None:
+        with open(samples_file, "r") as f:
+            samples_keep = f.readlines()
+        samples = [sample for sample in samples_psam if sample in samples_keep]
+    else:
+        samples = samples_psam
+
+    Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
@@ -369,7 +418,15 @@ def all_steps(
 
     ## Run step 0
     Z = step0(
-        datasets, Y, X, train_mask, test_mask, h2_prior_arr, block_size0, variants1
+        datasets,
+        Y,
+        X,
+        train_mask,
+        test_mask,
+        h2_prior_arr,
+        block_size0,
+        idx_sample,
+        variants1,
     )
 
     ## Run steps 1 and 2
@@ -383,6 +440,7 @@ def all_steps(
             out_prefixes,
             pheno_names,
             block_size2,
+            idx_sample,
             variants2,
         )
     else:
@@ -395,6 +453,7 @@ def all_steps(
             out_prefixes,
             pheno_names,
             block_size2,
+            idx_sample,
             variants2,
         )
 
