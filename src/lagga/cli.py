@@ -29,20 +29,100 @@ def load_variants(path: Optional[str]) -> Optional[List[str]]:
     return None if path is None else open(path).read().splitlines()
 
 
-def load_pheno_and_covars(pheno_file: str, covar_file: Optional[str]):
+def read_psam(path):
+    import pandas as pd
+
+    with open(path) as f:
+        lines = f.readlines()
+
+    header_line = None
+    for line in reversed(lines):
+        if line.startswith("#"):
+            header_line = line
+            break
+
+    if header_line is not None:
+        cols = header_line.lstrip("#").strip().split()
+        df = pd.read_csv(path, sep="\\s+", comment="#", names=cols)
+
+    else:
+        data_line = next(l for l in lines if not l.startswith("#")).rstrip("\n")
+        ncols = len(data_line.split())
+
+        base = ["FID", "IID", "PAT", "MAT", "SEX"]
+        if ncols <= len(base):
+            names = base[:ncols]
+        else:
+            extra = [f"PHENO{i}" for i in range(1, ncols - len(base) + 1)]
+            names = base + extra
+
+        df = pd.read_csv(path, sep="\\s+", header=None, names=names)
+
+    if "IID" not in df.columns:
+        raise ValueError("IID column not found in psam")
+
+    return df
+
+
+def read_pheno_covar(path):
+    import pandas as pd
+
+    with open(path) as f:
+        lines = f.readlines()
+
+    header_line = None
+    for line in reversed(lines):
+        if line.startswith("#"):
+            header_line = line
+            break
+
+    if header_line is not None:
+        cols = header_line.lstrip("#").strip().split()
+        df = pd.read_csv(path, sep="\\s+", comment="#", names=cols)
+        if set(df.columns).issubset(set(["FID", "IID"])):
+            raise ValueError("No phenotype columns found")
+    else:
+        data_line = next(l for l in lines if not l.startswith("#")).rstrip("\n")
+        ncols = len(data_line.split())
+
+        if ncols <= 2:
+            raise ValueError("No phenotype columns found")
+        else:
+            extra = [f"PHENO{i}" for i in range(1, ncols - 1)]
+            names = ["FID", "IID"] + extra
+
+        df = pd.read_csv(path, sep="\\s+", header=None, names=names)
+
+    if "IID" not in df.columns:
+        raise ValueError("IID column not found in psam")
+
+    return df
+
+
+def load_pheno_and_covars(
+    pheno_file: str, covar_file: Optional[str], samples: List[str]
+):
     import pandas as pd
     import jax.numpy as jnp
 
-    df_pheno = pd.read_csv(pheno_file)
-    Y = jnp.asarray(df_pheno.to_numpy())
+    df_pheno = read_pheno_covar(pheno_file)
+    samples_pheno = df_pheno["IID"].to_list()
+
+    samples = [sample for sample in samples if sample in samples_pheno]
 
     if covar_file:
-        covars = pd.read_csv(covar_file).to_numpy()
-        X = jnp.asarray(covars)
+        df_covar = read_pheno_covar(covar_file)
+        samples_covar = df_covar["IID"].to_list()
+        samples = [sample for sample in samples if sample in samples_covar]
+        df_covar = df_covar[df_covar["IID"].isin(samples)]
+        X = jnp.asarray(df_covar.drop("IID", axis=1).to_numpy())
     else:
         X = None
 
-    return Y, X, df_pheno.columns.to_list()
+    df_pheno = df_pheno[df_pheno["IID"].isin(samples)]
+    Y = jnp.asarray(df_pheno.drop("IID", axis=1).to_numpy())
+
+    return Y, X, df_pheno.drop("IID", axis=1).columns.to_list(), samples
 
 
 def load_lanc_data(plinks, lancs, ancestries):
@@ -115,6 +195,8 @@ def step1(
     from ._utils import get_cv_mask
     from .step0 import step0
     from .step1 import step1_qt, step1_bt
+    import pandas as pd
+    import numpy as np
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -124,7 +206,10 @@ def step1(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    Y, X, _ = load_pheno_and_covars(pheno_file, covar_file)
+    df_psam = read_psam(plinks[0] + ".psam")
+    samples_psam = df_psam["IID"].to_list()
+    Y, X, _, samples = load_pheno_and_covars(pheno_file, covar_file, samples_psam)
+    idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)
@@ -177,6 +262,7 @@ def step2(
     ),
 ):
     from .step2 import step2_qt, step2_bt
+    import numpy as np
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -186,7 +272,12 @@ def step2(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    Y, X, pheno_names = load_pheno_and_covars(pheno_file, covar_file)
+    df_psam = read_psam(plinks[0] + ".psam")
+    samples_psam = df_psam["IID"].to_list()
+    Y, X, pheno_names, samples = load_pheno_and_covars(
+        pheno_file, covar_file, samples_psam
+    )
+    idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Load step1 predictions
     with open(step1_prefix + ".pkl", "rb") as file:
@@ -249,6 +340,7 @@ def all_steps(
 ):
     import jax.numpy as jnp
     import jax
+    import numpy as np
     from ._utils import get_cv_mask
     from .step0 import step0
     from .step1 import step1_qt, step1_bt
@@ -264,7 +356,12 @@ def all_steps(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    Y, X, pheno_names = load_pheno_and_covars(pheno_file, covar_file)
+    df_psam = read_psam(plinks[0] + ".psam")
+    samples_psam = df_psam["IID"].to_list()
+    Y, X, pheno_names, samples = load_pheno_and_covars(
+        pheno_file, covar_file, samples_psam
+    )
+    idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)

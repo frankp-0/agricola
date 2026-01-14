@@ -15,18 +15,20 @@ def toy_data(tmp_path: Path):
     C = 2
 
     ## Phenotypes
-    pheno_file = tmp_path / "pheno.csv"
+    pheno_file = tmp_path / "pheno.tsv"
     key0 = jax.random.key(8899134)
     df_traits = pd.DataFrame(jax.random.normal(key0, shape=(N, P)))
     df_traits.columns = ["trait" + str(i) for i in range(0, 4)]
-    df_traits.to_csv(pheno_file)
+    df_traits.insert(0, "#IID", [f"Sample_{i + 1}" for i in range(len(df_traits))])  # pyright: ignore
+    df_traits.to_csv(pheno_file, sep="\t", index=False, header=True)
 
     ## Covariates
-    covar_file = tmp_path / "covar.csv"
+    covar_file = tmp_path / "covar.tsv"
     key1 = jax.random.key(13100)
     df_covars = pd.DataFrame(jax.random.normal(key1, shape=(N, C)))
     df_covars.columns = ["covar" + str(i) for i in range(0, 2)]
-    df_covars.to_csv(covar_file)
+    df_covars.insert(0, "#IID", [f"Sample_{i + 1}" for i in range(len(df_covars))])  # pyright: ignore
+    df_covars.to_csv(covar_file, sep="\t", index=False, header=True)
 
     return {
         "pheno_file": str(pheno_file),
