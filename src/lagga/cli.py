@@ -120,9 +120,16 @@ def load_pheno_and_covars(
         X = None
 
     df_pheno = df_pheno[df_pheno["IID"].isin(samples)]
-    Y = jnp.asarray(df_pheno.drop("IID", axis=1).to_numpy())
+    Y = jnp.asarray(
+        df_pheno.drop("IID", axis=1).drop("FID", errors="ignore").to_numpy()
+    )
 
-    return Y, X, df_pheno.drop("IID", axis=1).columns.to_list(), samples
+    return (
+        Y,
+        X,
+        df_pheno.drop("IID", axis=1).drop("FID", errors="ignore").columns.to_list(),
+        samples,
+    )
 
 
 def load_lanc_data(plinks, lancs, ancestries):
