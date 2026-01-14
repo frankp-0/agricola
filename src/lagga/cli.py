@@ -115,19 +115,23 @@ def load_pheno_and_covars(
         samples_covar = df_covar["IID"].to_list()
         samples = [sample for sample in samples if sample in samples_covar]
         df_covar = df_covar[df_covar["IID"].isin(samples)]
-        X = jnp.asarray(df_covar.drop("IID", axis=1).to_numpy())
+        X = jnp.asarray(
+            df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
+        )
     else:
         X = None
 
     df_pheno = df_pheno[df_pheno["IID"].isin(samples)]
     Y = jnp.asarray(
-        df_pheno.drop("IID", axis=1).drop("FID", errors="ignore").to_numpy()
+        df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
     )
 
     return (
         Y,
         X,
-        df_pheno.drop("IID", axis=1).drop("FID", errors="ignore").columns.to_list(),
+        df_pheno.drop("IID", axis=1)
+        .drop("FID", axis=1, errors="ignore")
+        .columns.to_list(),
         samples,
     )
 
