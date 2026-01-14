@@ -118,7 +118,7 @@ def validate_step2_inputs(
         raise ValueError("out_prefixes and datasets must have same number of elements")
 
     ## Check samples
-    if idx_sample is None:
+    if idx_sample is not None:
         if not isinstance(idx_sample, np.ndarray):
             raise TypeError("idx_sample must be ndarray")
         if idx_sample.ndim != 1:
@@ -234,7 +234,7 @@ def _step2_qt_block(
     G = jnp.asarray(dataset.get_lanc_geno(block), dtype=jnp.float32)
     L = jnp.asarray(dataset.get_lanc_dosage(block)[:, :, 1:], dtype=jnp.float32)
 
-    if idx_sample is None:
+    if idx_sample is not None:
         G = G[idx_sample]
         L = L[idx_sample]
 
@@ -531,7 +531,7 @@ def _step2_bt_block(
     G = dataset.get_lanc_geno(block)
     L = dataset.get_lanc_dosage(block)[:, :, 1:]
 
-    if idx_sample is None:
+    if idx_sample is not None:
         G = G[idx_sample]
         L = L[idx_sample]
 
