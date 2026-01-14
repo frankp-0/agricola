@@ -106,22 +106,22 @@ def load_pheno_and_covars(
     import jax.numpy as jnp
 
     df_pheno = read_pheno_covar(pheno_file)
-    samples_pheno = df_pheno["IID"].to_list()
+    samples_pheno = df_pheno["IID"].astype(str).to_list()
 
     samples = [sample for sample in samples if sample in samples_pheno]
 
     if covar_file:
         df_covar = read_pheno_covar(covar_file)
-        samples_covar = df_covar["IID"].to_list()
+        samples_covar = df_covar["IID"].astype(str).to_list()
         samples = [sample for sample in samples if sample in samples_covar]
-        df_covar = df_covar[df_covar["IID"].isin(samples)]
+        df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
         X = jnp.asarray(
             df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
         )
     else:
         X = None
 
-    df_pheno = df_pheno[df_pheno["IID"].isin(samples)]
+    df_pheno = df_pheno[df_pheno["IID"].astype(str).isin(samples)]
     Y = jnp.asarray(
         df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
     )
@@ -219,7 +219,7 @@ def step1(
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
-    samples_psam = df_psam["IID"].to_list()
+    samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
         with open(samples_file, "r") as f:
@@ -304,7 +304,7 @@ def step2(
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
-    samples_psam = df_psam["IID"].to_list()
+    samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
         with open(samples_file, "r") as f:
@@ -411,7 +411,7 @@ def all_steps(
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
     df_psam = read_psam(plinks[0] + ".psam")
-    samples_psam = df_psam["IID"].to_list()
+    samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
         with open(samples_file, "r") as f:
