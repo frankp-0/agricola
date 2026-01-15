@@ -69,18 +69,6 @@ def test_assert_covar_full_rank_rank_deficient():
         assert_covar_full_rank(X)
 
 
-@pytest.fixture
-def toy_data():
-    data = [
-        LancData(
-            plink_prefix="tests/data/chr" + str(chr),
-            lanc_file="tests/data/chr" + str(chr) + ".lanc",
-        )
-        for chr in range(20, 23)
-    ]
-    return data
-
-
 def test_get_lanc_geno_deconv_shape():
     dataset = LancData(
         plink_prefix="tests/data/chr20", lanc_file="tests/data/chr20.lanc"
