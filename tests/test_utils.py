@@ -5,7 +5,14 @@
 import pytest
 import jax.numpy as jnp
 import jax
-from lagga._utils import stdize, get_cv_mask, assert_covar_full_rank
+from lagga._utils import (
+    stdize,
+    get_cv_mask,
+    assert_covar_full_rank,
+    get_geno_lanc_deconv,
+)
+from lanctools import LancData
+import numpy as np
 
 
 def test_stdize_basic():
@@ -60,3 +67,27 @@ def test_assert_covar_full_rank_rank_deficient():
     X = jnp.array([[1.0, 0.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]])
     with pytest.raises(ValueError):
         assert_covar_full_rank(X)
+
+
+@pytest.fixture
+def toy_data():
+    data = [
+        LancData(
+            plink_prefix="tests/data/chr" + str(chr),
+            lanc_file="tests/data/chr" + str(chr) + ".lanc",
+        )
+        for chr in range(20, 23)
+    ]
+    return data
+
+
+def test_get_lanc_geno_deconv_shape():
+    dataset = LancData(
+        plink_prefix="tests/data/chr20", lanc_file="tests/data/chr20.lanc"
+    )
+    indices = np.asarray([0, 4, 30], dtype=np.uint32)
+
+    G, L = get_geno_lanc_deconv(dataset, indices)
+
+    assert G.shape == (20, 3, 2)
+    assert L.shape == (20, 3, 2)

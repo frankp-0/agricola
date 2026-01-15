@@ -16,7 +16,7 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
-from ._utils import stdize, assert_covar_full_rank
+from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import logistic_fit
 
 ### ─────────────────────────────────────────────────────────────
@@ -231,8 +231,8 @@ def _step2_qt_block(
     """
 
     ## Query local ancestry and anc-deconvoluted genotypes
-    G = jnp.asarray(dataset.get_lanc_geno(block), dtype=jnp.float32)
-    L = jnp.asarray(dataset.get_lanc_dosage(block)[:, :, 1:], dtype=jnp.float32)
+    G, L = get_geno_lanc_deconv(dataset, block)
+    L = L[:, :, 1:]
 
     if idx_sample is not None:
         G = G[idx_sample]
@@ -528,8 +528,8 @@ def _step2_bt_block(
     idx_sample: Optional[np.ndarray],
     min_anc_ac: int = 1,
 ):
-    G = dataset.get_lanc_geno(block)
-    L = dataset.get_lanc_dosage(block)[:, :, 1:]
+    G, L = get_geno_lanc_deconv(dataset, block)
+    L = L[:, :, 1:]
 
     if idx_sample is not None:
         G = G[idx_sample]

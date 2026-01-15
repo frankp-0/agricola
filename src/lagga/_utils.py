@@ -5,6 +5,9 @@
 import jax
 from jaxtyping import Array
 import jax.numpy as jnp
+from lanctools import LancData
+import numpy as np
+from numpy.typing import NDArray
 
 
 def stdize(X: Array) -> Array:
@@ -56,3 +59,16 @@ def assert_covar_full_rank(X: jnp.ndarray, rtol: float = 1e-8):
         raise ValueError(
             f"Collinearity detected in : rank={rank}, n_features={X.shape[1]}"
         )
+
+
+def get_geno_lanc_deconv(
+    dataset: LancData, indices: NDArray[np.uint32]
+) -> tuple[Array, Array]:
+    geno = jnp.asarray(dataset.get_geno(indices))
+    lanc = jnp.asarray(dataset.get_lanc(indices))
+    ancestries = jnp.arange(len(dataset.ancestries))
+    left_haps_mask = (lanc[:, :, 0:1] == ancestries[None, None, :]).astype(np.int32)
+    right_haps_mask = (lanc[:, :, 1:2] == ancestries[None, None, :]).astype(np.int32)
+    geno_masked = left_haps_mask * geno[:, :, 0:1] + right_haps_mask * geno[:, :, 1:2]
+    lanc_masked = left_haps_mask + right_haps_mask
+    return geno_masked, lanc_masked

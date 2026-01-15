@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from ._utils import stdize, assert_covar_full_rank
+from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import ridge_masked_predict
 
 
@@ -38,7 +38,7 @@ def _step0_block(
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
-    G = jnp.asarray(dataset.get_geno(block), dtype=jnp.float32)
+    G, _ = get_geno_lanc_deconv(dataset, block)
     if idx_sample is None:
         G = G[idx_sample]
     G = G[:, :, 0] + G[:, :, 1]
