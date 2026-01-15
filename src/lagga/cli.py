@@ -115,6 +115,11 @@ def load_pheno_and_covars(
         samples_covar = df_covar["IID"].astype(str).to_list()
         samples = [sample for sample in samples if sample in samples_covar]
         df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
+        df_covar["IID"] = df_covar["IID"].astype(str)
+        df_covar["IID"] = pd.Categorical(
+            df_covar["IID"], categories=samples, ordered=True
+        )
+        df_covar = df_covar.sort_values("IID").reset_index(drop=True)
         X = jnp.asarray(
             df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
         )
@@ -122,6 +127,9 @@ def load_pheno_and_covars(
         X = None
 
     df_pheno = df_pheno[df_pheno["IID"].astype(str).isin(samples)]
+    df_pheno["IID"] = df_pheno["IID"].astype(str)
+    df_pheno["IID"] = pd.Categorical(df_pheno["IID"], categories=samples, ordered=True)
+    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)
     Y = jnp.asarray(
         df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
     )
