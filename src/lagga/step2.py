@@ -2,6 +2,12 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""Single variant associations
+
+This module uses whole-genome predictions from steps 0/1 to adjust traits and
+perform single variant association tests. The entry-point is the `step2` function.
+"""
+
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array
@@ -33,10 +39,9 @@ def validate_step2_inputs(
     B: int = 1000,
     idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
-) -> Tuple[
-    Array,
-    Array,
-]:
+) -> tuple[Array, Array]:
+    """Validate input data for step1"""
+
     ## Type and structure checks for genotype/lanc data
     if not isinstance(datasets, (list, tuple)):
         raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
@@ -136,6 +141,7 @@ def validate_step2_inputs(
 ### ─────────────────────────────────────────────────────────────
 
 
+# TODO: Add return type
 @jax.jit
 def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
     """Estimate coefficients and Wald statistic for quantitative traits
@@ -145,6 +151,16 @@ def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
         L: A (N, B, len(ancestries) - 1) jax array of local ancestry
         Y: A (N, P) jax array of LOCO phenotypes
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
+
+    Returns:
+        A tuple with:
+            1) chisq_hom: a (B, P) jax array with the chi-squared statistics for
+                the homogeneous test
+            2) chisq_het: a (B, P) jax array with the chi-squared statistics for
+                the heterogeneous test
+            3) beta_anc: a (B, len(ancestries), P) jax array with the estimated
+                (heterogeneous) effect sizes
+            4) df_het: a (B,) jax array with the degrees of freedom for the het test
     """
     ## Make homogeneous anc
     H = jnp.sum(G, axis=2)
@@ -218,14 +234,26 @@ def _step2_bt_core(
     W_sqrt: Array,
     O: Array,
 ):
-    """
+    """Estimate coefficients and Wald statistic for binary traits
     Args:
         G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
         L: A (N, B, len(ancestries) - 1) jax array of local ancestry
         Y: A (N, P) jax array of phenotypes
-        Q_w:
-        W_sqrt:
+        Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of
+        the covariates, weighted by estimated variance in the covariate-only model
+        W_sqrt: (N, P) The square root of the estimated variance in the
+        covariate-only model
         O: A (N, P) jax array of offsets (from covariate-only model)
+
+    Returns:
+        A tuple with:
+            1) chisq_hom: a (B, P) jax array with the chi-squared statistics for
+                the homogeneous test
+            2) chisq_het: a (B, P) jax array with the chi-squared statistics for
+                the heterogeneous test
+            3) beta_anc: a (B, len(ancestries), P) jax array with the estimated
+                (heterogeneous) effect sizes
+            4) df_het: a (B,) jax array with the degrees of freedom for the het test
     """
 
     ## Residualize G, H, L by covariates
@@ -305,12 +333,23 @@ def _step2_bt_core(
 
 @jax.jit
 def _step2_nolanc_qt_core(G: Array, Y: Array, Q: Array):
-    """Estimate coefficients and Wald statistic for quantitative traits
+    """Estimate coefficients and Wald statistic for quantitative traits with no local-ancestry adjustment.
 
     Args:
         G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
+        L: A (N, B, len(ancestries) - 1) jax array of local ancestry
         Y: A (N, P) jax array of LOCO phenotypes
         Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
+
+    Returns:
+        A tuple with:
+            1) chisq_hom: a (B, P) jax array with the chi-squared statistics for
+                the homogeneous test
+            2) chisq_het: a (B, P) jax array with the chi-squared statistics for
+                the heterogeneous test
+            3) beta_anc: a (B, len(ancestries), P) jax array with the estimated
+                (heterogeneous) effect sizes
+            4) df_het: a (B,) jax array with the degrees of freedom for the het test
     """
     ## Make homogeneous anc
     H = jnp.sum(G, axis=2)
@@ -366,15 +405,27 @@ def _step2_nolanc_bt_core(
     W_sqrt: Array,
     O: Array,
 ):
-    """
+    """Estimate coefficients and Wald statistic for binary traits without local-ancestry adjustment
     Args:
         G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
+        L: A (N, B, len(ancestries) - 1) jax array of local ancestry
         Y: A (N, P) jax array of phenotypes
-        Q_w:
-        W_sqrt:
+        Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of
+        the covariates, weighted by estimated variance in the covariate-only model
+        W_sqrt: (N, P) The square root of the estimated variance in the
+        covariate-only model
         O: A (N, P) jax array of offsets (from covariate-only model)
-    """
 
+    Returns:
+        A tuple with:
+            1) chisq_hom: a (B, P) jax array with the chi-squared statistics for
+                the homogeneous test
+            2) chisq_het: a (B, P) jax array with the chi-squared statistics for
+                the heterogeneous test
+            3) beta_anc: a (B, len(ancestries), P) jax array with the estimated
+                (heterogeneous) effect sizes
+            4) df_het: a (B,) jax array with the degrees of freedom for the het test
+    """
     ## Residualize G, H, L by covariates
     H = jnp.sum(G, axis=2)
     H = H[:, :, None] - jnp.einsum(
@@ -439,6 +490,21 @@ def _step2_block(
     extra_args: dict,
     adjust_lanc: bool,
 ) -> list[pd.DataFrame]:
+    """Run step 2 for a single block of variants
+
+    Args:
+        dataset: A LancData object
+        Y: A (N, P) jax array of outcomes
+        Q: A (N, C) jax array. The orthogonal matrix Q in the QR decomposition of
+            the covariates. For trait_type="bt", this is weighted by estimated
+            variance in the covariate-only model.
+        block: A (B,) jax array of variant indices
+        idx_sample: An optional numpy array with ordered indices of samples (in
+            the psam file) to retain
+        min_ac: the minimum allele count threshold
+        extra_args: A dict containing extra arguments needed for trait_type="bt"
+        adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+    """
     G, L = get_geno_lanc_deconv(dataset, block)
     L = L[:, :, 1:]
 
@@ -525,6 +591,24 @@ def _step2_dataset(
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ):
+    """Run step 2 for a single dataset
+
+    Args:
+        dataset: A LancData object
+        Y: A (N, P) jax array of outcomes
+        pred_loco: A dict of (N,P) numpy arrays containing LOCO predictions
+        X: A (N, C) jax array of covariates
+        idx_sample: An optional numpy array with ordered indices of samples (in
+            the psam file) to retain
+        out_prefix: Outputs will be written to {output_prefix}_{phenotype}.parquet
+        phenotypes: A list of phenotype names
+        trait_type: either "qt" or "bt"
+        desc: A string with the description to print for the progress bar
+        B: The block size (max number of variants to read at once)
+        min_ac: the minimum allele count threshold
+        variants: An optional list of variant IDs to retain
+        adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+    """
     ## Get variant indices
     if variants is None:
         idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
@@ -631,6 +715,23 @@ def step2(
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ):
+    """Run step 2
+
+    Args:
+        datasets: A list of LancData objects
+        Y: A (N, P) jax array of outcomes
+        X: A (N, C) jax array of covariates
+        step1_predictions: A dict with chromosome-specific linear predictions from step 1. The values are (N, P) NumPy arrays
+        out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
+        phenotypes: A list of phenotype names
+        trait_type: either "qt" or "bt"
+        B: The block size (max number of variants to read at once)
+        min_ac: the minimum allele count threshold
+        idx_sample: An optional numpy array with ordered indices of samples (in
+            the psam file) to retain
+        variants: An optional list of variant IDs to retain
+        adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+    """
     ## Validate inputs
     # TODO: validate phenotypes
     # TODO: validate trait_type

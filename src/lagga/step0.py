@@ -2,6 +2,14 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""Level-0 block-wise whole-genome ridge predictions.
+
+This module performs "step 0" of lagga. It splits the genome into blocks and
+performs a ridge regression within each block. It returns block-wise predictions
+for each trait across a sequence of heritability priors. The entry-point for this
+module is the `step0` function.
+"""
+
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array
@@ -29,6 +37,7 @@ def _step0_block(
         dataset: A  LancData object
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
+        idx_sample: An optional (N_sub,) jax array with indices of samples to include
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         block: A (B,) ndarray with indices of variants in the block
@@ -73,6 +82,7 @@ def _step0_dataset(
         dataset: A  LancData object
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
+        idx_sample: An optional (N_sub,) jax array with indices of samples to include
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         B: The number of variants per block
@@ -148,7 +158,7 @@ def step0(
     B: int = 2000,
     idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
-):
+) -> dict[str, np.ndarray]:
     """Perform level 0 ridge regressions
 
     Args:
@@ -159,6 +169,7 @@ def step0(
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
         B: The number of variants per block
+        idx_sample: An optional (N_sub,) jax array with indices of samples to include
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
 
     Returns:
@@ -240,7 +251,7 @@ def step0(
     X = stdize(X)
     assert_covar_full_rank(X)
 
-    Q, _ = jnp.linalg.qr(X, mode="reduced")  # pyright: ignore
+    Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = stdize(Y - (Q @ (Q.T @ Y)))
 
     ## Perform step 0 for each dataset

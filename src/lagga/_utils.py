@@ -2,6 +2,8 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""Functions used by multiple modules"""
+
 import jax
 from jaxtyping import Array
 import jax.numpy as jnp
@@ -47,7 +49,7 @@ def get_cv_mask(n: int, k: int, key: Array) -> tuple[Array, Array]:
     return train_mask, test_mask
 
 
-def assert_covar_full_rank(X: jnp.ndarray, rtol: float = 1e-8):
+def assert_covar_full_rank(X: Array, rtol: float = 1e-8):
     """Raises ValueError if X does not have full column rank.
 
     Assumes X is standardized (columns ~ unit variance).
@@ -64,6 +66,21 @@ def assert_covar_full_rank(X: jnp.ndarray, rtol: float = 1e-8):
 def get_geno_lanc_deconv(
     dataset: LancData, indices: NDArray[np.uint32]
 ) -> tuple[Array, Array]:
+    """Queries ancestry-masked genotypes and local ancestries.
+
+    Args:
+        dataset: A LancData object
+        indices: A (V,) jax array of (ascending ordered) variant indices
+
+    Returns:
+        A tuple consisting of:
+            1) geno_masked: an (N, V, K) jax array of genotypes masked by K
+            local ancestries. E.g. geno_masked[:,0,1] = sum of haplotypes with
+            ancestry 1 and an alternative allele at variant index 0.
+            2) lanc_masked: an (N, V, K) jax array of local ancestries.
+            E.g. lanc_masked[:,0,1] = sum of haplotypes with ancestry 1
+            at variant index 0.
+    """
     geno = jnp.asarray(dataset.get_geno(indices))
     lanc = jnp.asarray(dataset.get_lanc(indices))
     ancestries = jnp.arange(len(dataset.ancestries))

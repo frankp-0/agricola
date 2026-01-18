@@ -2,6 +2,14 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""Level-1 whole genome predictions.
+
+This module performs "step 1" of lagga. It takes the block-wise predictions for
+each trait and combines them into a single prediction per-chromosome per-trait
+using ridge or logistic ridge regression with cross-validation. The entry-point
+for this module is the `step2` function.
+"""
+
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array
@@ -17,6 +25,8 @@ from .models import (
 )
 
 
+# TODO: only return values that may be modified
+# TODO: Add return type
 def validate_step1_inputs(
     Z: dict[str, np.ndarray],
     Y: Array,
@@ -25,6 +35,7 @@ def validate_step1_inputs(
     test_mask: Optional[Array],
     h2_prior: Array,
 ):
+    """Validate input data for step1"""
     ## Array conversions
     Y = jnp.asarray(Y)
     if not (train_mask is None or test_mask is None):
@@ -122,7 +133,7 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Yhat: A (N, P) numpy array of step 0 predictions
+        Yhat: A (N, P) numpy array of step 1 predictions
     """
     ## Assign dimensions
     n, p = Y.shape
@@ -167,6 +178,9 @@ def _ridge_loocv_bt(Z, Y, offset, h2_prior):
         offset: A (N, P) jax array of offsets from covariate model
         h2_prior: A 1D jax array of prior values for snp heritability
 
+    Returns:
+        An (N, P) numpy array of step 1 predictions (linear predictor, not
+        including offset)
     """
     ## Assign dimensions
     n, p = Y.shape
@@ -207,6 +221,9 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
         offset: A (N, P) jax array of offsets from covariate model
         h2_prior: A 1D jax array of prior values for snp heritability
 
+    Returns:
+        An (N, P) numpy array of step 1 predictions (linear predictor, not
+        including offset)
     """
     ## Assign dimensions
     n, p = Y.shape
@@ -259,7 +276,23 @@ def step1(
     h2_prior: Array,
     trait_type: str,
     loocv: bool = False,
-):
+) -> dict[str, np.ndarray]:
+    """Perform level 1 ridge regressions
+
+    Args:
+        Z: An (N, P, N_blocks) jax array of level 0 predictions
+        Y: A (N, P) jax array of phenotypes
+        X: An optional (N, C) jax array of covariates (no intercept)
+        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
+        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
+        h2_prior: A 1D jax array of prior values for snp heritability
+        trait_type: Either "qt" or "bt"
+        loocv: A boolean indicating whether to perform LOOCV instead of standard
+        cross validation. Ignored for trait_type="qt".
+
+    Returns:
+        A dict where keys are chromosomes and values are (N, P) numpy arrays of step 1 predictions
+    """
     ## Validate inputs
     Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
         Z, Y, X, train_mask, test_mask, h2_prior

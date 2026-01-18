@@ -2,6 +2,20 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""Functions for fitting regression models.
+
+Key functions:
+    ridge_masked_predict: ridge regression predictions with train/test masks
+    logistic_fit: logistic regression
+    logistic_ridge_predict: logistic ridge regression predictions with train/test
+    masks
+    logistic_ridge_loo_predict: leave-one-out logistic ridge regression
+  predictions
+
+
+ridge_masked_predict and logistic_ridge_predict
+"""
+
 import jax
 import jax.numpy as jnp
 import jax.lax as lax
@@ -62,20 +76,7 @@ def ridge_masked_predict(X, Y, train_mask, test_mask, alphas):
 
 
 def _logistic_ridge_step(beta, X, y, offset, train_mask, alpha):
-    """One Newton/IRLS update in logistic ridge regression
-
-    Args:
-        beta: (V,) jax array of current coefficients
-        X: (N, V) jax array of predictors
-        y: (N,) jax array of the outcome
-        offset: (N,) jax array with offset
-        train_mask: (N,) jax array indicating training set status (0/1)
-        alpha: ridge penalty weight
-
-    Returns:
-        beta: (V,) jax array of coefficients
-    """
-
+    """One Newton/IRLS update in logistic ridge regression."""
     eta = X @ beta + offset
     mu = expit(eta)
     r = (y - mu) * train_mask
@@ -88,10 +89,11 @@ def _logistic_ridge_step(beta, X, y, offset, train_mask, alpha):
     return beta_new
 
 
-def logistic_fit(X, y, offset, max_iter=20, alpha=0):
+def logistic_fit(X, y, offset, max_iter=20):
     """Perform logistic regression
 
-    Returns estimated coefficients
+    Fits a logistic regression model including offsets and returns
+    regression coefficients.
 
     Args:
         X: (N, V) jax array of predictors
@@ -105,7 +107,7 @@ def logistic_fit(X, y, offset, max_iter=20, alpha=0):
     beta0 = jnp.zeros(X.shape[1])
 
     def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), alpha)
+        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), 0)
 
     beta = lax.fori_loop(0, max_iter, body_fun, beta0)
 
@@ -113,9 +115,10 @@ def logistic_fit(X, y, offset, max_iter=20, alpha=0):
 
 
 def logistic_ridge_predict(X, y, offset, train_mask, alpha, max_iter=50):
-    """Perform logistic ridge regression
+    """Perform logistic ridge regression using a training mask.
 
-    Returns linear predictors
+    Fits a logistic ridge regression model including offsets and returns
+    the linear predictor.
 
     Args:
         X: (N, V) jax array of predictors

@@ -2,6 +2,8 @@
 # Copyright (c) 2025 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+"""The command line interface for lagga."""
+
 import logging
 import pickle
 import typer
