@@ -139,6 +139,7 @@ def test_step1_bt_valid_input():
     """Check that valid data throws no type errors"""
     ## cross-validation
     Z, Y, X, train, test, h2 = valid_inputs()
+    Y = jnp.round(expit(Y))
     step1_bt(Z, Y, X, False, train, test, h2)
 
     ## loco
