@@ -157,6 +157,26 @@ def test_step2_valid_input(tmp_path, toy_data):
     phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     step2(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes, "qt")
+    step2(
+        toy_data,
+        Y,
+        X,
+        step1_predictions,
+        out_prefixes,
+        phenotypes,
+        "qt",
+        adjust_lanc=False,
+    )
 
     Y = jnp.round(expit(Y))
     step2(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes, "bt")
+    step2(
+        toy_data,
+        Y,
+        X,
+        step1_predictions,
+        out_prefixes,
+        phenotypes,
+        "bt",
+        adjust_lanc=False,
+    )

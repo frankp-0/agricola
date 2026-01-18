@@ -303,6 +303,126 @@ def _step2_bt_core(
     return chisq_hom, chisq_het, beta_anc, df_het
 
 
+@jax.jit
+def _step2_nolanc_qt_core(G: Array, Y: Array, Q: Array):
+    """Estimate coefficients and Wald statistic for quantitative traits
+
+    Args:
+        G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
+        Y: A (N, P) jax array of LOCO phenotypes
+        Q: (N, C) jax array. The orthogonal matrix Q in the QR decomposition of the covariates
+    """
+    ## Make homogeneous anc
+    H = jnp.sum(G, axis=2)
+
+    ## Adjust genotypes
+    QG = jnp.einsum("nc,nbk->cbk", Q, G)
+    QH = jnp.einsum("nc,nb->cb", Q, H)
+    G = G - jnp.einsum("nc,cbk->nbk", Q, QG)
+    H = H - jnp.einsum("nc,cb->nb", Q, QH)
+
+    ## MSE under null
+    sig2 = jnp.sum(Y**2, axis=0) / Y.shape[0]
+
+    ## Get masks based on variance
+    var_G = jnp.var(G, axis=0)
+    var_H = jnp.var(H, axis=0)
+    mask_G = var_G > 1e-8
+    mask_H = var_H > 1e-8
+
+    ## Score for anc-deconvoluted genotypes
+    U = jnp.einsum("nbk,np->bkp", G, Y)
+    U = U * mask_G[:, :, None]  # apply mask
+    I22_inv = jax.scipy.linalg.inv(
+        jnp.einsum("nbk,nbl->bkl", G, G) + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
+    )
+    I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
+    chisq_het = (
+        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkk->bkp", U, I22_inv), U)
+        / sig2[None, :]
+    )
+
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
+
+    # Score for genotypes
+    UH = jnp.einsum("nb,np->bp", H, Y)
+    UH = UH * mask_H[:, None]  # apply mask
+    I22_inv_H = 1 / (jnp.einsum("nb,nb->b", H, H) + 1e-10)
+    I22_inv_H = I22_inv_H * mask_H  # apply mask
+    chisq_hom = (UH**2) * I22_inv_H[:, None]
+
+    K = jnp.einsum("nbk,nbl->bkl", G, G)
+    eigvals = jnp.linalg.eigvalsh(K)
+    df_het = jnp.sum(eigvals > 1e-8, axis=1)
+
+    return chisq_hom, chisq_het, beta_anc, df_het
+
+
+@jax.jit
+def _step2_nolanc_bt_core(
+    G: Array,
+    Y: Array,
+    Q_w: Array,
+    W_sqrt: Array,
+    O: Array,
+):
+    """
+    Args:
+        G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
+        Y: A (N, P) jax array of phenotypes
+        Q_w:
+        W_sqrt:
+        O: A (N, P) jax array of offsets (from covariate-only model)
+    """
+
+    ## Residualize G, H, L by covariates
+    H = jnp.sum(G, axis=2)
+    H = H[:, :, None] - jnp.einsum(
+        "ncp,cbp->nbp",
+        Q_w,
+        jnp.einsum("ncp,nbp->cbp", Q_w, H[:, :, None] * W_sqrt[:, None, :]),
+    )
+
+    G = G[:, :, :, None] - jnp.einsum(
+        "ncp,cbkp->nbkp",
+        Q_w,
+        jnp.einsum("ncp,nbkp->cbkp", Q_w, G[:, :, :, None] * W_sqrt[:, None, None, :]),
+    )
+
+    ## Get masks based on variance
+    var_G = jnp.var(G, axis=0)
+    var_H = jnp.var(H, axis=0)
+    mask_G = var_G > 1e-8
+    mask_H = var_H > 1e-8
+
+    ## Get null model
+    mu = expit(O)
+    R = Y - mu
+
+    ## Score for anc-deconvoluted genotypes
+    U = jnp.einsum("nbkp,np->bkp", G, R)
+    U = U * mask_G  # apply mask
+    I22_inv = jnp.linalg.inv(
+        jnp.einsum("nbkp,nblp->bpkl", G, G)
+        + 1e-8 * jnp.eye(G.shape[2])[None, None, :, :],
+    )
+    I22_inv = I22_inv * jnp.einsum("bkp,blp->bpkl", mask_G, mask_G)  # apply mask
+    chisq_het = jnp.einsum("bkp,bpkl,blp->bp", U, I22_inv, U)
+
+    UH = jnp.einsum("nbp,np->bp", H, R)
+    UH = UH * mask_H  # apply mask
+    I22_inv_H = 1 / (jnp.einsum("nbp,nbp->bp", H, H) + 1e-8)
+    I22_inv_H = I22_inv_H * mask_H
+    chisq_hom = (UH**2) * I22_inv_H
+
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
+
+    K = jnp.einsum("nbkp,nblp->bpkl", G, G)
+    eigvals = jnp.linalg.eigvalsh(K)
+    df_het = jnp.sum(eigvals > 1e-8, axis=2)
+    return chisq_hom, chisq_het, beta_anc, df_het
+
+
 ### ─────────────────────────────────────────────────────────────
 ### Orchestration
 ### ─────────────────────────────────────────────────────────────
@@ -320,6 +440,7 @@ def _step2_dataset(
     desc: str,
     B: int = 2000,
     variants: Optional[list[str]] = None,
+    adjust_lanc: bool = True,
 ):
     ## Get variant indices
     if variants is None:
@@ -385,7 +506,15 @@ def _step2_dataset(
 
             for block in blocks:
                 result_dfs = _step2_block(
-                    dataset, Y, Q, trait_type, block, idx_sample, 1, extra_args
+                    dataset,
+                    Y,
+                    Q,
+                    trait_type,
+                    block,
+                    idx_sample,
+                    1,
+                    extra_args,
+                    adjust_lanc,
                 )
                 for i, df in enumerate(result_dfs):
                     table = pa.Table.from_pandas(df, preserve_index=False)
@@ -409,6 +538,7 @@ def _step2_block(
     idx_sample: Optional[np.ndarray],
     min_ac: int,
     extra_args: dict,
+    adjust_lanc: bool,
 ) -> list[pd.DataFrame]:
     G, L = get_geno_lanc_deconv(dataset, block)
     L = L[:, :, 1:]
@@ -418,11 +548,19 @@ def _step2_block(
         L = L[idx_sample]
 
     if trait_type == "qt":
-        chisq_hom, chisq_het, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
+        if adjust_lanc:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
+        else:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_qt_core(G, Y, Q)
     elif trait_type == "bt":
-        chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(
-            G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
-        )
+        if adjust_lanc:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(
+                G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
+            )
+        else:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_bt_core(
+                G, Y, Q, extra_args["W_sqrt"], extra_args["O"]
+            )
     else:
         raise ValueError("trait_type must be qt or bt")
 
@@ -489,6 +627,7 @@ def step2(
     B: int = 1000,
     idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
+    adjust_lanc: bool = True,
 ):
     ## Validate inputs
     # TODO: validate phenotypes
@@ -542,4 +681,5 @@ def step2(
             desc,
             B,
             variants,
+            adjust_lanc,
         )
