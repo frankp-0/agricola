@@ -300,7 +300,7 @@ def step2(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
 ):
-    from .step2 import step2_qt, step2_bt
+    from .step2 import step2
     import numpy as np
 
     plinks = list_from_csv(plink_prefix)
@@ -329,30 +329,18 @@ def step2(
         predictions = pickle.load(file)
 
     ## Run step 2
-    if trait_type == "qt":
-        step2_qt(
-            datasets,
-            Y,
-            X,
-            predictions,
-            out_prefixes,
-            pheno_names,
-            block_size,
-            idx_sample,
-            variants,
-        )
-    else:
-        step2_bt(
-            datasets,
-            Y,
-            X,
-            predictions,
-            out_prefixes,
-            pheno_names,
-            block_size,
-            idx_sample,
-            variants,
-        )
+    step2(
+        datasets,
+        Y,
+        X,
+        predictions,
+        out_prefixes,
+        pheno_names,
+        trait_type,
+        block_size,
+        idx_sample,
+        variants,
+    )
 
 
 # ---------------------------------------------------------
@@ -406,7 +394,7 @@ def all_steps(
     from ._utils import get_cv_mask
     from .step0 import step0
     from .step1 import step1_qt, step1_bt
-    from .step2 import step2_qt, step2_bt
+    from .step2 import step2
 
     plinks = list_from_csv(plink_prefix)
     lancs = list_from_csv(lanc_file)
@@ -451,30 +439,21 @@ def all_steps(
     ## Run steps 1 and 2
     if trait_type == "qt":
         predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
-        step2_qt(
-            datasets,
-            Y,
-            X,
-            predictions,
-            out_prefixes,
-            pheno_names,
-            block_size2,
-            idx_sample,
-            variants2,
-        )
     else:
         predictions = step1_bt(Z, Y, X, loocv, train_mask, test_mask, h2_prior_arr)
-        step2_bt(
-            datasets,
-            Y,
-            X,
-            predictions,
-            out_prefixes,
-            pheno_names,
-            block_size2,
-            idx_sample,
-            variants2,
-        )
+
+    step2(
+        datasets,
+        Y,
+        X,
+        predictions,
+        out_prefixes,
+        pheno_names,
+        trait_type,
+        block_size2,
+        idx_sample,
+        variants2,
+    )
 
 
 # ---------------------------------------------------------

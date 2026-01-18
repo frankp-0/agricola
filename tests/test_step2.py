@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from jax.scipy.special import expit
-from lagga.step2 import step2_bt, step2_qt
+from lagga.step2 import step2
 from lanctools import LancData
 
 
@@ -36,7 +36,7 @@ def valid_inputs(P=3, C=1):
     N = 20
     step1_predictions = {
         str(i): np.asarray(
-            jax.random.normal(jax.random.split(key0, 3)[i], shape=(N, P))
+            jax.random.normal(jax.random.split(key0, 3)[i - 21], shape=(N, P))
         )
         for i in range(20, 23)
     }
@@ -51,11 +51,11 @@ def test_step2_dataset_elements_type_error(tmp_path):
     phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(TypeError, match="must be LancData"):
-        step2_qt([object()], Y, X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2([object()], Y, X, step1_predictions, out_prefixes, phenotypes, "qt")  # pyright: ignore
 
     Y = jnp.round(expit(Y))
     with pytest.raises(TypeError, match="must be LancData"):
-        step2_bt([object()], Y, X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2([object()], Y, X, step1_predictions, out_prefixes, phenotypes, "bt")  # pyright: ignore
 
 
 def test_step2_pred_dim_error(tmp_path):
@@ -65,11 +65,11 @@ def test_step2_pred_dim_error(tmp_path):
     phenotypes = [i for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(TypeError, match="must be LancData"):
-        step2_qt([object()], Y, X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2([object()], Y, X, step1_predictions, out_prefixes, phenotypes, "qt")  # pyright: ignore
 
     Y = jnp.round(expit(Y))
     with pytest.raises(TypeError, match="must be LancData"):
-        step2_bt([object()], Y, X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2([object()], Y, X, step1_predictions, out_prefixes, phenotypes, "bt")  # pyright: ignore
 
 
 def test_step2_Y_dim_error(tmp_path, toy_data):
@@ -78,10 +78,14 @@ def test_step2_Y_dim_error(tmp_path, toy_data):
     phenotypes = [i for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(ValueError, match="Y must be 2D"):
-        step2_qt(toy_data, jnp.zeros(5), X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2(
+            toy_data, jnp.zeros(5), X, step1_predictions, out_prefixes, phenotypes, "qt"
+        )  # pyright: ignore
 
     with pytest.raises(ValueError, match="Y must be 2D"):
-        step2_bt(toy_data, jnp.zeros(5), X, step1_predictions, out_prefixes, phenotypes)  # pyright: ignore
+        step2(
+            toy_data, jnp.zeros(5), X, step1_predictions, out_prefixes, phenotypes, "bt"
+        )  # pyright: ignore
 
 
 def test_step2_X_dim_error(tmp_path, toy_data):
@@ -90,14 +94,26 @@ def test_step2_X_dim_error(tmp_path, toy_data):
     phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(ValueError, match="X must be 2D"):
-        step2_qt(
-            toy_data, Y, jnp.zeros(10), step1_predictions, out_prefixes, phenotypes
+        step2(
+            toy_data,
+            Y,
+            jnp.zeros(10),
+            step1_predictions,
+            out_prefixes,
+            phenotypes,
+            "qt",
         )  # pyright: ignore
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="X must be 2D"):
-        step2_bt(
-            toy_data, Y, jnp.zeros(10), step1_predictions, out_prefixes, phenotypes
+        step2(
+            toy_data,
+            Y,
+            jnp.zeros(10),
+            step1_predictions,
+            out_prefixes,
+            phenotypes,
+            "bt",
         )  # pyright: ignore
 
 
@@ -107,14 +123,26 @@ def test_step2_X_matches_N_error(tmp_path, toy_data):
     phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(ValueError, match="must match Y.shape"):
-        step2_qt(
-            toy_data, Y, jnp.zeros((5, 2)), step1_predictions, out_prefixes, phenotypes
+        step2(
+            toy_data,
+            Y,
+            jnp.zeros((5, 2)),
+            step1_predictions,
+            out_prefixes,
+            phenotypes,
+            "qt",
         )  # pyright: ignore
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="must match Y.shape"):
-        step2_bt(
-            toy_data, Y, jnp.zeros((5, 2)), step1_predictions, out_prefixes, phenotypes
+        step2(
+            toy_data,
+            Y,
+            jnp.zeros((5, 2)),
+            step1_predictions,
+            out_prefixes,
+            phenotypes,
+            "bt",
         )  # pyright: ignore
 
 
@@ -123,18 +151,12 @@ def test_step2_X_matches_N_error(tmp_path, toy_data):
 ### ─────────────────────────────────────────────────────────────
 
 
-def test_step2_qt_valid_input(tmp_path, toy_data):
+def test_step2_valid_input(tmp_path, toy_data):
     """Check that valid data throws no type errors"""
     Y, X, step1_predictions = valid_inputs()
     phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
-    step2_qt(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes)
+    step2(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes, "qt")
 
-
-def test_step2_bt_valid_input(tmp_path, toy_data):
-    """Check that valid data throws no type errors"""
-    Y, X, step1_predictions = valid_inputs()
     Y = jnp.round(expit(Y))
-    phenotypes = [str(i) for i in range(3)]
-    out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
-    step2_bt(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes)
+    step2(toy_data, Y, X, step1_predictions, out_prefixes, phenotypes, "bt")
