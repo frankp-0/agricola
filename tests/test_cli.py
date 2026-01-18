@@ -92,3 +92,26 @@ def test_step2_toy(toy_data):
 
     file_20 = toy_data["step2_prefix"][0]
     assert Path(file_20).exists()
+
+
+def test_allsteps_toy(toy_data):
+    result = runner.invoke(
+        app,
+        [
+            "all-steps",
+            "--plink-prefix",
+            toy_data["plink_prefix"],
+            "--lanc-file",
+            toy_data["lanc_file"],
+            "--out-prefix",
+            toy_data["step2_prefix"],
+            "--pheno-file",
+            toy_data["pheno_file"],
+            "--covar-file",
+            toy_data["covar_file"],
+        ],
+    )
+    assert result.exit_code == 0
+
+    file_20 = toy_data["step2_prefix"][0]
+    assert Path(file_20).exists()
