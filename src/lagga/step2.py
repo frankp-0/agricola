@@ -592,7 +592,7 @@ def _step2_block(
     ## Filter out variants that fail min_ac
     anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
     valid_idx = np.array(anc_variant_mask)
-    block_info_filtered = block_info[valid_idx]
+    block_info_filtered = block_info[valid_idx].reset_index(drop=True)
     result_arr_filtered = result_arr[valid_idx, :, :]
 
     ## Format results into list of dataframes
