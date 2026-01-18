@@ -428,6 +428,88 @@ def _step2_nolanc_bt_core(
 ### ─────────────────────────────────────────────────────────────
 
 
+def _step2_block(
+    dataset: LancData,
+    Y: Array,
+    Q: Array,
+    trait_type: str,
+    block: np.ndarray,
+    idx_sample: Optional[np.ndarray],
+    min_ac: int,
+    extra_args: dict,
+    adjust_lanc: bool,
+) -> list[pd.DataFrame]:
+    G, L = get_geno_lanc_deconv(dataset, block)
+    L = L[:, :, 1:]
+
+    if idx_sample is not None:
+        G = G[idx_sample]
+        L = L[idx_sample]
+
+    if trait_type == "qt":
+        if adjust_lanc:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
+        else:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_qt_core(G, Y, Q)
+    elif trait_type == "bt":
+        if adjust_lanc:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(
+                G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
+            )
+        else:
+            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_bt_core(
+                G, Y, Q, extra_args["W_sqrt"], extra_args["O"]
+            )
+    else:
+        raise ValueError("trait_type must be qt or bt")
+
+    if trait_type == "qt":
+        log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
+    else:
+        log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
+
+    log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
+
+    ## Create array with results
+    result_arr = np.concatenate(
+        [
+            log10p_het[:, None, :],
+            log10p_hom[:, None, :],
+            beta_anc,
+        ],
+        axis=1,
+    )
+
+    ## Get column names for results
+    ancs = dataset.ancestries
+    colnames: List[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
+
+    ## Get info on variants in block
+    block_info = dataset.get_info(block)  # all variants
+    block_info["N"] = Y.shape[0]
+
+    ## Filter out variants that fail min_ac
+    anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
+    valid_idx = np.array(anc_variant_mask)
+    block_info_filtered = block_info[valid_idx].reset_index(drop=True)
+    result_arr_filtered = result_arr[valid_idx, :, :]
+
+    ## Format results into list of dataframes
+    p = Y.shape[1]
+    result_dfs = [
+        pd.concat(
+            [
+                block_info_filtered,
+                pd.DataFrame(data=result_arr_filtered[:, :, i], columns=colnames),  # pyright: ignore
+            ],
+            axis=1,
+        )
+        for i in range(p)
+    ]
+
+    return result_dfs
+
+
 def _step2_dataset(
     dataset: LancData,
     Y: Array,
@@ -527,88 +609,6 @@ def _step2_dataset(
                         )
                     writers[i].write_table(table)  # pyright: ignore
                 pbar.update(1)
-
-
-def _step2_block(
-    dataset: LancData,
-    Y: Array,
-    Q: Array,
-    trait_type: str,
-    block: np.ndarray,
-    idx_sample: Optional[np.ndarray],
-    min_ac: int,
-    extra_args: dict,
-    adjust_lanc: bool,
-) -> list[pd.DataFrame]:
-    G, L = get_geno_lanc_deconv(dataset, block)
-    L = L[:, :, 1:]
-
-    if idx_sample is not None:
-        G = G[idx_sample]
-        L = L[idx_sample]
-
-    if trait_type == "qt":
-        if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
-        else:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_qt_core(G, Y, Q)
-    elif trait_type == "bt":
-        if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(
-                G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
-            )
-        else:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_bt_core(
-                G, Y, Q, extra_args["W_sqrt"], extra_args["O"]
-            )
-    else:
-        raise ValueError("trait_type must be qt or bt")
-
-    if trait_type == "qt":
-        log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
-    else:
-        log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
-
-    log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
-
-    ## Create array with results
-    result_arr = np.concatenate(
-        [
-            log10p_het[:, None, :],
-            log10p_hom[:, None, :],
-            beta_anc,
-        ],
-        axis=1,
-    )
-
-    ## Get column names for results
-    ancs = dataset.ancestries
-    colnames: List[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
-
-    ## Get info on variants in block
-    block_info = dataset.get_info(block)  # all variants
-    block_info["N"] = Y.shape[0]
-
-    ## Filter out variants that fail min_ac
-    anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
-    valid_idx = np.array(anc_variant_mask)
-    block_info_filtered = block_info[valid_idx].reset_index(drop=True)
-    result_arr_filtered = result_arr[valid_idx, :, :]
-
-    ## Format results into list of dataframes
-    p = Y.shape[1]
-    result_dfs = [
-        pd.concat(
-            [
-                block_info_filtered,
-                pd.DataFrame(data=result_arr_filtered[:, :, i], columns=colnames),  # pyright: ignore
-            ],
-            axis=1,
-        )
-        for i in range(p)
-    ]
-
-    return result_dfs
 
 
 ### ─────────────────────────────────────────────────────────────
