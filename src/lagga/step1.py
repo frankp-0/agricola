@@ -16,10 +16,6 @@ from .models import (
     logistic_ridge_loo_predict,
 )
 
-### ─────────────────────────────────────────────────────────────
-### Helper Functions
-### ─────────────────────────────────────────────────────────────
-
 
 def validate_step1_inputs(
     Z: dict[str, np.ndarray],
@@ -111,7 +107,7 @@ def validate_step1_inputs(
 
 
 ### ─────────────────────────────────────────────────────────────
-### Quantitative Traits
+### Computation
 ### ─────────────────────────────────────────────────────────────
 
 
@@ -160,65 +156,6 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
         axis=2
     )
     return Yhat
-
-
-def step1_qt(
-    Z: dict[str, np.ndarray],
-    Y: Array,
-    X: Optional[Array],
-    train_mask: Array,
-    test_mask: Array,
-    h2_prior: Array,
-):
-    """Perform level 1 ridge regressions for quantitative phenotypes
-
-    Args:
-        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
-        Y: A (N, P) jax array of phenotypes
-        X: A (N, C) jax array of covariates (no intercept)
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
-        h2_prior: A 1D jax array of prior values for snp heritability
-
-    Returns:
-        step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
-    """
-    ## Validate inputs
-    Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
-        Z, Y, X, train_mask, test_mask, h2_prior
-    )
-
-    n, p = Y.shape
-
-    ## Residualize and standardize phenotypes
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
-    Q, _ = jnp.linalg.qr(X, mode="reduced")
-    Y = stdize(Y - (Q @ (Q.T @ Y)))
-
-    ## Perform step 1 for each chromosome
-    with tqdm(
-        total=len(Z),
-        desc="Getting step 1 predictions",
-        unit="chromosomes",
-    ) as pbar:
-        step1_predictions = {}
-        for chrom, Z_chrom in Z.items():
-            Yhat_chrom = np.empty(shape=(n, p), dtype=np.float32)
-            Yhat_chrom = _ridge_cv_qt(Z_chrom, Y, train_mask, test_mask, h2_prior)
-            step1_predictions[chrom] = Yhat_chrom
-            pbar.update(1)
-
-    return step1_predictions
-
-
-### ─────────────────────────────────────────────────────────────
-### Binary Traits
-### ─────────────────────────────────────────────────────────────
 
 
 def _ridge_loocv_bt(Z, Y, offset, h2_prior):
@@ -308,35 +245,26 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
     return eta_hat
 
 
-def step1_bt(
+### ─────────────────────────────────────────────────────────────
+### Public-facing
+### ─────────────────────────────────────────────────────────────
+
+
+def step1(
     Z: dict[str, np.ndarray],
     Y: Array,
     X: Optional[Array],
-    loocv: bool,
     train_mask: Optional[Array],
     test_mask: Optional[Array],
     h2_prior: Array,
+    trait_type: str,
+    loocv: bool = False,
 ):
-    """Perform level 1 ridge regressions for binary phenotypes
-
-    Args:
-        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) jax arrays of step 0 predictions
-        Y: A (N, P) jax array of phenotypes
-        X: An optional (N, C) jax array of covariates (no intercept)
-        loocv: A logical indicating whether to perform LOOCV. If False, train_mask, test_mask must be provided
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
-        h2_prior: A 1D jax array of prior values for snp heritability
-
-    Returns:
-        step1_predictions: A dict where keys are chromosomes and values are (N, P) numpy arrays of step 0 predictions
-    """
     ## Validate inputs
     Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
         Z, Y, X, train_mask, test_mask, h2_prior
     )
 
-    ## Covariate-only model
     if X is None:
         X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
     else:
@@ -344,8 +272,16 @@ def step1_bt(
     X = stdize(X)
     assert_covar_full_rank(X)
 
-    covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
-    offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
+    offset: Optional[Array] = None
+    if trait_type == "qt":
+        Q, _ = jnp.linalg.qr(X, mode="reduced")
+        Y = stdize(Y - (Q @ (Q.T @ Y)))
+    elif trait_type == "bt":
+        ## Covariate-only model
+        covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
+        offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
+    else:
+        raise ValueError("trait_type must be qt or bt")
 
     ## Perform step 1 for each chromosome
     with tqdm(
@@ -355,13 +291,15 @@ def step1_bt(
     ) as pbar:
         step1_predictions = {}
         for chrom, Z_chrom in Z.items():
-            if loocv:
-                eta_hat_chrom = _ridge_loocv_bt(Z_chrom, Y, offset, h2_prior)
-            else:
-                eta_hat_chrom = _ridge_cv_bt(
+            if trait_type == "bt" and loocv:
+                pred_chrom = _ridge_loocv_bt(Z_chrom, Y, offset, h2_prior)
+            elif trait_type == "bt":
+                pred_chrom = _ridge_cv_bt(
                     Z_chrom, Y, train_mask, test_mask, offset, h2_prior
                 )
-            step1_predictions[chrom] = eta_hat_chrom
+            elif trait_type == "qt":
+                pred_chrom = _ridge_cv_qt(Z_chrom, Y, train_mask, test_mask, h2_prior)
+            step1_predictions[chrom] = pred_chrom
             pbar.update(1)
 
     return step1_predictions

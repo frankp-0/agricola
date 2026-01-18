@@ -16,6 +16,11 @@ app = typer.Typer(help="lagga CLI")
 logger = logging.getLogger("lagga")
 
 
+### ─────────────────────────────────────────────────────────────
+### Helpers
+### ─────────────────────────────────────────────────────────────
+
+
 def _configure_jax_logging():
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
     os.environ.setdefault("ABSL_LOGGING_MIN_LEVEL", "3")
@@ -170,6 +175,11 @@ def get_version() -> str:
         return "unknown"
 
 
+### ─────────────────────────────────────────────────────────────
+### App
+### ─────────────────────────────────────────────────────────────
+
+
 @app.callback()
 def main(
     verbose: bool = typer.Option(False, "--verbose"),
@@ -214,8 +224,7 @@ def step1(
     import jax
     from ._utils import get_cv_mask
     from .step0 import step0
-    from .step1 import step1_qt, step1_bt
-    import pandas as pd
+    from .step1 import step1
     import numpy as np
 
     plinks = list_from_csv(plink_prefix)
@@ -226,7 +235,7 @@ def step1(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")
+    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
     samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
@@ -256,19 +265,11 @@ def step1(
         variants,
     )
 
-    if trait_type == "qt":
-        predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
-    else:
-        predictions = step1_bt(Z, Y, X, loocv, train_mask, test_mask, h2_prior_arr)
+    predictions = step1(Z, Y, X, train_mask, test_mask, h2_prior_arr, trait_type, loocv)
 
     ## Write predictions
     with open(out_prefix + ".pkl", "wb") as f:
         pickle.dump(predictions, f)
-
-
-# ---------------------------------------------------------
-# step2
-# ---------------------------------------------------------
 
 
 @app.command()
@@ -311,7 +312,7 @@ def step2(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")
+    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
     samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
@@ -334,18 +335,13 @@ def step2(
         Y,
         X,
         predictions,
-        out_prefixes,
+        out_prefixes,  # pyright: ignore
         pheno_names,
         trait_type,
         block_size,
         idx_sample,
         variants,
     )
-
-
-# ---------------------------------------------------------
-# all_steps
-# ---------------------------------------------------------
 
 
 @app.command()
@@ -393,7 +389,7 @@ def all_steps(
     import numpy as np
     from ._utils import get_cv_mask
     from .step0 import step0
-    from .step1 import step1_qt, step1_bt
+    from .step1 import step1
     from .step2 import step2
 
     plinks = list_from_csv(plink_prefix)
@@ -406,7 +402,7 @@ def all_steps(
 
     ## Load data
     datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")
+    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
     samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
@@ -437,28 +433,19 @@ def all_steps(
     )
 
     ## Run steps 1 and 2
-    if trait_type == "qt":
-        predictions = step1_qt(Z, Y, X, train_mask, test_mask, h2_prior_arr)
-    else:
-        predictions = step1_bt(Z, Y, X, loocv, train_mask, test_mask, h2_prior_arr)
-
+    predictions = step1(Z, Y, X, train_mask, test_mask, h2_prior_arr, trait_type, loocv)
     step2(
         datasets,
         Y,
         X,
         predictions,
-        out_prefixes,
+        out_prefixes,  # pyright: ignore
         pheno_names,
         trait_type,
         block_size2,
         idx_sample,
         variants2,
     )
-
-
-# ---------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------
 
 
 def main_entry():

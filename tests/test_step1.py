@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from jax.scipy.special import expit
-from lagga.step1 import step1_bt, step1_qt
+from lagga.step1 import step1
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -41,87 +41,87 @@ def test_step1_Z_dim_error():
     Z["0"] = np.ones(shape=(1, 6, 4))
 
     with pytest.raises(ValueError, match="All Z arrays must have same"):
-        step1_qt(Z, Y, X, train, test, h2)
+        step1(Z, Y, X, train, test, h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError):
-        step1_bt(Z, Y, X, False, train, test, h2)
+        step1(Z, Y, X, train, test, h2, "bt")
 
 
 def test_step1_Y_dim_error():
     """Check that 1D Y throws error"""
     Z, _, X, train, test, h2 = valid_inputs()
     with pytest.raises(ValueError, match="Y must be 2D"):
-        step1_qt(Z, jnp.zeros(5), X, train, test, h2)
+        step1(Z, jnp.zeros(5), X, train, test, h2, "qt")
 
     with pytest.raises(ValueError, match="Y must be 2D"):
-        step1_bt(Z, jnp.zeros(5), X, False, train, test, h2)
+        step1(Z, jnp.zeros(5), X, train, test, h2, "bt")
 
 
 def test_step1_X_dim_error():
     """Check that 1D X throws error"""
     Z, Y, _, train, test, h2 = valid_inputs()
     with pytest.raises(ValueError, match="X must be 2D"):
-        step1_qt(Z, Y, jnp.zeros((10,)), train, test, h2)
+        step1(Z, Y, jnp.zeros((10,)), train, test, h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="X must be 2D"):
-        step1_bt(Z, Y, jnp.zeros((10,)), False, train, test, h2)
+        step1(Z, Y, jnp.zeros((10,)), train, test, h2, "bt")
 
 
 def test_step1_X_matches_N_error():
     """Check that N mis-match with X throws error"""
     Z, Y, _, train, test, h2 = valid_inputs()
     with pytest.raises(ValueError, match="must match Y.shape"):
-        step1_qt(Z, Y, jnp.zeros((5, 2)), train, test, h2)
+        step1(Z, Y, jnp.zeros((5, 2)), train, test, h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="must match Y.shape"):
-        step1_bt(Z, Y, jnp.zeros((5, 2)), False, train, test, h2)
+        step1(Z, Y, jnp.zeros((5, 2)), train, test, h2, "bt")
 
 
 def test_step1_mask_dim_error():
     """Check that 1D train/test mask throws error"""
     Z, Y, X, _, _, h2 = valid_inputs()
     with pytest.raises(ValueError, match="train_mask and test_mask must be 2D"):
-        step1_qt(Z, Y, X, jnp.ones((10,)), jnp.ones((10, 2)), h2)
+        step1(Z, Y, X, jnp.ones((10,)), jnp.ones((10, 2)), h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="train_mask and test_mask must be 2D"):
-        step1_bt(Z, Y, X, False, jnp.ones((10,)), jnp.ones((10, 2)), h2)
+        step1(Z, Y, X, jnp.ones((10,)), jnp.ones((10, 2)), h2, "bt")
 
 
 def test_step1_mask_shape_mismatch_error():
     """Check that train/test mask shape mis-match throws error"""
     Z, Y, X, _, _, h2 = valid_inputs()
     with pytest.raises(ValueError, match="same shape"):
-        step1_qt(Z, Y, X, jnp.ones((10, 2)), jnp.ones((10, 3)), h2)
+        step1(Z, Y, X, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="same shape"):
-        step1_bt(Z, Y, X, False, jnp.ones((10, 2)), jnp.ones((10, 3)), h2)
+        step1(Z, Y, X, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "bt")
 
 
 def test_step1_h2_prior_dim_error():
     """Check that h2_prior with wrong dimension throws error"""
     Z, Y, X, train, test, _ = valid_inputs()
     with pytest.raises(ValueError, match="h2_prior must be 1D"):
-        step1_qt(Z, Y, X, train, test, jnp.ones((3, 2)))
+        step1(Z, Y, X, train, test, jnp.ones((3, 2)), "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="h2_prior must be 1D"):
-        step1_bt(Z, Y, X, False, train, test, jnp.ones((3, 2)))
+        step1(Z, Y, X, train, test, jnp.ones((3, 2)), "bt")
 
 
 def test_step1_h2_prior_domain_error():
     """Check that h2_prior outside (0,1) throws error"""
     Z, Y, X, train, test, _ = valid_inputs()
     with pytest.raises(ValueError, match="in the open interval"):
-        step1_qt(Z, Y, X, train, test, jnp.array([0.5, 0.0, 0.7]))
+        step1(Z, Y, X, train, test, jnp.array([0.5, 0.0, 0.7]), "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="in the open interval"):
-        step1_bt(Z, Y, X, False, train, test, jnp.array([0.5, 0.0, 0.7]))
+        step1(Z, Y, X, train, test, jnp.array([0.5, 0.0, 0.7]), "bt")
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ def test_step1_h2_prior_domain_error():
 def test_step1_qt_valid_input():
     """Check that valid data throws no type errors"""
     Z, Y, X, train, test, h2 = valid_inputs()
-    step1_qt(Z, Y, X, train, test, h2)
+    step1(Z, Y, X, train, test, h2, "qt")
 
 
 def test_step1_bt_valid_input():
@@ -140,8 +140,8 @@ def test_step1_bt_valid_input():
     ## cross-validation
     Z, Y, X, train, test, h2 = valid_inputs()
     Y = jnp.round(expit(Y))
-    step1_bt(Z, Y, X, False, train, test, h2)
+    step1(Z, Y, X, train, test, h2, "bt", False)
 
     ## loco
     Z, Y, X, train, test, h2 = valid_inputs()
-    step1_bt(Z, Y, X, True, None, None, h2)
+    step1(Z, Y, X, None, None, h2, "bt", True)
