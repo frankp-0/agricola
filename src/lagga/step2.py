@@ -521,6 +521,7 @@ def _step2_dataset(
     trait_type: str,
     desc: str,
     B: int = 2000,
+    min_ac: int = 1,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ):
@@ -594,7 +595,7 @@ def _step2_dataset(
                     trait_type,
                     block,
                     idx_sample,
-                    1,
+                    min_ac,
                     extra_args,
                     adjust_lanc,
                 )
@@ -625,6 +626,7 @@ def step2(
     phenotypes: list[str],
     trait_type: "str",
     B: int = 1000,
+    min_ac: int = 1,
     idx_sample: Optional[np.ndarray] = None,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
@@ -680,6 +682,7 @@ def step2(
             trait_type,
             desc,
             B,
+            min_ac,
             variants,
             adjust_lanc,
         )

@@ -297,6 +297,7 @@ def step2(
         None, help="File with variants to include, one per line"
     ),
     block_size: int = typer.Option(1000, help="Number of variants per block"),
+    min_ac: int = typer.Option(1, help="Minimum allele count"),
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
@@ -339,6 +340,7 @@ def step2(
         pheno_names,
         trait_type,
         block_size,
+        min_ac,
         idx_sample,
         variants,
     )
@@ -376,6 +378,7 @@ def all_steps(
     block_size2: int = typer.Option(
         1000, help="Number of variants per block in step 2"
     ),
+    min_ac: int = typer.Option(1, help="Minimum allele count"),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
@@ -443,6 +446,7 @@ def all_steps(
         pheno_names,
         trait_type,
         block_size2,
+        min_ac,
         idx_sample,
         variants2,
     )
