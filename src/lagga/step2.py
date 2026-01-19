@@ -41,40 +41,32 @@ def validate_step2_inputs(
 ) -> tuple[Array, Array]:
     """Validate input data for step1"""
 
-    ## Type and structure checks for genotype/lanc data
-    if not isinstance(datasets, (list, tuple)):
-        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
-    for i, ds in enumerate(datasets):
-        if not isinstance(ds, LancData):
-            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
-
-    ## Array conversions
+    ## Y
     Y = jnp.asarray(Y)
-    if X is not None:
-        X = jnp.asarray(X)
-
-    ## Check array shapes
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
     N, P = Y.shape
 
-    if X is not None:
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.asarray(X)
         if X.ndim != 2:
             raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
         if X.shape[0] != N:
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-
-    ## X
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
         X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
-    ## Check step1 predictions
+    # datasets
+    if not isinstance(datasets, (list, tuple)):
+        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
+    for i, ds in enumerate(datasets):
+        if not isinstance(ds, LancData):
+            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
     N_pred = None
     P_pred = None
     for chrom, pred_chrom in step1_predictions.items():
@@ -101,6 +93,8 @@ def validate_step2_inputs(
                 raise ValueError(
                     f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
                 )
+    if not len(out_prefixes) == len(datasets):
+        raise ValueError("out_prefixes and datasets must have same number of elements")
 
     if N_pred != N:
         raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
@@ -108,28 +102,24 @@ def validate_step2_inputs(
     if P_pred != P:
         raise ValueError(f"step1_predictions arrays have P={P_pred} but Y has P={P}")
 
-    ## Check B and variants
+    ## B
     if not isinstance(B, int) or B <= 0:
         raise ValueError(f"B must be a positive integer, got {B}")
 
+    ## variants
     if variants is not None:
         if not isinstance(variants, (list, tuple)) or not all(
             isinstance(v, str) for v in variants
         ):
             raise TypeError("variants must be a list of strings")
 
-    if not len(out_prefixes) == len(datasets):
-        raise ValueError("out_prefixes and datasets must have same number of elements")
-
-    ## Check samples
+    ## samples
     if idx_sample is not None:
-        if not isinstance(idx_sample, np.ndarray):
-            raise TypeError("idx_sample must be ndarray")
         if idx_sample.ndim != 1:
             raise TypeError("idx_sample must be 1D")
         if idx_sample.dtype != np.uint32:
             raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(idx_sample).issubset(np.arange(N, dtype=np.uint32)):
+        if not set(np.asarray(idx_sample)).issubset(np.arange(N, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
     return (Y, X)
@@ -767,7 +757,7 @@ def step2(
             X_leave = np.delete(chromosome_offsets, i, axis=1)
             beta_chrom = jax.vmap(
                 logistic_ridge, in_axes=(2, 1, 1, None, None), out_axes=1
-            )(X_leave, Y, offset_covar, jnp.ones(Y.shape[0]), 0)
+            )(jnp.asarray(X_leave), Y, offset_covar, jnp.ones(Y.shape[0]), 0)
             eta_chrom = np.einsum("ncp,cp->np", X_leave, beta_chrom) + offset_covar
             pred_loco[chrom] = eta_chrom
     else:
