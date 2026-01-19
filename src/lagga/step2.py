@@ -131,9 +131,10 @@ def validate_step2_inputs(
 ### ─────────────────────────────────────────────────────────────
 
 
-# TODO: Add return type
 @jax.jit
-def _step2_qt_core(G: Array, L: Array, Y: Array, Q: Array):
+def _step2_qt_core(
+    G: Array, L: Array, Y: Array, Q: Array
+) -> tuple[Array, Array, Array, Array]:
     """Estimate coefficients and Wald statistic for quantitative traits
 
     Args:
@@ -223,7 +224,7 @@ def _step2_bt_core(
     Q_w: Array,
     W_sqrt: Array,
     O: Array,
-):
+) -> tuple[Array, Array, Array, Array]:
     """Estimate coefficients and Wald statistic for binary traits
     Args:
         G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
@@ -323,7 +324,9 @@ def _step2_bt_core(
 
 
 @jax.jit
-def _step2_nolanc_qt_core(G: Array, Y: Array, Q: Array):
+def _step2_nolanc_qt_core(
+    G: Array, Y: Array, Q: Array
+) -> tuple[Array, Array, Array, Array]:
     """Estimate coefficients and Wald statistic for quantitative traits with no local-ancestry adjustment.
 
     Args:
@@ -395,7 +398,7 @@ def _step2_nolanc_bt_core(
     Q_w: Array,
     W_sqrt: Array,
     O: Array,
-):
+) -> tuple[Array, Array, Array, Array]:
     """Estimate coefficients and Wald statistic for binary traits without local-ancestry adjustment
     Args:
         G: A (N, B, len(ancestries)) jax array of anc-deconvoluted genotypes
@@ -581,7 +584,7 @@ def _step2_dataset(
     min_ac: int = 1,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
-):
+) -> None:
     """Run step 2 for a single dataset
 
     Args:
@@ -705,7 +708,7 @@ def step2(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
-):
+) -> None:
     """Run step 2
 
     Args:
