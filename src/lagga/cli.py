@@ -11,6 +11,7 @@ import typer
 from typing import Optional, TYPE_CHECKING
 import os
 from importlib.metadata import version, PackageNotFoundError
+from pathlib import Path
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -74,6 +75,19 @@ def read_psam(path) -> DataFrame:
         raise ValueError("IID column not found in psam")
 
     return df
+
+
+def load_samples(plinks: list[str], samples_file: Optional[str]):
+    df_psam = read_psam(plinks[0] + ".psam")
+    samples_psam = df_psam["IID"].astype(str).to_list()
+
+    if samples_file is not None:
+        with open(samples_file, "r") as f:
+            samples_keep = f.readlines()
+        samples = [sample for sample in samples_psam if sample in samples_keep]
+    else:
+        samples = samples_psam
+    return samples, samples_psam
 
 
 def read_pheno_covar(path) -> DataFrame:
@@ -161,13 +175,48 @@ def load_pheno_and_covars(
     )
 
 
-def load_lanc_data(plinks, lancs, ancestries) -> list[LancData]:
+def load_lanc_data(
+    plink_prefix: Optional[list[str]],
+    plink_list: Optional[str],
+    lanc_file: Optional[list[str]],
+    lanc_list: Optional[str],
+    ancestries: Optional[list[str]],
+) -> tuple[list[LancData], list[str], list[str]]:
     from lanctools import LancData
 
-    return [
-        LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
-        for i in range(len(plinks))
-    ]
+    if plink_prefix and plink_list:
+        raise typer.BadParameter(
+            "Specify either --plink-prefix OR --plink-list, not both"
+        )
+    if lanc_file and lanc_list:
+        raise typer.BadParameter("Specify either --lanc-file OR --lanc-list, not both")
+
+    plinks: list[str]
+    if plink_prefix is None:
+        if plink_list is None:
+            raise typer.BadParameter("Specify one of --plink-prefix or --plink-list")
+        with open(plink_list) as f:
+            plinks = [line.strip() for line in f if line.strip()]
+    else:
+        plinks = plink_prefix
+
+    lancs: list[str]
+    if lanc_file is None:
+        if lanc_list is None:
+            raise typer.BadParameter("Specify one of --lanc-file or --lanc-list")
+        with open(lanc_list) as f:
+            lancs = [line.strip() for line in f if line.strip()]
+    else:
+        lancs = lanc_file
+
+    return (
+        [
+            LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
+            for i in range(len(plinks))
+        ],
+        plinks,
+        lancs,
+    )
 
 
 def setup_logging(verbose: bool, quiet: bool) -> None:
@@ -202,11 +251,37 @@ def main(
 
 @app.command()
 def step1(
-    plink_prefix: str = typer.Option(
-        ..., help="Plink2 file prefix(es), comma-separated"
+    plink_prefix: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Plink2 file prefix. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --plink-list must be provided (not both). "
+            "Example: --plink-prefix chr1 --plink-prefix chr2"
+        ),
     ),
-    lanc_file: str = typer.Option(
-        ..., help="Local ancestry .lanc file(s), comma-separated"
+    plink_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing plink2 prefixes, one per line. "
+            "This option OR --plink-prefix must be provided (not both). "
+        ),
+    ),
+    lanc_file: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Local ancestry .lanc file. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --lanc-list must be provided (not both). "
+            "Example: --lanc-file chr1.lanc --plink-prefix chr2.lanc"
+        ),
+    ),
+    lanc_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing .lanc file paths, one per line. "
+            "This option OR --lanc-file must be provided (not both). "
+        ),
     ),
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
@@ -239,24 +314,14 @@ def step1(
     from .step1 import step1
     import numpy as np
 
-    plinks = list_from_csv(plink_prefix)
-    lancs = list_from_csv(lanc_file)
+    ## Load data
     ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
+        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+    )
     variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
-
-    ## Load data
-    datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
-    samples_psam = df_psam["IID"].astype(str).to_list()
-
-    if samples_file is not None:
-        with open(samples_file, "r") as f:
-            samples_keep = f.readlines()
-        samples = [sample for sample in samples_psam if sample in samples_keep]
-    else:
-        samples = samples_psam
-
+    samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, _, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
@@ -286,11 +351,37 @@ def step1(
 
 @app.command()
 def step2(
-    plink_prefix: str = typer.Option(
-        ..., help="Plink2 file prefix(es), comma-separated"
+    plink_prefix: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Plink2 file prefix. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --plink-list must be provided (not both). "
+            "Example: --plink-prefix chr1 --plink-prefix chr2"
+        ),
     ),
-    lanc_file: str = typer.Option(
-        ..., help="Local ancestry .lanc file(s), comma-separated"
+    plink_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing plink2 prefixes, one per line. "
+            "This option OR --plink-prefix must be provided (not both). "
+        ),
+    ),
+    lanc_file: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Local ancestry .lanc file. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --lanc-list must be provided (not both). "
+            "Example: --lanc-file chr1.lanc --plink-prefix chr2.lanc"
+        ),
+    ),
+    lanc_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing .lanc file paths, one per line. "
+            "This option OR --lanc-file must be provided (not both). "
+        ),
     ),
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
@@ -298,9 +389,21 @@ def step2(
     step1_prefix: str = typer.Option(
         ..., help="Step 1 predictions are deserialized from prefix.pkl"
     ),
-    out_prefix: str = typer.Option(
-        ...,
-        help="Output prefix(es), comma-separated, one per plink_prefix",
+    out_prefix: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Output prefix, one per plink_prefix. "
+            "This option can be repeated. "
+            "This option OR --out-list must be provided (not both). "
+            "Example --out-prefix result_chr1 --out=prefix result_chr2"
+        ),
+    ),
+    out_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing output file prefixes, one per line and one per plink prefix. "
+            "This option OR --out-file must be provided (not both). "
+        ),
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
@@ -317,23 +420,26 @@ def step2(
     from .step2 import step2
     import numpy as np
 
-    plinks = list_from_csv(plink_prefix)
-    lancs = list_from_csv(lanc_file)
-    ancestries_list = list_from_csv(ancestries)
-    out_prefixes = list_from_csv(out_prefix)
-    variants = load_variants(variant_file)
-
     ## Load data
-    datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
-    samples_psam = df_psam["IID"].astype(str).to_list()
+    ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
+        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+    )
 
-    if samples_file is not None:
-        with open(samples_file, "r") as f:
-            samples_keep = f.readlines()
-        samples = [sample for sample in samples_psam if sample in samples_keep]
+    if out_prefix and out_list:
+        raise typer.BadParameter("Specify either --out-prefix OR --out-list, not both")
+
+    outs: list[str]
+    if out_prefix is None:
+        if out_list is None:
+            raise typer.BadParameter("Specify one of --out-prefix or --out-list")
+        with open(out_list) as f:
+            outs = [line.strip() for line in f if line.strip()]
     else:
-        samples = samples_psam
+        outs = out_prefix
+
+    variants = load_variants(variant_file)
+    samples, samples_psam = load_samples(plinks, samples_file)
 
     Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
@@ -348,7 +454,7 @@ def step2(
         Y,
         X,
         predictions,
-        out_prefixes,  # pyright: ignore
+        outs,
         pheno_names,
         trait_type,
         block_size,
@@ -360,19 +466,58 @@ def step2(
 
 @app.command()
 def all_steps(
-    plink_prefix: str = typer.Option(
-        ..., help="Plink2 file prefix(es), comma-separated"
+    plink_prefix: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Plink2 file prefix. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --plink-list must be provided (not both). "
+            "Example: --plink-prefix chr1 --plink-prefix chr2"
+        ),
     ),
-    lanc_file: str = typer.Option(
-        ..., help="Local ancestry .lanc file(s), comma-separated"
+    plink_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing plink2 prefixes, one per line. "
+            "This option OR --plink-prefix must be provided (not both). "
+        ),
+    ),
+    lanc_file: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Local ancestry .lanc file. "
+            "This option can be repeated to specify multiple files. "
+            "This option OR --lanc-list must be provided (not both). "
+            "Example: --lanc-file chr1.lanc --plink-prefix chr2.lanc"
+        ),
+    ),
+    lanc_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing .lanc file paths, one per line. "
+            "This option OR --lanc-file must be provided (not both). "
+        ),
     ),
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
-    out_prefix: str = typer.Option(
-        ..., help="Output prefix(es), comma-separated, one per plink_prefix"
+    out_prefix: Optional[list[str]] = typer.Option(
+        None,
+        help=(
+            "Output prefix, one per plink_prefix. "
+            "This option can be repeated. "
+            "This option OR --out-list must be provided (not both). "
+            "Example --out-prefix result_chr1 --out=prefix result_chr2"
+        ),
+    ),
+    out_list: Optional[str] = typer.Option(
+        None,
+        help=(
+            "File containing output file prefixes, one per line and one per plink prefix. "
+            "This option OR --out-file must be provided (not both). "
+        ),
     ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file1: Optional[str] = typer.Option(
@@ -407,26 +552,28 @@ def all_steps(
     from .step1 import step1
     from .step2 import step2
 
-    plinks = list_from_csv(plink_prefix)
-    lancs = list_from_csv(lanc_file)
+    ## Load data
     ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
+        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+    )
     variants1 = load_variants(variant_file1)
     variants2 = load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
-    out_prefixes = list_from_csv(out_prefix)
 
-    ## Load data
-    datasets = load_lanc_data(plinks, lancs, ancestries_list)
-    df_psam = read_psam(plinks[0] + ".psam")  # pyright: ignore
-    samples_psam = df_psam["IID"].astype(str).to_list()
+    if out_prefix and out_list:
+        raise typer.BadParameter("Specify either --out-prefix OR --out-list, not both")
 
-    if samples_file is not None:
-        with open(samples_file, "r") as f:
-            samples_keep = f.readlines()
-        samples = [sample for sample in samples_psam if sample in samples_keep]
+    outs: list[str]
+    if out_prefix is None:
+        if out_list is None:
+            raise typer.BadParameter("Specify one of --out-prefix or --out-list")
+        with open(out_list) as f:
+            outs = [line.strip() for line in f if line.strip()]
     else:
-        samples = samples_psam
+        outs = out_prefix
 
+    samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
@@ -454,7 +601,7 @@ def all_steps(
         Y,
         X,
         predictions,
-        out_prefixes,  # pyright: ignore
+        outs,  # pyright: ignore
         pheno_names,
         trait_type,
         block_size2,

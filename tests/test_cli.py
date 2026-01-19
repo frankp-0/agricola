@@ -34,19 +34,34 @@ def toy_data(tmp_path: Path):
     df_covars.insert(0, "#IID", [f"Sample_{i + 1}" for i in range(len(df_covars))])  # pyright: ignore
     df_covars.to_csv(covar_file, sep="\t", index=False, header=True)
 
+    ## Plinks file
+    plinks = ["tests/data/chr" + str(chr) for chr in range(20, 23)]
+    plinks_file = tmp_path / "plinks.txt"
+    with open(plinks_file, "w") as f:
+        for plink in plinks:
+            f.write(f"{plink}\n")
+
+    ## lancs file
+    lancs = ["tests/data/chr" + str(chr) + ".lanc" for chr in range(20, 23)]
+    lancs_file = tmp_path / "lancs.txt"
+    with open(lancs_file, "w") as f:
+        for lanc in lancs:
+            f.write(f"{lanc}\n")
+
+    ## outs file
+    outs = [str(tmp_path / "chr") + str(chr) for chr in range(20, 23)]
+    outs_file = tmp_path / "outs.txt"
+    with open(outs_file, "w") as f:
+        for out in outs:
+            f.write(f"{out}\n")
+
     return {
         "pheno_file": str(pheno_file),
         "covar_file": str(covar_file),
-        "plink_prefix": ",".join(
-            ["tests/data/chr" + str(chr) for chr in range(20, 23)]
-        ),
-        "lanc_file": ",".join(
-            ["tests/data/chr" + str(chr) + ".lanc" for chr in range(20, 23)]
-        ),
+        "plink_list": plinks_file,
+        "lanc_list": lancs_file,
         "step1_prefix": str(tmp_path / "out"),
-        "step2_prefix": ",".join(
-            [str(tmp_path / "chr") + str(chr) for chr in range(20, 23)]
-        ),
+        "outs_file": outs_file,
     }
 
 
@@ -55,10 +70,10 @@ def test_step1_toy(toy_data):
         app,
         [
             "step1",
-            "--plink-prefix",
-            toy_data["plink_prefix"],
-            "--lanc-file",
-            toy_data["lanc_file"],
+            "--plink-list",
+            toy_data["plink_list"],
+            "--lanc-list",
+            toy_data["lanc_list"],
             "--out-prefix",
             toy_data["step1_prefix"],
             "--pheno-file",
@@ -78,14 +93,14 @@ def test_step2_toy(toy_data):
         app,
         [
             "step2",
-            "--plink-prefix",
-            toy_data["plink_prefix"],
-            "--lanc-file",
-            toy_data["lanc_file"],
+            "--plink-list",
+            toy_data["plink_list"],
+            "--lanc-list",
+            toy_data["lanc_list"],
             "--step1-prefix",
             "tests/data/step1_pred",
-            "--out-prefix",
-            toy_data["step2_prefix"],
+            "--out-list",
+            toy_data["outs_file"],
             "--pheno-file",
             toy_data["pheno_file"],
             "--covar-file",
@@ -94,7 +109,10 @@ def test_step2_toy(toy_data):
     )
     assert result.exit_code == 0
 
-    file_20 = toy_data["step2_prefix"][0]
+    with open(toy_data["outs_file"], "r") as f:
+        outs_files = f.readlines()
+
+    file_20 = outs_files[0].strip() + "_trait0.parquet"
     assert Path(file_20).exists()
 
 
@@ -103,12 +121,12 @@ def test_allsteps_toy(toy_data):
         app,
         [
             "all-steps",
-            "--plink-prefix",
-            toy_data["plink_prefix"],
-            "--lanc-file",
-            toy_data["lanc_file"],
-            "--out-prefix",
-            toy_data["step2_prefix"],
+            "--plink-list",
+            toy_data["plink_list"],
+            "--lanc-list",
+            toy_data["lanc_list"],
+            "--out-list",
+            toy_data["outs_file"],
             "--pheno-file",
             toy_data["pheno_file"],
             "--covar-file",
@@ -117,5 +135,8 @@ def test_allsteps_toy(toy_data):
     )
     assert result.exit_code == 0
 
-    file_20 = toy_data["step2_prefix"][0]
+    with open(toy_data["outs_file"], "r") as f:
+        outs_files = f.readlines()
+
+    file_20 = outs_files[0].strip() + "_trait0.parquet"
     assert Path(file_20).exists()
