@@ -12,7 +12,7 @@ module is the `step0` function.
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array
+from jaxtyping import Array, ArrayLike
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
@@ -24,15 +24,15 @@ from numpy.typing import NDArray
 
 def validate_step0_inputs(
     datasets: list[LancData],
-    Y: Array,
-    X: Optional[Array],
-    train_mask: Array,
-    test_mask: Array,
-    h2_prior: Array,
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
+    train_mask: ArrayLike,
+    test_mask: ArrayLike,
+    h2_prior: ArrayLike,
     B: int = 2000,
-    idx_sample: Optional[NDArray] = None,
+    idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
-) -> tuple[Array, Array, Array, Array, Array, NDArray]:
+) -> tuple[Array, Array, Array, Array, Array, Optional[Array]]:
     """Validate input data for step0"""
     ## genotype/lanc data
     if not isinstance(datasets, (list, tuple)):
@@ -95,26 +95,23 @@ def validate_step0_inputs(
             raise TypeError("variants must be a list of strings")
 
     ## samples
-    if idx_sample is None:
-        idx_sample = np.arange(N, dtype=np.uint32)
-    else:
-        if not isinstance(idx_sample, np.ndarray):
-            raise TypeError("idx_sample must be ndarray")
+    if idx_sample is not None:
+        idx_sample = jnp.asarray(idx_sample)
         if idx_sample.ndim != 1:
             raise TypeError("idx_sample must be 1D")
         if idx_sample.dtype != np.uint32:
             raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(idx_sample).issubset(np.arange(N, dtype=np.uint32)):
+        if not set(np.asarray(idx_sample)).issubset(np.arange(N, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
-    return (Y, X, train_mask, test_mask, h2_prior, np.asarray(idx_sample))
+    return (Y, X, train_mask, test_mask, h2_prior, idx_sample)
 
 
 def _step0_block(
     dataset: LancData,
     Y: Array,
     Q: Array,
-    idx_sample: Optional[NDArray],
+    idx_sample: Optional[Array],
     train_mask: Array,
     test_mask: Array,
     block: NDArray,
@@ -137,7 +134,7 @@ def _step0_block(
     """
     ## Standardize genotype block and residualize by covariates
     G, _ = get_geno_lanc_deconv(dataset, block)
-    if idx_sample is None:
+    if idx_sample is not None:
         G = G[idx_sample]
     G = G[:, :, 0] + G[:, :, 1]
     G = stdize(G - (Q @ (Q.T @ G)))  # pyright: ignore
@@ -160,7 +157,7 @@ def _step0_dataset(
     dataset: LancData,
     Y: Array,
     Q: Array,
-    idx_sample: Optional[NDArray],
+    idx_sample: Optional[Array],
     train_mask: Array,
     test_mask: Array,
     B: int,
@@ -242,13 +239,13 @@ def _step0_dataset(
 
 def step0(
     datasets: list[LancData],
-    Y: Array,
-    X: Optional[Array],
-    train_mask: Array,
-    test_mask: Array,
-    h2_prior: Array,
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
+    train_mask: ArrayLike,
+    test_mask: ArrayLike,
+    h2_prior: ArrayLike,
     B: int = 2000,
-    idx_sample: Optional[NDArray] = None,
+    idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
 ) -> dict[str, NDArray]:
     """Perform level 0 ridge regressions
