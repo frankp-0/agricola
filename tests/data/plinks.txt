@@ -1,0 +1,3 @@
+tests/data/chr20
+tests/data/chr21
+tests/data/chr22

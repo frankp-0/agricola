@@ -32,11 +32,11 @@ A typical `lagga` run may look like:
 
 ```bash
 lagga all-steps \
-  --plink-prefix tests/data/chr20,tests/data/chr21,tests/data/chr22 \
-  --lanc-file tests/data/chr20.lanc,tests/data/chr21.lanc,tests/data/chr22.lanc \
+  --plink-list tests/data/plinks.txt \
+  --lanc-list tests/data/lancs.txt \
   --pheno-file tests/data/pheno.tsv \
   --covar-file tests/data/covar.tsv \
-  --out-prefix example_chr20,example_chr21,example_chr22 \
+  --out-list tests/data/outs.txt \
   --variant-file1 tests/data/variants.txt \
   --trait-type qt
 ```
@@ -45,8 +45,8 @@ Alternatively, steps 0/1 and 2 can be performed separately:
 
 ```bash
 lagga step1 \
-  --plink-prefix tests/data/chr20,tests/data/chr21,tests/data/chr22 \
-  --lanc-file tests/data/chr20.lanc,tests/data/chr21.lanc,tests/data/chr22.lanc \
+  --plink-list tests/data/plinks.txt \
+  --lanc-list tests/data/lancs.txt  \
   --pheno-file tests/data/pheno.tsv \
   --covar-file tests/data/covar.tsv \
   --out-prefix step1_preds \
@@ -54,12 +54,12 @@ lagga step1 \
   --trait-type qt
 
 lagga step2 \
-  --plink-prefix tests/data/chr20,tests/data/chr21,tests/data/chr22 \
-  --lanc-file tests/data/chr20.lanc,tests/data/chr21.lanc,tests/data/chr22.lanc \
+  --plink-list tests/data/plinks.txt \
+  --lanc-list tests/data/lancs.txt  \
   --pheno-file tests/data/pheno.tsv \
   --covar-file tests/data/covar.tsv \
   --step1-prefix step1_preds \
-  --out-prefix example_chr20,example_chr21,example_chr22 \
+  --out-list tests/data/outs.txt \
   --trait-type qt
 ```
 

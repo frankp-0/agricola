@@ -1,0 +1,3 @@
+tests/data/chr20.lanc
+tests/data/chr21.lanc
+tests/data/chr22.lanc
