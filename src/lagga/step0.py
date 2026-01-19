@@ -1,5 +1,5 @@
 # MIT License
-# Copyright (c) 2025 Franklin Ockerman
+# Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
 """Level-0 block-wise whole-genome ridge predictions.
