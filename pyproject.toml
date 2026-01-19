@@ -25,7 +25,12 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = ["ipython>=8.37.0", "pytest>=9.0.2", "pytest-cov>=7.0.0"]
+dev = [
+  "ipython>=8.37.0",
+  "pytest>=9.0.2",
+  "pytest-cov>=7.0.0",
+  "zensical>=0.0.16",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
