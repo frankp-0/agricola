@@ -7,10 +7,14 @@
 import logging
 import pickle
 import typer
-from typing import Optional, List
+from typing import Optional, TYPE_CHECKING
 import os
 from importlib.metadata import version, PackageNotFoundError
 
+if TYPE_CHECKING:
+    from pandas import DataFrame
+    from jaxtyping import Array
+    from lanctools import LancData
 
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
@@ -23,20 +27,20 @@ logger = logging.getLogger("lagga")
 ### ─────────────────────────────────────────────────────────────
 
 
-def _configure_jax_logging():
+def _configure_jax_logging() -> None:
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
     os.environ.setdefault("ABSL_LOGGING_MIN_LEVEL", "3")
 
 
-def list_from_csv(arg: Optional[str]) -> Optional[List[str]]:
+def list_from_csv(arg: Optional[str]) -> Optional[list[str]]:
     return None if arg is None else [x.strip() for x in arg.split(",")]
 
 
-def load_variants(path: Optional[str]) -> Optional[List[str]]:
+def load_variants(path: Optional[str]) -> Optional[list[str]]:
     return None if path is None else open(path).read().splitlines()
 
 
-def read_psam(path):
+def read_psam(path) -> DataFrame:
     import pandas as pd
 
     with open(path) as f:
@@ -71,7 +75,7 @@ def read_psam(path):
     return df
 
 
-def read_pheno_covar(path):
+def read_pheno_covar(path) -> DataFrame:
     import pandas as pd
 
     with open(path) as f:
@@ -107,15 +111,15 @@ def read_pheno_covar(path):
 
 
 def load_pheno_and_covars(
-    pheno_file: str, covar_file: Optional[str], samples: List[str]
-):
+    pheno_file: str, covar_file: Optional[str], samples_sub: list[str]
+) -> tuple[Array, Optional[Array], list[str], list[str]]:
     import pandas as pd
     import jax.numpy as jnp
 
     df_pheno = read_pheno_covar(pheno_file)
     samples_pheno = df_pheno["IID"].astype(str).to_list()
 
-    samples = [sample for sample in samples if sample in samples_pheno]
+    samples: list[str] = [sample for sample in samples_sub if sample in samples_pheno]
 
     if covar_file:
         df_covar = read_pheno_covar(covar_file)
@@ -126,7 +130,7 @@ def load_pheno_and_covars(
         df_covar["IID"] = pd.Categorical(
             df_covar["IID"], categories=samples, ordered=True
         )
-        df_covar = df_covar.sort_values("IID").reset_index(drop=True)
+        df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore
         X = jnp.asarray(
             df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
         )
@@ -136,22 +140,27 @@ def load_pheno_and_covars(
     df_pheno = df_pheno[df_pheno["IID"].astype(str).isin(samples)]
     df_pheno["IID"] = df_pheno["IID"].astype(str)
     df_pheno["IID"] = pd.Categorical(df_pheno["IID"], categories=samples, ordered=True)
-    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)
+    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)  # pyright: ignore
+
     Y = jnp.asarray(
         df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
+    )
+
+    phenotypes = (
+        df_pheno.drop("IID", axis=1)
+        .drop("FID", axis=1, errors="ignore")
+        .columns.to_list()
     )
 
     return (
         Y,
         X,
-        df_pheno.drop("IID", axis=1)
-        .drop("FID", axis=1, errors="ignore")
-        .columns.to_list(),
+        phenotypes,
         samples,
     )
 
 
-def load_lanc_data(plinks, lancs, ancestries):
+def load_lanc_data(plinks, lancs, ancestries) -> list[LancData]:
     from lanctools import LancData
 
     return [
@@ -186,7 +195,7 @@ def get_version() -> str:
 def main(
     verbose: bool = typer.Option(False, "--verbose"),
     quiet: bool = typer.Option(False, "--quiet"),
-):
+) -> None:
     setup_logging(verbose, quiet)
 
 
@@ -221,7 +230,7 @@ def step1(
     loocv: bool = typer.Option(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
-):
+) -> None:
     import jax.numpy as jnp
     import jax
     from ._utils import get_cv_mask
@@ -303,7 +312,7 @@ def step2(
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
-):
+) -> None:
     from .step2 import step2
     import numpy as np
 
@@ -388,7 +397,7 @@ def all_steps(
     loocv: bool = typer.Option(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
-):
+) -> None:
     import jax.numpy as jnp
     import jax
     import numpy as np
@@ -454,7 +463,7 @@ def all_steps(
     )
 
 
-def main_entry():
+def main_entry() -> None:
     _configure_jax_logging()
     try:
         app()

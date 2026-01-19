@@ -13,7 +13,6 @@ import jax.numpy as jnp
 from jaxtyping import Array
 import numpy as np
 from scipy.stats import chi2
-from typing import List, Tuple
 import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
@@ -549,7 +548,7 @@ def _step2_block(
 
     ## Get column names for results
     ancs = dataset.ancestries
-    colnames: List[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
+    colnames: list[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants

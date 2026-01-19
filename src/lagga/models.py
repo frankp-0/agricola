@@ -14,13 +14,14 @@ import jax
 import jax.numpy as jnp
 import jax.lax as lax
 from jax.scipy.special import expit
+from jaxtyping import Array
 
 ### ─────────────────────────────────────────────────────────────
 ### Quantitative Traits
 ### ─────────────────────────────────────────────────────────────
 
 
-def ridge(X, Y, train_mask, alphas):
+def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     """Perform ridge regression using train masks
 
     train_mask should only take values 0 and 1.
@@ -66,7 +67,14 @@ def ridge(X, Y, train_mask, alphas):
 ### ─────────────────────────────────────────────────────────────
 
 
-def _logistic_ridge_step(beta, X, y, offset, train_mask, alpha):
+def _logistic_ridge_step(
+    beta: Array,
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    alpha: float | Array,
+) -> Array:
     """One Newton/IRLS update in logistic ridge regression."""
     eta = X @ beta + offset
     mu = expit(eta)
@@ -80,7 +88,14 @@ def _logistic_ridge_step(beta, X, y, offset, train_mask, alpha):
     return beta_new
 
 
-def logistic_ridge(X, y, offset, train_mask, alpha, max_iter=50):
+def logistic_ridge(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    alpha: float | Array,
+    max_iter: int = 50,
+) -> Array:
     """Perform logistic ridge regression using a training mask.
 
     Fits a logistic ridge regression model including offsets
@@ -106,7 +121,9 @@ def logistic_ridge(X, y, offset, train_mask, alpha, max_iter=50):
     return beta
 
 
-def logistic_ridge_loo(X, y, offset, alpha, max_iter=50):
+def logistic_ridge_loo(
+    X: Array, y: Array, offset: Array, alpha: float | Array, max_iter: int = 50
+) -> Array:
     """Perform logistic ridge regression with leave-one-out scheme
 
     Returns leave-one-out linear predictor

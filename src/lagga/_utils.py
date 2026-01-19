@@ -49,7 +49,7 @@ def get_cv_mask(n: int, k: int, key: Array) -> tuple[Array, Array]:
     return train_mask, test_mask
 
 
-def assert_covar_full_rank(X: Array, rtol: float = 1e-8):
+def assert_covar_full_rank(X: Array, rtol: float = 1e-8) -> None:
     """Raises ValueError if X does not have full column rank.
 
     Assumes X is standardized (columns ~ unit variance).

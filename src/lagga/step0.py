@@ -19,18 +19,19 @@ from typing import Optional
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import ridge
+from numpy.typing import NDArray
 
 
 def _step0_block(
     dataset: LancData,
     Y: Array,
     Q: Array,
-    idx_sample: Optional[np.ndarray],
+    idx_sample: Optional[NDArray],
     train_mask: Array,
     test_mask: Array,
-    block: np.ndarray,
+    block: NDArray,
     h2_prior: Array,
-):
+) -> NDArray:
     """Get level 0 predictions for a single block
 
     Args:
@@ -71,14 +72,14 @@ def _step0_dataset(
     dataset: LancData,
     Y: Array,
     Q: Array,
-    idx_sample: Optional[np.ndarray],
+    idx_sample: Optional[NDArray],
     train_mask: Array,
     test_mask: Array,
     B: int,
     variants: Optional[list[str]],
     h2_prior: Array,
     desc: str,
-):
+) -> dict[str, NDArray]:
     """Get level 0 predictions for a dataset
 
     Args:
@@ -159,9 +160,9 @@ def step0(
     test_mask: Array,
     h2_prior: Array,
     B: int = 2000,
-    idx_sample: Optional[np.ndarray] = None,
+    idx_sample: Optional[NDArray] = None,
     variants: Optional[list[str]] = None,
-) -> dict[str, np.ndarray]:
+) -> dict[str, NDArray]:
     """Perform level 0 ridge regressions
 
     Args:

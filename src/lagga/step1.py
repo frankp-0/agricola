@@ -14,6 +14,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array
 import numpy as np
+from numpy.typing import NDArray
 from tqdm import tqdm
 from typing import Optional
 from ._utils import stdize, assert_covar_full_rank
@@ -25,15 +26,21 @@ from .models import (
 
 
 # TODO: only return values that may be modified
-# TODO: Add return type
 def validate_step1_inputs(
-    Z: dict[str, np.ndarray],
+    Z: dict[str, NDArray],
     Y: Array,
     X: Optional[Array],
     train_mask: Optional[Array],
     test_mask: Optional[Array],
     h2_prior: Array,
-):
+) -> tuple[
+    dict[str, NDArray],
+    Array,
+    Optional[Array],
+    Optional[Array],
+    Optional[Array],
+    Array,
+]:
     """Validate input data for step1"""
     ## Array conversions
     Y = jnp.asarray(Y)
@@ -121,7 +128,9 @@ def validate_step1_inputs(
 ### ─────────────────────────────────────────────────────────────
 
 
-def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
+def _ridge_cv_qt(
+    Z: Array, Y: Array, train_mask: Array, test_mask: Array, h2_prior: Array
+) -> NDArray:
     """Get level 1 predictions for a single chromosome for quantitative traits
 
     Args:
@@ -168,7 +177,7 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
     return Yhat
 
 
-def _ridge_loocv_bt(Z, Y, offset, h2_prior):
+def _ridge_loocv_bt(Z: Array, Y: Array, offset: Array, h2_prior: Array) -> NDArray:
     """Get level 1 LOOCV predictions for a single chromosome for binary traits
 
     Args:
@@ -213,7 +222,14 @@ def _ridge_loocv_bt(Z, Y, offset, h2_prior):
     return eta_hat
 
 
-def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
+def _ridge_cv_bt(
+    Z: Array,
+    Y: Array,
+    train_mask: Array,
+    test_mask: Array,
+    offset: Array,
+    h2_prior: Array,
+) -> NDArray:
     """Get level 1 CV predictions for a single chromosome for binary traits
 
     Args:
@@ -272,7 +288,7 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
 
 
 def step1(
-    Z: dict[str, np.ndarray],
+    Z: dict[str, NDArray],
     Y: Array,
     X: Optional[Array],
     train_mask: Optional[Array],
@@ -280,7 +296,7 @@ def step1(
     h2_prior: Array,
     trait_type: str,
     loocv: bool = False,
-) -> dict[str, np.ndarray]:
+) -> dict[str, NDArray]:
     """Perform level 1 ridge regressions
 
     Args:
@@ -331,13 +347,26 @@ def step1(
         step1_predictions = {}
         for chrom, Z_chrom in Z.items():
             if trait_type == "bt" and loocv:
-                pred_chrom = _ridge_loocv_bt(Z_chrom, Y, offset, h2_prior)
+                pred_chrom = _ridge_loocv_bt(
+                    jnp.asarray(Z_chrom), Y, jnp.asarray(offset), h2_prior
+                )
             elif trait_type == "bt":
                 pred_chrom = _ridge_cv_bt(
-                    Z_chrom, Y, train_mask, test_mask, offset, h2_prior
+                    jnp.asarray(Z_chrom),
+                    Y,
+                    jnp.asarray(train_mask),
+                    jnp.asarray(test_mask),
+                    jnp.asarray(offset),
+                    h2_prior,
                 )
             elif trait_type == "qt":
-                pred_chrom = _ridge_cv_qt(Z_chrom, Y, train_mask, test_mask, h2_prior)
+                pred_chrom = _ridge_cv_qt(
+                    jnp.asarray(Z_chrom),
+                    Y,
+                    jnp.asarray(train_mask),
+                    jnp.asarray(test_mask),
+                    h2_prior,
+                )
             step1_predictions[chrom] = pred_chrom
             pbar.update(1)
 
