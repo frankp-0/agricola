@@ -9,7 +9,7 @@ site_author = "Franklin Ockerman"
 #site_url = "https://www.example.com/"
 
 copyright = """
-Copyright &copy; 2026 The authors
+Copyright &copy; 2026 Franklin Ockerman
 """
 
 # Zensical supports both implicit navigation and explicitly defined navigation.
@@ -24,7 +24,7 @@ Copyright &copy; 2026 The authors
 #   { "Markdown in 5min" = "markdown.md" },
 # ]
 
-nav = [{ "Home" = "index.md" }, { "Installation" = "installation.md" }]
+nav = [{ "Home" = "index.md" }, { "Command-Line Interface" = "cli.md" }]
 
 # With the "extra_css" option you can add your own CSS styling to customize
 # your Zensical project according to your needs. You can add any number of
