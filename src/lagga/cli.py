@@ -4,6 +4,7 @@
 
 """The command line interface for lagga."""
 
+from __future__ import annotations
 import logging
 import pickle
 import typer

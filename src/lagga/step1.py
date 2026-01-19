@@ -12,7 +12,7 @@ for this module is the `step2` function.
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array
+from jaxtyping import Array, ArrayLike
 import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
@@ -25,43 +25,71 @@ from .models import (
 )
 
 
-# TODO: only return values that may be modified
 def validate_step1_inputs(
     Z: dict[str, NDArray],
-    Y: Array,
-    X: Optional[Array],
-    train_mask: Optional[Array],
-    test_mask: Optional[Array],
-    h2_prior: Array,
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
+    train_mask: Optional[ArrayLike],
+    test_mask: Optional[ArrayLike],
+    h2_prior: ArrayLike,
 ) -> tuple[
     dict[str, NDArray],
     Array,
-    Optional[Array],
-    Optional[Array],
-    Optional[Array],
+    Array,
+    Array,
+    Array,
     Array,
 ]:
     """Validate input data for step1"""
-    ## Array conversions
+    ## Y
     Y = jnp.asarray(Y)
-    if not (train_mask is None or test_mask is None):
-        train_mask = jnp.asarray(train_mask)
-        test_mask = jnp.asarray(test_mask)
-    h2_prior = jnp.asarray(h2_prior)
-    if X is not None:
-        X = jnp.asarray(X)
-
-    ## Check array shapes
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
     N, P = Y.shape
 
+    ## X
+    if X is None:
+        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+    else:
+        X = jnp.asarray(X)
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
+        if X.shape[0] != N:
+            raise ValueError(
+                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
+            )
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+    X = stdize(X)
+    assert_covar_full_rank(X)
+
+    ## Masks
+    if train_mask is not None:
+        train_mask = jnp.asarray(train_mask)
+    if test_mask is not None:
+        test_mask = jnp.asarray(test_mask)
+
+    if not (train_mask is None or test_mask is None):
+        if (
+            train_mask.ndim != 2
+            or test_mask.ndim != 2
+            or train_mask.shape != test_mask.shape
+        ):
+            raise ValueError(
+                "train_mask and test_mask must be 2D (N, K) with the same shape"
+            )
+        if train_mask.shape[0] != N or test_mask.shape[0] != N:
+            raise ValueError("train_mask/test_mask must match N of Y")
+    if train_mask is None:
+        train_mask = jnp.array([1])
+    if test_mask is None:
+        test_mask = jnp.array([1])
+
+    ## Z
     if not isinstance(Z, dict):
         raise TypeError(f"Z must be a dict, got {type(Z)}")
 
     if len(Z) == 0:
         raise ValueError("Z must not be empty")
-
     Z_N = None
     Z_P = None
     for chrom, Z_chrom in Z.items():
@@ -94,27 +122,8 @@ def validate_step1_inputs(
 
     if Z_P != P:
         raise ValueError(f"Z arrays have P={Z_P} but Y has P={P}")
-
-    if X is not None:
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-
-    if not (train_mask is None or test_mask is None):
-        if (
-            train_mask.ndim != 2
-            or test_mask.ndim != 2
-            or train_mask.shape != test_mask.shape
-        ):
-            raise ValueError(
-                "train_mask and test_mask must be 2D (N, K) with the same shape"
-            )
-        if train_mask.shape[0] != N or test_mask.shape[0] != N:
-            raise ValueError("train_mask/test_mask must match N of Y")
-
+    ## H2
+    h2_prior = jnp.asarray(h2_prior)
     if h2_prior.ndim != 1:
         raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
     if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
@@ -289,23 +298,24 @@ def _ridge_cv_bt(
 
 def step1(
     Z: dict[str, NDArray],
-    Y: Array,
-    X: Optional[Array],
-    train_mask: Optional[Array],
-    test_mask: Optional[Array],
-    h2_prior: Array,
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
+    train_mask: Optional[ArrayLike],
+    test_mask: Optional[ArrayLike],
+    h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
 ) -> dict[str, NDArray]:
     """Perform level 1 ridge regressions
 
     Args:
-        Z: An (N, P, N_blocks) jax array of level 0 predictions
-        Y: A (N, P) jax array of phenotypes
-        X: An optional (N, C) jax array of covariates (no intercept)
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
-        h2_prior: A 1D jax array of prior values for snp heritability
+        Z: A dict where keys are chromosomes and values are (N, P, N_blocks)
+            numpy arrays of step 0 predictions
+        Y: A (N, P) ArrayLike of phenotypes
+        X: An optional (N, C) ArrayLike of covariates (no intercept)
+        train_mask: An optional (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
+        test_mask: An optional (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
+        h2_prior: A 1D ArrayLike of prior values for snp heritability
         trait_type: Either "qt" or "bt"
         loocv: A boolean indicating whether to perform LOOCV instead of standard
         cross validation. Ignored for trait_type="qt".
@@ -317,13 +327,6 @@ def step1(
     Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
         Z, Y, X, train_mask, test_mask, h2_prior
     )
-
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
 
     offset: Optional[Array] = None
     if trait_type == "qt":
