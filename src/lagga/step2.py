@@ -23,7 +23,7 @@ from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
-from .models import logistic_fit
+from .models import logistic_ridge
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
@@ -278,9 +278,10 @@ def _step2_bt_core(
 
     ## Fit L + covariate offset null model
     logistic_model = jax.vmap(
-        jax.vmap(logistic_fit, in_axes=(2, 1, 1, None)), in_axes=(1, None, None, None)
+        jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None)),
+        in_axes=(1, None, None, None, None, None),
     )
-    beta = logistic_model(L, Y, O, 10)
+    beta = logistic_model(L, Y, O, jnp.ones(L.shape[0]), 0, 10)
     eta = jnp.einsum("nbap,bpa->nbp", L, beta) + O[:, None, :]
     mu = expit(eta)
     R = Y[:, None, :] - mu
@@ -753,17 +754,21 @@ def step2(
         step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
         pred_loco = {k: step1_prs - v for k, v in step1_predictions.items()}
     elif trait_type == "bt":
-        covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
-        offset_covar = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
+        covar_model = jax.vmap(
+            logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
+        )
+        offset_covar = X @ covar_model(
+            X, Y, jnp.zeros(X.shape[0]), jnp.ones(Y.shape[0]), 0
+        )
         chromosome_offsets = np.stack(
             [v - offset_covar for v in step1_predictions.values()], axis=1
         )
         pred_loco = {}
         for i, chrom in enumerate(step1_predictions):
             X_leave = np.delete(chromosome_offsets, i, axis=1)
-            beta_chrom = jax.vmap(logistic_fit, in_axes=(2, 1, 1), out_axes=1)(
-                X_leave, Y, offset_covar
-            )
+            beta_chrom = jax.vmap(
+                logistic_ridge, in_axes=(2, 1, 1, None, None), out_axes=1
+            )(X_leave, Y, offset_covar, jnp.ones(Y.shape[0]), 0)
             eta_chrom = np.einsum("ncp,cp->np", X_leave, beta_chrom) + offset_covar
             pred_loco[chrom] = eta_chrom
     else:

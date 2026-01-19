@@ -18,10 +18,9 @@ from tqdm import tqdm
 from typing import Optional
 from ._utils import stdize, assert_covar_full_rank
 from .models import (
-    ridge_masked_predict,
-    logistic_fit,
-    logistic_ridge_predict,
-    logistic_ridge_loo_predict,
+    ridge,
+    logistic_ridge,
+    logistic_ridge_loo,
 )
 
 
@@ -147,20 +146,20 @@ def _ridge_cv_qt(Z, Y, train_mask, test_mask, h2_prior):
     Yhat_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
     for fold in range(k):
         for pheno in range(p):
-            ridge_fold = ridge_masked_predict(
+            ridge_fold_beta = ridge(
                 Z[:, pheno, :],
                 Y[:, pheno],
                 train_mask[:, fold],
-                test_mask[:, fold],
                 alphas,
-            )
-            Yhat_alphas[:, pheno, :] += ridge_fold[:, 0, :]
+            ).squeeze(axis=1)
+            ridge_fold = (Z[:, pheno, :] @ ridge_fold_beta) * test_mask[:, fold][
+                :, None
+            ]
+            Yhat_alphas[:, pheno, :] += ridge_fold
 
     # Get best CV alpha per-phenotype
-    cv_errors = np.mean(
-        (np.asarray(Y)[:, :, None] - Yhat_alphas) ** 2, axis=0
-    )  # (p, a)
-    alpha_idx = np.argmin(cv_errors, axis=1)  # (p,)
+    cv_errors = np.mean((np.asarray(Y)[:, :, None] - Yhat_alphas) ** 2, axis=0)
+    alpha_idx = np.argmin(cv_errors, axis=1)
 
     # Get best CV prediction
     Yhat = np.take_along_axis(Yhat_alphas, alpha_idx[None, :, None], axis=2).squeeze(
@@ -193,9 +192,13 @@ def _ridge_loocv_bt(Z, Y, offset, h2_prior):
     eta_alphas = np.zeros(shape=(n, p, a), dtype=np.float32)
     for pheno in range(p):
         loocv_model = jax.vmap(
-            logistic_ridge_loo_predict, in_axes=(None, None, None, 0), out_axes=1
+            logistic_ridge_loo, in_axes=(None, None, None, 0), out_axes=1
         )
-        eta_pheno = loocv_model(Z[:, pheno, :], Y[:, pheno], offset[:, pheno], alphas)
+        beta_pheno = loocv_model(Z[:, pheno, :], Y[:, pheno], offset[:, pheno], alphas)
+        eta_pheno = (
+            jnp.sum(Z[:, pheno, :][:, None, :] * beta_pheno.T, axis=2)
+            + offset[:, pheno][:, None]
+        )
         eta_alphas[:, pheno, :] += eta_pheno
 
     # Get best CV alpha per-phenotype
@@ -238,15 +241,16 @@ def _ridge_cv_bt(Z, Y, train_mask, test_mask, offset, h2_prior):
     for fold in range(k):
         for pheno in range(p):
             cv_model = jax.vmap(
-                logistic_ridge_predict, in_axes=(None, None, None, None, 0), out_axes=1
+                logistic_ridge, in_axes=(None, None, None, None, 0), out_axes=1
             )
-            eta_pheno_fold = cv_model(
+            beta_pheno_fold = cv_model(
                 Z[:, pheno, :],
                 Y[:, pheno],
                 offset[:, pheno],
                 train_mask[:, fold],
                 alphas,
             )
+            eta_pheno_fold = Z[:, pheno, :] @ beta_pheno_fold
             eta_pheno_fold = eta_pheno_fold * test_mask[:, fold][:, None]
             eta_alphas[:, pheno, :] += eta_pheno_fold
 
@@ -311,8 +315,10 @@ def step1(
         Y = stdize(Y - (Q @ (Q.T @ Y)))
     elif trait_type == "bt":
         ## Covariate-only model
-        covar_model = jax.vmap(logistic_fit, in_axes=(None, 1, None), out_axes=1)
-        offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]))
+        covar_model = jax.vmap(
+            logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
+        )
+        offset = X @ covar_model(X, Y, jnp.zeros(X.shape[0]), jnp.ones(Y.shape[0]), 0)
     else:
         raise ValueError("trait_type must be qt or bt")
 

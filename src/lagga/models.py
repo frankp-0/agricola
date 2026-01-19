@@ -5,15 +5,9 @@
 """Functions for fitting regression models.
 
 Key functions:
-    ridge_masked_predict: ridge regression predictions with train/test masks
-    logistic_fit: logistic regression
-    logistic_ridge_predict: logistic ridge regression predictions with train/test
-    masks
-    logistic_ridge_loo_predict: leave-one-out logistic ridge regression
-  predictions
-
-
-ridge_masked_predict and logistic_ridge_predict
+    ridge: ridge regression predictions with train mask
+    logistic_ridge: logistic ridge regression predictions with train mask
+    logistic_ridge_loo: leave-one-out logistic ridge regression
 """
 
 import jax
@@ -26,12 +20,11 @@ from jax.scipy.special import expit
 ### ─────────────────────────────────────────────────────────────
 
 
-def ridge_masked_predict(X, Y, train_mask, test_mask, alphas):
-    """Perform ridge regression using test/train masks
+def ridge(X, Y, train_mask, alphas):
+    """Perform ridge regression using train masks
 
-    Both train_mask and test_mask should only take values 0 and 1.
-    Samples with test_mask = 0 have predicted value 0
-    in the output. Passing "masks" like this allows data to have the
+    train_mask should only take values 0 and 1.
+    Passing "masks" like this allows data to have the
     same input size regardless of train/test split and avoid recompilation
     should we choose to use JIT compilation.
 
@@ -40,17 +33,15 @@ def ridge_masked_predict(X, Y, train_mask, test_mask, alphas):
         X: (N, V) jax array of predictors
         Y: (N, P) or (N,) jax array of outcome(s)
         train_mask: (N, 1) jax array indicating training set status (0/1)
-        test_mask: (N, 1) jax array indicating test set status (0/1)
         alphas: A 1d jax array of ridge penalty weights
 
     Returns:
-        preds: A (N, len(alphas), P) jax array of predictions (with non-test samples masked out)
+        beta: A (V, P, len(alphas)) jax array of predictions (with non-test samples masked out)
     """
     _, b = X.shape
 
     ## Reshape weights to 1D and Y to 2D
     train_mask = train_mask.reshape(-1, 1)
-    test_mask = test_mask.reshape(-1, 1)
     if Y.ndim == 1:
         Y = Y.reshape(-1, 1)
 
@@ -59,15 +50,15 @@ def ridge_masked_predict(X, Y, train_mask, test_mask, alphas):
     XTY = X.T @ (Y * train_mask)
     I_ = jnp.eye(b, dtype=XTY.dtype)
 
-    def ridge_pred(alpha):
+    def ridge_fit(alpha):
         A = XTX + alpha * I_
         beta = jnp.linalg.solve(A, XTY)
-        return (X @ beta) * test_mask
+        return beta
 
-    preds = jax.vmap(ridge_pred)(alphas)
-    preds = jnp.moveaxis(preds, 0, -1)
+    beta = jax.vmap(ridge_fit)(alphas)
+    beta = jnp.moveaxis(beta, 0, -1)
 
-    return preds
+    return beta
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -89,36 +80,10 @@ def _logistic_ridge_step(beta, X, y, offset, train_mask, alpha):
     return beta_new
 
 
-def logistic_fit(X, y, offset, max_iter=20):
-    """Perform logistic regression
-
-    Fits a logistic regression model including offsets and returns
-    regression coefficients.
-
-    Args:
-        X: (N, V) jax array of predictors
-        y: (N,) jax array of the outcome
-        offset: (N,) jax array with offset
-        max_iter: max number of iterations
-
-    Returns:
-        beta: (V,) jax array of coefficients
-    """
-    beta0 = jnp.zeros(X.shape[1])
-
-    def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, jnp.ones(X.shape[0]), 0)
-
-    beta = lax.fori_loop(0, max_iter, body_fun, beta0)
-
-    return beta
-
-
-def logistic_ridge_predict(X, y, offset, train_mask, alpha, max_iter=50):
+def logistic_ridge(X, y, offset, train_mask, alpha, max_iter=50):
     """Perform logistic ridge regression using a training mask.
 
-    Fits a logistic ridge regression model including offsets and returns
-    the linear predictor.
+    Fits a logistic ridge regression model including offsets
 
     Args:
         X: (N, V) jax array of predictors
@@ -129,7 +94,7 @@ def logistic_ridge_predict(X, y, offset, train_mask, alpha, max_iter=50):
         max_iter: max number of iterations
 
     Returns:
-        eta: (N,) jax array of linear predictors
+        beta: (V,) jax array of coefficients
     """
     beta0 = jnp.zeros(X.shape[1])
 
@@ -137,12 +102,11 @@ def logistic_ridge_predict(X, y, offset, train_mask, alpha, max_iter=50):
         return _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
 
     beta = lax.fori_loop(0, max_iter, body_fun, beta0)
-    eta = X @ beta + offset
 
-    return eta
+    return beta
 
 
-def logistic_ridge_loo_predict(X, y, offset, alpha, max_iter=50):
+def logistic_ridge_loo(X, y, offset, alpha, max_iter=50):
     """Perform logistic ridge regression with leave-one-out scheme
 
     Returns leave-one-out linear predictor
@@ -155,7 +119,7 @@ def logistic_ridge_loo_predict(X, y, offset, alpha, max_iter=50):
         max_iter: max number of iterations
 
     Returns:
-        eta_loo: (N,) jax array of linear predictions
+        beta_loo: (V,N) jax array of loo coefficients
     """
     beta0 = jnp.zeros(X.shape[1])
 
@@ -177,6 +141,5 @@ def logistic_ridge_loo_predict(X, y, offset, alpha, max_iter=50):
     Gamma = w * jax.vmap(_quad_form_Hinv, in_axes=0)(X)
 
     beta_loo = beta[:, None] - ((H_inv @ X.T) * (y - mu) / (1 - Gamma))
-    eta_loo = jnp.sum(X * (beta_loo.T), axis=1) + offset
 
-    return eta_loo
+    return beta_loo

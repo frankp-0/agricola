@@ -18,7 +18,7 @@ from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
-from .models import ridge_masked_predict
+from .models import ridge
 
 
 def _step0_block(
@@ -58,8 +58,11 @@ def _step0_block(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge_Z = jax.vmap(ridge_masked_predict, in_axes=(None, None, 1, 1, None))
-    Z_block = jnp.sum(ridge_Z(G, Y, train_mask, test_mask, alphas), axis=0)
+    ridge_beta = jax.vmap(ridge, in_axes=(None, None, 1, None))(
+        G, Y, train_mask, alphas
+    )
+    ridge_Z = jnp.einsum("nb,kbpa->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
+    Z_block = jnp.sum(ridge_Z, axis=1)
     Z_block = np.asarray(stdize(Z_block))
     return Z_block
 
