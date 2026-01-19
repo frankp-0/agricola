@@ -27,6 +27,7 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
   "ipython>=8.37.0",
+  "mkdocstrings-python>=2.0.1",
   "pytest>=9.0.2",
   "pytest-cov>=7.0.0",
   "zensical>=0.0.16",

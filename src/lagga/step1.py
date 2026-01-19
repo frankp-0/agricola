@@ -318,7 +318,7 @@ def step1(
         h2_prior: A 1D ArrayLike of prior values for snp heritability
         trait_type: Either "qt" or "bt"
         loocv: A boolean indicating whether to perform LOOCV instead of standard
-        cross validation. Ignored for trait_type="qt".
+            cross validation. Ignored for trait_type="qt".
 
     Returns:
         A dict where keys are chromosomes and values are (N, P) numpy arrays of step 1 predictions

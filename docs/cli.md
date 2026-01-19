@@ -66,9 +66,20 @@ lagga step2 \
 ---
 
 ## File Formats
+
 ### Inputs
-#### Genotype Data
+
+#### Genotype
+
+#### Local Ancestry
+
+#### Phenotype
+
 ### Outputs
+
+#### Step 1 Intermediate
+
+#### Step 2 Results
 
 ---
 
