@@ -1,14 +1,48 @@
 # lagga
 
-**lagga** is a python package and command line tool for conducting genome-wide
-association studies in admixed populations. Taking inspiration from the
-[regenie](https://rgcgithub.github.io/regenie) and [Tractor](
-https://atkinson-lab.github.io/Tractor-tutorial/) GWAS tools, **lagga** uses
-whole-genome regression to efficiently account for related samples and population
-structure, then performs local ancestry-adjusted single variant tests.
+**lagga** is a Python package and command-line tool for conducting **genome-wide
+association studies (GWAS) in admixed populations**. Inspired by [regenie](https://rgcgithub.github.io/regenie)
+and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **lagga**
+provides a scalable, local-ancestry–aware framework that handles relatedness, population
+structure, and ancestry effect heterogeneity.
 
-**lagga** has several key features:
+---
 
-- It uses [JAX](https://docs.jax.dev) for GPU-accelerated linear algebra and just-in-time compilation
-- It uses [lanctools](https://github.com/frankp-0/lanctools) for highly-efficient local ancestry queries
-- It performs local ancestry-adjusted single variant score tests
+## Why lagga?
+
+Admixed individuals have unique LD patterns that can improve signal localization and 
+improve power for population-specific causal variants. However, standard GWAS
+tools fail to adjust for local ancestry or model effect heterogeneity in admixed
+individuals.
+
+Tools like Tractor and SAIGE-Tractor address this gap. **lagga** follows the same
+conceptual approach-performing single-variant association tests with explicit
+local ancestry adjustment-but combines it with:
+
+- **Accelerated linear algebra** via [JAX](https://docs.jax.dev)
+- **CUDA GPU, TPU, or CPU support** for flexible compute environments
+- **Efficient local ancestry queries** using [lanctools](https://github.com/frankp-0/lanctools)
+- **Multi-phenotype** modeling
+- **Adjustment for sample relatedness**
+
+---
+
+## Installation
+
+**Requirements:** Python 3.10+  
+
+Install via pip:
+
+```bash
+pip install lagga
+```
+
+For GPU or TPU support:
+
+```bash
+pip install lagga[cuda]
+```
+
+```bash
+pip install lagga[tpu]
+```
