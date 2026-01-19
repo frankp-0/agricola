@@ -10,7 +10,7 @@ perform single variant association tests. The entry-point is the `step2` functio
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array
+from jaxtyping import Array, ArrayLike
 import numpy as np
 from scipy.stats import chi2
 import pandas as pd
@@ -31,14 +31,14 @@ from .models import logistic_ridge
 
 def validate_step2_inputs(
     datasets: list[LancData],
-    Y: Array,
-    X: Optional[Array],
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
     B: int = 1000,
-    idx_sample: Optional[np.ndarray] = None,
+    idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
-) -> tuple[Array, Array]:
+) -> tuple[Array, Array, Optional[Array]]:
     """Validate input data for step1"""
 
     ## Y
@@ -115,6 +115,7 @@ def validate_step2_inputs(
 
     ## samples
     if idx_sample is not None:
+        idx_sample = jnp.asarray(idx_sample)
         if idx_sample.ndim != 1:
             raise TypeError("idx_sample must be 1D")
         if idx_sample.dtype != np.uint32:
@@ -122,7 +123,7 @@ def validate_step2_inputs(
         if not set(np.asarray(idx_sample)).issubset(np.arange(N, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
-    return (Y, X)
+    return (Y, X, idx_sample)
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -475,7 +476,7 @@ def _step2_block(
     Q: Array,
     trait_type: str,
     block: np.ndarray,
-    idx_sample: Optional[np.ndarray],
+    idx_sample: Optional[Array],
     min_ac: int,
     extra_args: dict,
     adjust_lanc: bool,
@@ -571,7 +572,7 @@ def _step2_dataset(
     Y: Array,
     pred_loco: dict[str, np.ndarray],
     X: Array,
-    idx_sample: Optional[np.ndarray],
+    idx_sample: Optional[Array],
     out_prefix: str,
     phenotypes: list[str],
     trait_type: str,
@@ -693,15 +694,15 @@ def _step2_dataset(
 
 def step2(
     datasets: list[LancData],
-    Y: Array,
-    X: Optional[Array],
+    Y: ArrayLike,
+    X: Optional[ArrayLike],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
     phenotypes: list[str],
     trait_type: "str",
     B: int = 1000,
     min_ac: int = 1,
-    idx_sample: Optional[np.ndarray] = None,
+    idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ):
@@ -722,18 +723,8 @@ def step2(
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
     """
-    ## Validate inputs
-    # TODO: validate phenotypes
-    # TODO: validate trait_type
-    Y, X = validate_step2_inputs(
-        datasets,
-        Y,
-        X,
-        step1_predictions,
-        out_prefixes,
-        B,
-        idx_sample,
-        variants,
+    Y, X, idx_sample = validate_step2_inputs(
+        datasets, Y, X, step1_predictions, out_prefixes, B, idx_sample, variants
     )
 
     if trait_type == "qt":
