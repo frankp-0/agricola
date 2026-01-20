@@ -371,7 +371,7 @@ def _step2_nolanc_qt_core(
     )
     I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
     chisq_het = (
-        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkk->bkp", U, I22_inv), U)
+        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkl->blp", U, I22_inv), U)
         / sig2[None, :]
     )
 
