@@ -22,6 +22,7 @@ DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="lagga CLI")
 logger = logging.getLogger("lagga")
+logging.getLogger("jax").setLevel(logging.WARNING)
 
 
 ### ─────────────────────────────────────────────────────────────
