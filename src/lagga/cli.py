@@ -417,6 +417,9 @@ def step2(
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
+    adjust_lanc: bool = typer.Option(
+        True, help="Adjust single variant tests for local ancestry"
+    ),
 ) -> None:
     from .step2 import step2
     import numpy as np
@@ -462,6 +465,7 @@ def step2(
         min_ac,
         idx_sample,
         variants,
+        adjust_lanc,
     )
 
 
@@ -544,6 +548,9 @@ def all_steps(
     loocv: bool = typer.Option(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
+    adjust_lanc: bool = typer.Option(
+        True, help="Adjust single variant tests for local ancestry"
+    ),
 ) -> None:
     import jax.numpy as jnp
     import jax
@@ -609,6 +616,7 @@ def all_steps(
         min_ac,
         idx_sample,
         variants2,
+        adjust_lanc,
     )
 
 
