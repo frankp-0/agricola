@@ -95,13 +95,14 @@ def validate_step0_inputs(
             raise TypeError("variants must be a list of strings")
 
     ## samples
+    N_pgen = datasets[0].pgen.get_raw_sample_ct()
     if idx_sample is not None:
         idx_sample = jnp.asarray(idx_sample)
         if idx_sample.ndim != 1:
             raise TypeError("idx_sample must be 1D")
         if idx_sample.dtype != np.uint32:
             raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(np.asarray(idx_sample)).issubset(np.arange(N, dtype=np.uint32)):
+        if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
     return (Y, X, train_mask, test_mask, h2_prior, idx_sample)
