@@ -207,7 +207,7 @@ def _step2_qt_core(
     UH = UH * mask_H[:, None]  # apply mask
     I22_inv_H = 1 / (jnp.einsum("nb,nb->b", H_res, H_res) + 1e-10)
     I22_inv_H = I22_inv_H * mask_H  # apply mask
-    chisq_hom = (UH**2) * I22_inv_H[:, None]
+    chisq_hom = (UH**2) * I22_inv_H[:, None] / sig2
 
     K = jnp.einsum("nbk,nbl->bkl", G_res, G_res)
     eigvals = jnp.linalg.eigvalsh(K)
