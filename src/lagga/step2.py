@@ -179,8 +179,8 @@ def _step2_qt_core(
     ## Get residualized genotypes
     GtL = jnp.einsum("nbk,nbc->bkc", G, L)
     HtL = jnp.einsum("nb,nbc->bc", H, L)
-    G_res = G - jnp.einsum("nbc,bkc->nbk", jnp.einsum("nbc,bcd->nbc", L, LtL_inv), GtL)
-    H_res = H - jnp.einsum("nbc,bc->nb", jnp.einsum("nbc,bcd->nbc", L, LtL_inv), HtL)
+    G_res = G - jnp.einsum("nbc,bcd,bkd->nbk", L, LtL_inv, GtL)
+    H_res = H - jnp.einsum("nbc,bcd,bd->nb", L, LtL_inv, HtL)
 
     ## Get masks based on variance
     var_G = jnp.var(G_res, axis=0)
@@ -285,13 +285,9 @@ def _step2_bt_core(
     )
     QL = QL.transpose((2, 0, 3, 1))
     G_res = G * W_L_sqrt[:, :, None, :] - jnp.einsum(
-        "nbap,bakp->nbkp",
-        QL,
-        jnp.einsum("nbap,nbkp->bakp", QL, G * W_L_sqrt[:, :, None, :]),
+        "nbap,mbap,mbkp->nbkp", QL, QL, G * W_L_sqrt[:, :, None, :]
     )
-    H_res = H * W_L_sqrt - jnp.einsum(
-        "nbap,bap->nbp", QL, jnp.einsum("nbap,nbp->bap", QL, H * W_L_sqrt)
-    )
+    H_res = H * W_L_sqrt - jnp.einsum("nbap,mbap,mbp->nbp", QL, QL, H * W_L_sqrt)
 
     ## Get masks based on variance
     var_G = jnp.var(G_res, axis=0)
