@@ -174,7 +174,7 @@ def _step2_qt_core(
     r_L = Y[:, None, :] - jnp.einsum("nbc,bcp->nbp", L, beta_L)
 
     ## MSE under null
-    sig2 = jnp.sum(Y**2, axis=0) / (Y.shape[0] - L.shape[2])
+    sig2 = jnp.sum(r_L**2, axis=0) / (Y.shape[0] - L.shape[2])
 
     ## Get residualized genotypes
     GtL = jnp.einsum("nbk,nbc->bkc", G, L)
@@ -197,8 +197,7 @@ def _step2_qt_core(
     )
     I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
     chisq_het = (
-        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkl->blp", U, I22_inv), U)
-        / sig2[None, :]
+        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkl->blp", U, I22_inv), U) / sig2
     )
 
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
