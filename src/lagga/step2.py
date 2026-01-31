@@ -196,9 +196,7 @@ def _step2_qt_core(
         + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
     )
     I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
-    chisq_het = (
-        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkl->blp", U, I22_inv), U) / sig2
-    )
+    chisq_het = jnp.einsum("bkp,bkl,blp->bp", U, I22_inv, U) / sig2
 
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
 
@@ -366,10 +364,7 @@ def _step2_nolanc_qt_core(
         jnp.einsum("nbk,nbl->bkl", G, G) + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
     )
     I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
-    chisq_het = (
-        jnp.einsum("bkp,bkp->bp", jnp.einsum("bkp,bkl->blp", U, I22_inv), U)
-        / sig2[None, :]
-    )
+    chisq_het = jnp.einsum("bkp,bkl,blp->bp", U, I22_inv, U) / sig2[None, :]
 
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
 
