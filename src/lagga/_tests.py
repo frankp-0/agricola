@@ -12,7 +12,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array
 from jax.scipy.special import expit
-from ..models import logistic_ridge
+from .models import logistic_ridge
 
 
 @jax.jit

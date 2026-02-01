@@ -21,8 +21,8 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
-from .._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
-from ..models import logistic_ridge
+from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
+from .models import logistic_ridge
 from ._tests import (
     _step2_qt_core,
     _step2_bt_core,
@@ -369,7 +369,7 @@ def step2(
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ) -> None:
-    """Run step 2
+    """Perform lagga step 2
 
     Args:
         datasets: A list of LancData objects
