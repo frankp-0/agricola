@@ -23,7 +23,7 @@ from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import logistic_ridge
-from ._tests import (
+from .step2_tests import (
     _step2_qt_core,
     _step2_bt_core,
     _step2_nolanc_qt_core,
