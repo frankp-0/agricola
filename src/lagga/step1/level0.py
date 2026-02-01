@@ -4,10 +4,10 @@
 
 """Level-0 block-wise whole-genome ridge predictions.
 
-This module performs "step 0" of lagga. It splits the genome into blocks and
+This module performs "level 0" of lagga step1. It splits the genome into blocks and
 performs a ridge regression within each block. It returns block-wise predictions
 for each trait across a sequence of heritability priors. The entry-point for this
-module is the `step0` function.
+module is the `level0` function.
 """
 
 import jax
@@ -17,12 +17,12 @@ import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
-from .models import ridge
+from .._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
+from ..models import ridge
 from numpy.typing import NDArray
 
 
-def validate_step0_inputs(
+def validate_level0_inputs(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
@@ -33,7 +33,7 @@ def validate_step0_inputs(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
 ) -> tuple[Array, Array, Array, Array, Array, Optional[Array]]:
-    """Validate input data for step0"""
+    """Validate input data for level0"""
     ## genotype/lanc data
     if not isinstance(datasets, (list, tuple)):
         raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
@@ -108,7 +108,7 @@ def validate_step0_inputs(
     return (Y, X, train_mask, test_mask, h2_prior, idx_sample)
 
 
-def _step0_block(
+def _level0_block(
     dataset: LancData,
     Y: Array,
     Q: Array,
@@ -154,7 +154,7 @@ def _step0_block(
     return Z_block
 
 
-def _step0_dataset(
+def _level0_dataset(
     dataset: LancData,
     Y: Array,
     Q: Array,
@@ -181,7 +181,7 @@ def _step0_dataset(
         desc: A string describing the dataset, used for tracking progress
 
     Returns:
-        Z_chroms: A dict where keys are chromosomes and values are (N, P, N_predictors) numpy arrays of step 0 predictions
+        Z_chroms: A dict where keys are chromosomes and values are (N, P, N_predictors) numpy arrays of level 0 predictions
     """
 
     ## Get variant indices
@@ -220,7 +220,7 @@ def _step0_dataset(
             Z_blocks = []
             for block in blocks:
                 Z_blocks.append(
-                    _step0_block(
+                    _level0_block(
                         dataset,
                         Y,
                         Q,
@@ -238,7 +238,7 @@ def _step0_dataset(
     return Z_chroms
 
 
-def step0(
+def level0(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
@@ -263,21 +263,21 @@ def step0(
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
 
     Returns:
-        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) numpy arrays of step 0 predictions
+        Z: A dict where keys are chromosomes and values are (N, P, N_blocks) numpy arrays of level 0 predictions
     """
-    (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_step0_inputs(
+    (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_level0_inputs(
         datasets, Y, X, train_mask, test_mask, h2_prior, B, idx_sample, variants
     )
 
     Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = stdize(Y - (Q @ (Q.T @ Y)))
 
-    ## Perform step 0 for each dataset
+    ## Perform level 0 for each dataset
     Z_datasets = []
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
-        desc = f"Getting step 0 predictions for file: {pgen_path}"
-        Z_dataset = _step0_dataset(
+        desc = f"Getting level 0 predictions for file: {pgen_path}"
+        Z_dataset = _level0_dataset(
             ds,
             Y,
             Q,

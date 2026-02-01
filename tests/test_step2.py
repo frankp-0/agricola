@@ -7,13 +7,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from jax.scipy.special import expit
-from lagga.step2 import step2
+from lagga import step2
 from lanctools import LancData
-
-
-### ─────────────────────────────────────────────────────────────
-### Input Validation
-### ─────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
@@ -75,7 +70,7 @@ def test_step2_pred_dim_error(tmp_path):
 def test_step2_Y_dim_error(tmp_path, toy_data):
     """Check that 1D Y throws error"""
     _, X, step1_predictions = valid_inputs()
-    phenotypes = [i for i in range(3)]
+    phenotypes = [str(i) for i in range(3)]
     out_prefixes = [tmp_path / f"_{i}" for i in range(20, 23)]
     with pytest.raises(ValueError, match="Y must be 2D"):
         step2(

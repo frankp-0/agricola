@@ -11,7 +11,6 @@ import typer
 from typing import Optional, TYPE_CHECKING
 import os
 from importlib.metadata import version, PackageNotFoundError
-from pathlib import Path
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -311,8 +310,7 @@ def step1(
     import jax.numpy as jnp
     import jax
     from ._utils import get_cv_mask
-    from .step0 import step0
-    from .step1 import step1
+    from .step1.step1 import step1
     import numpy as np
 
     ## Load data
@@ -330,20 +328,20 @@ def step1(
     key = jax.random.PRNGKey(seed)
     train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
-    ## Run steps 0 and 1
-    Z = step0(
+    ## Run step 1
+    predictions = step1(
         datasets,
         Y,
         X,
         train_mask,
         test_mask,
         h2_prior_arr,
+        trait_type,
+        loocv,
         block_size,
         idx_sample,
         variants,
     )
-
-    predictions = step1(Z, Y, X, train_mask, test_mask, h2_prior_arr, trait_type, loocv)
 
     ## Write predictions
     with open(out_prefix + ".pkl", "wb") as f:
@@ -421,7 +419,7 @@ def step2(
         True, help="Adjust single variant tests for local ancestry"
     ),
 ) -> None:
-    from .step2 import step2
+    from .step2.step2 import step2
     import numpy as np
 
     ## Load data
@@ -534,8 +532,8 @@ def all_steps(
     h2_prior: str = typer.Option(
         DEFAULT_H2_PRIORS, help="SNP heritability priors, comma-separated"
     ),
-    block_size0: int = typer.Option(
-        2000, help="Number of variants per block in step 0"
+    block_size1: int = typer.Option(
+        2000, help="Number of variants per block in step 1"
     ),
     block_size2: int = typer.Option(
         1000, help="Number of variants per block in step 2"
@@ -556,9 +554,8 @@ def all_steps(
     import jax
     import numpy as np
     from ._utils import get_cv_mask
-    from .step0 import step0
-    from .step1 import step1
-    from .step2 import step2
+    from .step1.step1 import step1
+    from .step2.step2 import step2
 
     ## Load data
     ancestries_list = list_from_csv(ancestries)
@@ -589,27 +586,27 @@ def all_steps(
     key = jax.random.PRNGKey(seed)
     train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
-    ## Run step 0
-    Z = step0(
+    ## Run step 1
+    predictions = step1(
         datasets,
         Y,
         X,
         train_mask,
         test_mask,
         h2_prior_arr,
-        block_size0,
+        trait_type,
+        loocv,
+        block_size1,
         idx_sample,
         variants1,
     )
 
-    ## Run steps 1 and 2
-    predictions = step1(Z, Y, X, train_mask, test_mask, h2_prior_arr, trait_type, loocv)
     step2(
         datasets,
         Y,
         X,
         predictions,
-        outs,  # pyright: ignore
+        outs,
         pheno_names,
         trait_type,
         block_size2,

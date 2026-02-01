@@ -4,10 +4,10 @@
 
 """Level-1 whole genome predictions.
 
-This module performs "step 1" of lagga. It takes the block-wise predictions for
+This module performs "level 1" of lagga step1. It takes the block-wise predictions for
 each trait and combines them into a single prediction per-chromosome per-trait
 using ridge or logistic ridge regression with cross-validation. The entry-point
-for this module is the `step2` function.
+for this module is the `level1` function.
 """
 
 import jax
@@ -17,15 +17,15 @@ import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
 from typing import Optional
-from ._utils import stdize, assert_covar_full_rank
-from .models import (
+from .._utils import stdize, assert_covar_full_rank
+from ..models import (
     ridge,
     logistic_ridge,
     logistic_ridge_loo,
 )
 
 
-def validate_step1_inputs(
+def validate_level1_inputs(
     Z: dict[str, NDArray],
     Y: ArrayLike,
     X: Optional[ArrayLike],
@@ -40,7 +40,7 @@ def validate_step1_inputs(
     Array,
     Array,
 ]:
-    """Validate input data for step1"""
+    """Validate input data for level1"""
     ## Y
     Y = jnp.asarray(Y)
     if Y.ndim != 2:
@@ -143,14 +143,14 @@ def _ridge_cv_qt(
     """Get level 1 predictions for a single chromosome for quantitative traits
 
     Args:
-        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
+        Z: A (N, P, N_blocks) jax array of level 0 predictions (for a single chromosome)
         Y: A (N, P) jax array of (residualized, standardize) phenotypes
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        Yhat: A (N, P) numpy array of step 1 predictions
+        Yhat: A (N, P) numpy array of level 1 predictions
     """
     ## Assign dimensions
     n, p = Y.shape
@@ -190,13 +190,13 @@ def _ridge_loocv_bt(Z: Array, Y: Array, offset: Array, h2_prior: Array) -> NDArr
     """Get level 1 LOOCV predictions for a single chromosome for binary traits
 
     Args:
-        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
+        Z: A (N, P, N_blocks) jax array of level 0 predictions (for a single chromosome)
         Y: A (N, P) jax array of phenotypes
         offset: A (N, P) jax array of offsets from covariate model
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        An (N, P) numpy array of step 1 predictions (linear predictor, not
+        An (N, P) numpy array of level 1 predictions (linear predictor, not
         including offset)
     """
     ## Assign dimensions
@@ -242,7 +242,7 @@ def _ridge_cv_bt(
     """Get level 1 CV predictions for a single chromosome for binary traits
 
     Args:
-        Z: A (N, P, N_blocks) jax array of step 0 predictions (for a single chromosome)
+        Z: A (N, P, N_blocks) jax array of level 0 predictions (for a single chromosome)
         Y: A (N, P) jax array of phenotypes
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
@@ -250,7 +250,7 @@ def _ridge_cv_bt(
         h2_prior: A 1D jax array of prior values for snp heritability
 
     Returns:
-        An (N, P) numpy array of step 1 predictions (linear predictor, not
+        An (N, P) numpy array of level 1 predictions (linear predictor, not
         including offset)
     """
     ## Assign dimensions
@@ -296,7 +296,7 @@ def _ridge_cv_bt(
 ### ─────────────────────────────────────────────────────────────
 
 
-def step1(
+def level1(
     Z: dict[str, NDArray],
     Y: ArrayLike,
     X: Optional[ArrayLike],
@@ -310,7 +310,7 @@ def step1(
 
     Args:
         Z: A dict where keys are chromosomes and values are (N, P, N_blocks)
-            numpy arrays of step 0 predictions
+            numpy arrays of level 0 predictions
         Y: A (N, P) ArrayLike of phenotypes
         X: An optional (N, C) ArrayLike of covariates (no intercept)
         train_mask: An optional (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
@@ -321,10 +321,10 @@ def step1(
             cross validation. Ignored for trait_type="qt".
 
     Returns:
-        A dict where keys are chromosomes and values are (N, P) numpy arrays of step 1 predictions
+        A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions
     """
     ## Validate inputs
-    Z, Y, X, train_mask, test_mask, h2_prior = validate_step1_inputs(
+    Z, Y, X, train_mask, test_mask, h2_prior = validate_level1_inputs(
         Z, Y, X, train_mask, test_mask, h2_prior
     )
 
@@ -341,13 +341,13 @@ def step1(
     else:
         raise ValueError("trait_type must be qt or bt")
 
-    ## Perform step 1 for each chromosome
+    ## Perform level 1 for each chromosome
     with tqdm(
         total=len(Z),
-        desc="Getting step 1 predictions",
+        desc="Getting level 1 predictions",
         unit="chromosomes",
     ) as pbar:
-        step1_predictions = {}
+        level1_predictions = {}
         for chrom, Z_chrom in Z.items():
             if trait_type == "bt" and loocv:
                 pred_chrom = _ridge_loocv_bt(
@@ -370,7 +370,7 @@ def step1(
                     jnp.asarray(test_mask),
                     h2_prior,
                 )
-            step1_predictions[chrom] = pred_chrom
+            level1_predictions[chrom] = pred_chrom
             pbar.update(1)
 
-    return step1_predictions
+    return level1_predictions
