@@ -26,8 +26,9 @@ Copyright &copy; 2026 Franklin Ockerman
 
 nav = [
   { "Home" = "index.md" },
+  { "Overview" = "overview.md" },
   { "Command-Line Interface" = "cli.md" },
-  { "Python Package" = "api.md" },
+  { "Python Package" = "package.md" },
 ]
 
 # With the "extra_css" option you can add your own CSS styling to customize
@@ -293,3 +294,10 @@ paths = ["src"]
 docstring_style = "google"
 inherited_members = true
 show_source = false
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]

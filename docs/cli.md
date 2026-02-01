@@ -91,18 +91,34 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 
 | Option      | Argument | Type | Description |
 | --- | --- | --- | --- |
-| `--plink-prefix` | TEXT | required | Plink2 file prefix(es), comma-separated |
-| `--lanc-file` | TEXT | required | Local ancestry .lanc file(s), comma-separated |
+| `--plink-prefix` | TEXT | optional | Plink2 file prefix. This option can be repeated to specify multiple files |
+| `--plink-list` | TEXT | optional | File containing plink2 prefixes, one per line |
+| `--lanc-file` | TEXT | optional | Local ancestry .lanc file. This option can be repeated to specify multiple files |
+| `--lanc-list` | TEXT | optional | File containing .lanc file paths, one per line |
 | `--pheno-file` | TEXT | required | Phenotype file |
-| `--ancestries` | TEXT | optional | Ordered ancestry names, comma-separated |
+| `--ancestries` | TEXT | optional | Ancesry names, comma-separated and ordered as in .lanc files |
 | `--covar-file` | TEXT | optional | Covariates file |
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 
 
+!!! info
+    
+    `--plink-prefix` and `--lanc-file` can be repeated to specify multiple files.
+    E.g., `--plink-prefix tests/data/chr20 --plink-prefix tests/data/chr21 --plink-prefix tests/data/chr22`
+
+!!! warning
+    
+    Plink2 and .lanc files must match, meaning you must provide the same number
+    of plink2/.lanc files in the same order.
+
+    Either `--plink-prefix` or `--plink-list` must be provided, but not both.
+    The same applies to `--lanc-file` and `--lanc-list`
+
 ### Step 1 Options
 
 These are the non-global options for `step1`:
+
 
 | Option      | Argument | Type | Description |
 | --- | --- | --- | --- |
@@ -118,12 +134,23 @@ These are the non-global options for `step1`:
 
 These are the non-global options for `step2`:
 
+
 | Option      | Argument | Type | Description |
 | --- | --- | --- | --- |
-| `--out-prefix` | TEXT | required | Output prefix(es), comma-separated, one per plink_prefix [required] |
+| `--out-prefix` | TEXT | optional | Output prefix, one per plink_prefix |
+| `--out-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--variant-file` | TEXT | optional| File with variants to include, one per line |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
+
+
+!!! info
+    
+    `--out-prefix` can be repeated to specify multiple files, like `--plink-prefix` and `--lanc-file`.
+
+!!! warning
+    
+    Either `--out-prefix` or `--out-list` must be provided, but not both.
 
 
 ### All Steps Options
@@ -133,7 +160,8 @@ These are the non-global options for `all-steps`
 
 | Option      | Argument | Type | Description |
 | --- | --- | --- | --- |
-| `--out-prefix` | TEXT | required | Output prefix(es), comma-separated, one per plink_prefix [required] |
+| `--out-prefix` | TEXT | optional | Output prefix, one per plink_prefix |
+| `--out-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--variant-file1` | TEXT | optional| File with variants to include for step 0/1, one per line |
 | `--variant-file2` | TEXT | optional| File with variants to include for step 2, one per line |
 | `--block-size0` | INTEGER | optional | Number of variants per block in step 0 [default: 2000] |
@@ -141,3 +169,12 @@ These are the non-global options for `all-steps`
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 | `--seed` | INTEGER | optional | Random seed [default: 100] |
 | `--loocv` |   | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
+
+
+!!! info
+    
+    `--out-prefix` can be repeated to specify multiple files, like `--plink-prefix` and `--lanc-file`.
+
+!!! warning
+    
+    Either `--out-prefix` or `--out-list` must be provided, but not both.

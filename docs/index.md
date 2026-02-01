@@ -33,7 +33,7 @@ local ancestry adjustment-but combines it with:
 
 ## Installation
 
-**Requirements:** Python 3.10+  
+**Requirements:** Python 3.10+
 
 Install via pip:
 
