@@ -50,8 +50,7 @@ def _step2_qt_core(
 
     ## Fit null model
     LtL = jnp.einsum("nbc,nbd->bcd", L, L)
-    I_ = jnp.identity(LtL.shape[1], LtL.dtype)
-    LtL_inv = jnp.linalg.inv(LtL + 1e-8 * I_[None, :, :])
+    LtL_inv = jnp.linalg.pinv(LtL)
     LtY = jnp.einsum("nbc,np->bcp", L, Y)
     beta_L = LtL_inv @ LtY
     r_L = Y[:, None, :] - jnp.einsum("nbc,bcp->nbp", L, beta_L)
@@ -65,34 +64,21 @@ def _step2_qt_core(
     G_res = G - jnp.einsum("nbc,bcd,bkd->nbk", L, LtL_inv, GtL)
     H_res = H - jnp.einsum("nbc,bcd,bd->nb", L, LtL_inv, HtL)
 
-    ## Get masks based on variance
-    var_G = jnp.var(G_res, axis=0)
-    var_H = jnp.var(H_res, axis=0)
-    mask_G = var_G > 1e-8
-    mask_H = var_H > 1e-8
-
     ## Score for anc-deconvoluted genotypes
     U = jnp.einsum("nbk,nbp->bkp", G, r_L)
-    U = U * mask_G[:, :, None]  # apply mask
-    I22_inv = jax.scipy.linalg.inv(
-        jnp.einsum("nbk,nbl->bkl", G_res, G_res)
-        + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
-    )
-    I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
+    I22_inv = jnp.linalg.pinv(jnp.einsum("nbk,nbl->bkl", G_res, G_res))
     chisq_het = jnp.einsum("bkp,bkl,blp->bp", U, I22_inv, U) / sig2
-
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
+    df_het = jnp.linalg.matrix_rank(I22_inv)
 
     # Score for genotypes
     UH = jnp.einsum("nb,nbp->bp", H, r_L)
-    UH = UH * mask_H[:, None]  # apply mask
-    I22_inv_H = 1 / (jnp.einsum("nb,nb->b", H_res, H_res) + 1e-10)
-    I22_inv_H = I22_inv_H * mask_H  # apply mask
+    I22_inv_H = (
+        jnp.linalg.pinv(jnp.sum(H_res**2, axis=0).reshape((H_res.shape[1], 1, 1)))
+        .squeeze(1)
+        .squeeze(1)
+    )
     chisq_hom = (UH**2) * I22_inv_H[:, None] / sig2
-
-    K = jnp.einsum("nbk,nbl->bkl", G_res, G_res)
-    eigvals = jnp.linalg.eigvalsh(K)
-    df_het = jnp.sum(eigvals > 1e-8, axis=1)
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -170,33 +156,24 @@ def _step2_bt_core(
     )
     H_res = H * W_L_sqrt - jnp.einsum("nbap,mbap,mbp->nbp", QL, QL, H * W_L_sqrt)
 
-    ## Get masks based on variance
-    var_G = jnp.var(G_res, axis=0)
-    var_H = jnp.var(H_res, axis=0)
-    mask_G = var_G > 1e-8
-    mask_H = var_H > 1e-8
-
     ## Score for anc-deconvoluted genotypes
     U = jnp.einsum("nbkp,nbp->bkp", G, R)
-    U = U * mask_G  # apply mask
-    I22_inv = jnp.linalg.inv(
-        jnp.einsum("nbkp,nblp->bpkl", G_res, G_res)
-        + 1e-8 * jnp.eye(G_res.shape[2])[None, None, :, :],
-    )
-    I22_inv = I22_inv * jnp.einsum("bkp,blp->bpkl", mask_G, mask_G)  # apply mask
+    I22_inv = jnp.linalg.pinv(jnp.einsum("nbkp,nblp->bpkl", G_res, G_res))
     chisq_het = jnp.einsum("bkp,bpkl,blp->bp", U, I22_inv, U)
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
+    df_het = jnp.linalg.matrix_rank(I22_inv)
 
+    ## Score for genotypes
     UH = jnp.einsum("nbp,nbp->bp", H, R)
-    UH = UH * mask_H  # apply mask
-    I22_inv_H = 1 / (jnp.einsum("nbp,nbp->bp", H_res, H_res) + 1e-8)
-    I22_inv_H = I22_inv_H * mask_H
+    I22_inv_H = (
+        jnp.linalg.pinv(
+            jnp.sum(H_res**2, axis=0).reshape((H_res.shape[1], H_res.shape[2], 1, 1))
+        )
+        .squeeze(2)
+        .squeeze(2)
+    )
     chisq_hom = (UH**2) * I22_inv_H
 
-    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
-
-    K = jnp.einsum("nbkp,nblp->bpkl", G, G)
-    eigvals = jnp.linalg.eigvalsh(K)
-    df_het = jnp.sum(eigvals > 1e-8, axis=2)
     return chisq_hom, chisq_het, beta_anc, df_het
 
 
@@ -234,33 +211,21 @@ def _step2_nolanc_qt_core(
     ## MSE under null
     sig2 = jnp.sum(Y**2, axis=0) / Y.shape[0]
 
-    ## Get masks based on variance
-    var_G = jnp.var(G, axis=0)
-    var_H = jnp.var(H, axis=0)
-    mask_G = var_G > 1e-8
-    mask_H = var_H > 1e-8
-
     ## Score for anc-deconvoluted genotypes
     U = jnp.einsum("nbk,np->bkp", G, Y)
-    U = U * mask_G[:, :, None]  # apply mask
-    I22_inv = jax.scipy.linalg.inv(
-        jnp.einsum("nbk,nbl->bkl", G, G) + 1e-10 * jnp.identity(G.shape[2])[None, :, :]
-    )
-    I22_inv = I22_inv * jnp.einsum("bk,bl->bkl", mask_G, mask_G)  # apply mask
+    I22_inv = jnp.linalg.pinv(jnp.einsum("nbk,nbl->bkl", G, G))
     chisq_het = jnp.einsum("bkp,bkl,blp->bp", U, I22_inv, U) / sig2[None, :]
-
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2)[:, :, None]
+    df_het = jnp.linalg.matrix_rank(I22_inv)
 
     # Score for genotypes
     UH = jnp.einsum("nb,np->bp", H, Y)
-    UH = UH * mask_H[:, None]  # apply mask
-    I22_inv_H = 1 / (jnp.einsum("nb,nb->b", H, H) + 1e-10)
-    I22_inv_H = I22_inv_H * mask_H  # apply mask
+    I22_inv_H = (
+        jnp.linalg.pinv(jnp.einsum("nb,nb->b", H, H).reshape((H.shape[1], 1, 1)))
+        .squeeze(1)
+        .squeeze(1)
+    )
     chisq_hom = (UH**2) * I22_inv_H[:, None]
-
-    K = jnp.einsum("nbk,nbl->bkl", G, G)
-    eigvals = jnp.linalg.eigvalsh(K)
-    df_het = jnp.sum(eigvals > 1e-8, axis=1)
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -308,35 +273,24 @@ def _step2_nolanc_bt_core(
         jnp.einsum("ncp,nbkp->cbkp", Q_w, G[:, :, :, None] * W_sqrt[:, None, None, :]),
     )
 
-    ## Get masks based on variance
-    var_G = jnp.var(G, axis=0)
-    var_H = jnp.var(H, axis=0)
-    mask_G = var_G > 1e-8
-    mask_H = var_H > 1e-8
-
     ## Get null model
     mu = expit(O)
     R = Y - mu
 
     ## Score for anc-deconvoluted genotypes
     U = jnp.einsum("nbkp,np->bkp", G, R)
-    U = U * mask_G  # apply mask
-    I22_inv = jnp.linalg.inv(
-        jnp.einsum("nbkp,nblp->bpkl", G, G)
-        + 1e-8 * jnp.eye(G.shape[2])[None, None, :, :],
-    )
-    I22_inv = I22_inv * jnp.einsum("bkp,blp->bpkl", mask_G, mask_G)  # apply mask
+    I22_inv = jnp.linalg.pinv(jnp.einsum("nbkp,nblp->bpkl", G, G))
     chisq_het = jnp.einsum("bkp,bpkl,blp->bp", U, I22_inv, U)
+    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
+    df_het = jnp.linalg.matrix_rank(I22_inv)
 
+    ## Score for genotype
     UH = jnp.einsum("nbp,np->bp", H, R)
-    UH = UH * mask_H  # apply mask
-    I22_inv_H = 1 / (jnp.einsum("nbp,nbp->bp", H, H) + 1e-8)
-    I22_inv_H = I22_inv_H * mask_H
+    I22_inv_H = (
+        jnp.linalg.pinv(jnp.sum(H**2, axis=0).reshape((H.shape[1], H.shape[2], 1, 1)))
+        .squeeze(2)
+        .squeeze(2)
+    )
     chisq_hom = (UH**2) * I22_inv_H
 
-    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1, axis2=-2).transpose((0, 2, 1))
-
-    K = jnp.einsum("nbkp,nblp->bpkl", G, G)
-    eigvals = jnp.linalg.eigvalsh(K)
-    df_het = jnp.sum(eigvals > 1e-8, axis=2)
     return chisq_hom, chisq_het, beta_anc, df_het
