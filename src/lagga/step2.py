@@ -23,12 +23,7 @@ from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import logistic_ridge
-from .step2_tests import (
-    _step2_qt_core,
-    _step2_bt_core,
-    _step2_nolanc_qt_core,
-    _step2_nolanc_bt_core,
-)
+from .step2_tests import qt_lanc, qt_nolanc, bt_lanc, bt_nolanc
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
@@ -173,16 +168,16 @@ def _step2_block(
 
     if trait_type == "qt":
         if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_qt_core(G, L, Y, Q)
+            chisq_hom, chisq_het, beta_anc, df_het = qt_lanc(G, L, Y, Q)
         else:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_qt_core(G, Y, Q)
+            chisq_hom, chisq_het, beta_anc, df_het = qt_nolanc(G, Y, Q)
     elif trait_type == "bt":
         if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_bt_core(
+            chisq_hom, chisq_het, beta_anc, df_het = bt_lanc(
                 G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
             )
         else:
-            chisq_hom, chisq_het, beta_anc, df_het = _step2_nolanc_bt_core(
+            chisq_hom, chisq_het, beta_anc, df_het = bt_nolanc(
                 G, Y, Q, extra_args["W_sqrt"], extra_args["O"]
             )
     else:
