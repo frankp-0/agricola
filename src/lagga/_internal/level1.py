@@ -17,7 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
 from typing import Optional
-from ._utils import stdize, assert_covar_full_rank
+from .utils import stdize, assert_covar_full_rank
 from .models import (
     ridge,
     logistic_ridge,

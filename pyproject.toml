@@ -39,7 +39,7 @@ where = ["src"]
 [tool.uv.sources]
 
 [project.scripts]
-lagga = "lagga.cli:main_entry"
+lagga = "lagga._internal.cli:main_entry"
 
 [project.optional-dependencies]
 cuda = ["jax[cuda]>=0.6.2"]

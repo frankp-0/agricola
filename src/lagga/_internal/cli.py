@@ -309,8 +309,8 @@ def step1(
 ) -> None:
     import jax.numpy as jnp
     import jax
-    from ._utils import get_cv_mask
-    from .step1 import step1
+    from .utils import get_cv_mask
+    from ..step1 import step1
     import numpy as np
 
     ## Load data
@@ -419,7 +419,7 @@ def step2(
         True, help="Adjust single variant tests for local ancestry"
     ),
 ) -> None:
-    from .step2 import step2
+    from ..step2 import step2
     import numpy as np
 
     ## Load data
@@ -553,9 +553,9 @@ def all_steps(
     import jax.numpy as jnp
     import jax
     import numpy as np
-    from ._utils import get_cv_mask
-    from .step1 import step1
-    from .step2 import step2
+    from .utils import get_cv_mask
+    from ..step1 import step1
+    from ..step2 import step2
 
     ## Load data
     ancestries_list = list_from_csv(ancestries)

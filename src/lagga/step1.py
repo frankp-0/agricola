@@ -11,8 +11,8 @@ steps . The entry-point for this module is the `step1` function.
 from jaxtyping import ArrayLike
 from numpy.typing import NDArray
 from typing import Optional
-from .level0 import level0
-from .level1 import level1
+from ._internal.level0 import level0
+from ._internal.level1 import level1
 from lanctools import LancData
 
 

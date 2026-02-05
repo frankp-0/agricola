@@ -17,7 +17,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
+from .utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import ridge
 from numpy.typing import NDArray
 

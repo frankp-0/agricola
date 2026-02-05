@@ -5,7 +5,7 @@
 import pytest
 import numpy as np
 import jax.numpy as jnp
-from lagga.models import (
+from lagga._internal.models import (
     ridge,
     logistic_ridge,
     logistic_ridge_loo,
