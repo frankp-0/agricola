@@ -23,7 +23,7 @@ from jax.scipy.special import expit
 from lanctools import LancData
 from ._utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
 from .models import logistic_ridge
-from .step2_tests import qt_lanc, qt_nolanc, bt_lanc, bt_nolanc
+from .step2_stats import qt_lanc, qt_nolanc, bt_lanc, bt_nolanc
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
