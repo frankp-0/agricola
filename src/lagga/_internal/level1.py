@@ -17,119 +17,13 @@ import numpy as np
 from numpy.typing import NDArray
 from tqdm import tqdm
 from typing import Optional
-from .utils import stdize, assert_covar_full_rank
+from .utils import stdize
 from .models import (
     ridge,
     logistic_ridge,
     logistic_ridge_loo,
 )
-
-
-def validate_level1_inputs(
-    Z: dict[str, NDArray],
-    Y: ArrayLike,
-    X: Optional[ArrayLike],
-    train_mask: Optional[ArrayLike],
-    test_mask: Optional[ArrayLike],
-    h2_prior: ArrayLike,
-) -> tuple[
-    dict[str, NDArray],
-    Array,
-    Array,
-    Array,
-    Array,
-    Array,
-]:
-    """Validate input data for level1"""
-    ## Y
-    Y = jnp.asarray(Y)
-    if Y.ndim != 2:
-        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-    N, P = Y.shape
-
-    ## X
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
-        X = jnp.asarray(X)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
-
-    ## Masks
-    if train_mask is not None:
-        train_mask = jnp.asarray(train_mask)
-    if test_mask is not None:
-        test_mask = jnp.asarray(test_mask)
-
-    if not (train_mask is None or test_mask is None):
-        if (
-            train_mask.ndim != 2
-            or test_mask.ndim != 2
-            or train_mask.shape != test_mask.shape
-        ):
-            raise ValueError(
-                "train_mask and test_mask must be 2D (N, K) with the same shape"
-            )
-        if train_mask.shape[0] != N or test_mask.shape[0] != N:
-            raise ValueError("train_mask/test_mask must match N of Y")
-    if train_mask is None:
-        train_mask = jnp.array([1])
-    if test_mask is None:
-        test_mask = jnp.array([1])
-
-    ## Z
-    if not isinstance(Z, dict):
-        raise TypeError(f"Z must be a dict, got {type(Z)}")
-
-    if len(Z) == 0:
-        raise ValueError("Z must not be empty")
-    Z_N = None
-    Z_P = None
-    for chrom, Z_chrom in Z.items():
-        if not isinstance(Z_chrom, (np.ndarray, jnp.ndarray)):
-            raise TypeError(
-                f"Z[{chrom}] must be a numpy/jax array, got {type(Z_chrom)}"
-            )
-        if Z_chrom.ndim != 3:
-            raise ValueError(
-                f"Z[{chrom}] must be 3D (N, P, N_blocks), got shape {Z_chrom.shape}"
-            )
-
-        n_chrom, p_chrom, _ = Z_chrom.shape
-
-        if Z_N is None:
-            Z_N = n_chrom
-            Z_P = p_chrom
-        else:
-            if n_chrom != Z_N:
-                raise ValueError(
-                    f"All Z arrays must have same N; got {Z_N} vs {n_chrom} in Z[{chrom}]"
-                )
-            if p_chrom != Z_P:
-                raise ValueError(
-                    f"All Z arrays must have same P; got {Z_P} vs {p_chrom} in Z[{chrom}]"
-                )
-
-    if Z_N != N:
-        raise ValueError(f"Z arrays have N={Z_N} but Y has N={N}")
-
-    if Z_P != P:
-        raise ValueError(f"Z arrays have P={Z_P} but Y has P={P}")
-    ## H2
-    h2_prior = jnp.asarray(h2_prior)
-    if h2_prior.ndim != 1:
-        raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
-    if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
-        raise ValueError("h2_prior values must be in the open interval (0, 1)")
-
-    return (Z, Y, X, train_mask, test_mask, h2_prior)
+from .inputs import validate_level1_inputs
 
 
 ### ─────────────────────────────────────────────────────────────

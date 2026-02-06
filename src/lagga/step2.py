@@ -21,13 +21,7 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
-from ._internal.utils import (
-    stdize,
-    assert_covar_full_rank,
-    get_geno_lanc_deconv,
-    TestType,
-    TraitType,
-)
+from ._internal.utils import stdize, get_geno_lanc_deconv, TestType, TraitType
 from ._internal.models import logistic_ridge
 from ._internal.step2_stats import (
     qt_score_lanc,
@@ -39,111 +33,7 @@ from ._internal.step2_stats import (
     bt_wald_lanc,
     bt_wald_nolanc,
 )
-
-### ─────────────────────────────────────────────────────────────
-### Helper Functions
-### ─────────────────────────────────────────────────────────────
-
-
-def validate_step2_inputs(
-    datasets: list[LancData],
-    Y: ArrayLike,
-    X: Optional[ArrayLike],
-    step1_predictions: dict[str, np.ndarray],
-    out_prefixes: list[str],
-    B: int,
-    idx_sample: Optional[ArrayLike],
-    variants: Optional[list[str]],
-    test_type: str,
-    trait_type: str,
-) -> tuple[Array, Array, Optional[Array], TestType, TraitType]:
-    """Validate input data for step1"""
-
-    ## Y
-    Y = jnp.asarray(Y)
-    if Y.ndim != 2:
-        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-    N, P = Y.shape
-
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
-    else:
-        X = jnp.asarray(X)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
-
-    # datasets
-    if not isinstance(datasets, (list, tuple)):
-        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
-    for i, ds in enumerate(datasets):
-        if not isinstance(ds, LancData):
-            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
-    N_pred = None
-    P_pred = None
-    for chrom, pred_chrom in step1_predictions.items():
-        if not isinstance(pred_chrom, (np.ndarray, jnp.ndarray)):
-            raise TypeError(
-                f"step1_predictions[{chrom}] must be a numpy/jax array, got {type(pred_chrom)}"
-            )
-        if pred_chrom.ndim != 2:
-            raise ValueError(
-                f"step1_predictions[{chrom}] must be 2D (N, P), got shape {pred_chrom.shape}"
-            )
-
-        n_chrom, p_chrom = pred_chrom.shape
-
-        if N_pred is None:
-            N_pred = n_chrom
-            P_pred = p_chrom
-        else:
-            if n_chrom != N_pred:
-                raise ValueError(
-                    f"All step1_predictions arrays must have same N; got {N_pred} vs {n_chrom} in step1_predictions[{chrom}]"
-                )
-            if p_chrom != P_pred:
-                raise ValueError(
-                    f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
-                )
-    if not len(out_prefixes) == len(datasets):
-        raise ValueError("out_prefixes and datasets must have same number of elements")
-
-    if N_pred != N:
-        raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
-
-    if P_pred != P:
-        raise ValueError(f"step1_predictions arrays have P={P_pred} but Y has P={P}")
-
-    ## B
-    if not isinstance(B, int) or B <= 0:
-        raise ValueError(f"B must be a positive integer, got {B}")
-
-    ## variants
-    if variants is not None:
-        if not isinstance(variants, (list, tuple)) or not all(
-            isinstance(v, str) for v in variants
-        ):
-            raise TypeError("variants must be a list of strings")
-
-    ## samples
-    N_pgen = datasets[0].pgen.get_raw_sample_ct()
-    if idx_sample is not None:
-        idx_sample = jnp.asarray(idx_sample)
-        if idx_sample.ndim != 1:
-            raise TypeError("idx_sample must be 1D")
-        if idx_sample.dtype != np.uint32:
-            raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
-            raise ValueError("idx_sample outside range of N samples")
-
-    return (Y, X, idx_sample, TestType(test_type), TraitType(trait_type))
-
+from ._internal.inputs import validate_step2_inputs
 
 ### ─────────────────────────────────────────────────────────────
 ### Orchestration
