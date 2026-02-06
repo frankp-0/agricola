@@ -285,7 +285,7 @@ def _bt_wald_lanc_core(
     ## Helper
     def do_wald(X, Y, O):
         beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
-            X, Y, O, jnp.ones(N), 0.0, 10
+            X, Y, O, jnp.ones(N), 1e-8, 10
         )
         mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
         w = mu * (1 - mu)
@@ -328,7 +328,7 @@ def _bt_wald_nolanc_core(
     ## Helper
     def do_wald(X, Y, O):
         beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
-            X, Y, O, jnp.ones(N), 0.0, 10
+            X, Y, O, jnp.ones(N), 1e-8, 10
         )
         mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
         w = mu * (1 - mu)
