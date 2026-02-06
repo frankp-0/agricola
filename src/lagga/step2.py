@@ -21,9 +21,24 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
-from ._internal.utils import stdize, assert_covar_full_rank, get_geno_lanc_deconv
+from ._internal.utils import (
+    stdize,
+    assert_covar_full_rank,
+    get_geno_lanc_deconv,
+    TestType,
+    TraitType,
+)
 from ._internal.models import logistic_ridge
-from ._internal.step2_stats import qt_lanc, qt_nolanc, bt_lanc, bt_nolanc
+from ._internal.step2_stats import (
+    qt_score_lanc,
+    qt_score_nolanc,
+    bt_score_lanc,
+    bt_score_nolanc,
+    qt_wald_lanc,
+    qt_wald_nolanc,
+    bt_wald_lanc,
+    bt_wald_nolanc,
+)
 
 ### ─────────────────────────────────────────────────────────────
 ### Helper Functions
@@ -36,10 +51,12 @@ def validate_step2_inputs(
     X: Optional[ArrayLike],
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
-    B: int = 1000,
-    idx_sample: Optional[ArrayLike] = None,
-    variants: Optional[list[str]] = None,
-) -> tuple[Array, Array, Optional[Array]]:
+    B: int,
+    idx_sample: Optional[ArrayLike],
+    variants: Optional[list[str]],
+    test_type: str,
+    trait_type: str,
+) -> tuple[Array, Array, Optional[Array], TestType, TraitType]:
     """Validate input data for step1"""
 
     ## Y
@@ -125,7 +142,7 @@ def validate_step2_inputs(
         if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
-    return (Y, X, idx_sample)
+    return (Y, X, idx_sample, TestType(test_type), TraitType(trait_type))
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -137,7 +154,8 @@ def _step2_block(
     dataset: LancData,
     Y: Array,
     Q: Array,
-    trait_type: str,
+    trait_type: TraitType,
+    test_type: TestType,
     block: np.ndarray,
     idx_sample: Optional[Array],
     min_ac: int,
@@ -166,24 +184,33 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
-    if trait_type == "qt":
-        if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = qt_lanc(G, L, Y, Q)
-        else:
-            chisq_hom, chisq_het, beta_anc, df_het = qt_nolanc(G, Y, Q)
-    elif trait_type == "bt":
-        if adjust_lanc:
-            chisq_hom, chisq_het, beta_anc, df_het = bt_lanc(
-                G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]
-            )
-        else:
-            chisq_hom, chisq_het, beta_anc, df_het = bt_nolanc(
-                G, Y, Q, extra_args["W_sqrt"], extra_args["O"]
-            )
-    else:
-        raise ValueError("trait_type must be qt or bt")
+    func_map = {
+        (TraitType.QT, TestType.SCORE, True): (qt_score_lanc, lambda: (G, L, Y, Q)),
+        (TraitType.QT, TestType.SCORE, False): (qt_score_nolanc, lambda: (G, Y, Q)),
+        (TraitType.QT, TestType.WALD, True): (qt_wald_lanc, lambda: (G, L, Y, Q)),
+        (TraitType.QT, TestType.WALD, False): (qt_wald_nolanc, lambda: (G, Y, Q)),
+        (TraitType.BT, TestType.SCORE, True): (
+            bt_score_lanc,
+            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+        ),
+        (TraitType.BT, TestType.SCORE, False): (
+            bt_score_nolanc,
+            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+        ),
+        (TraitType.BT, TestType.WALD, True): (
+            bt_wald_lanc,
+            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+        ),
+        (TraitType.BT, TestType.WALD, False): (
+            bt_wald_nolanc,
+            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+        ),
+    }
 
-    if trait_type == "qt":
+    test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
+    chisq_hom, chisq_het, beta_anc, df_het = test_func(*arg_fn())
+
+    if trait_type == TraitType.QT:
         log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
     else:
         log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
@@ -238,7 +265,8 @@ def _step2_dataset(
     idx_sample: Optional[Array],
     out_prefix: str,
     phenotypes: list[str],
-    trait_type: str,
+    trait_type: TraitType,
+    test_type: TestType,
     desc: str,
     B: int = 2000,
     min_ac: int = 1,
@@ -306,10 +334,10 @@ def _step2_dataset(
             ]
 
             extra_args = {}
-            if trait_type == "qt":
+            if trait_type.value == "qt":
                 Q, _ = jnp.linalg.qr(X, mode="reduced")
                 Y = Y - pred_loco[chrom]
-            elif trait_type == "bt":
+            else:
                 ## QR decomposition of weighted covariates
                 mu = expit(pred_loco[chrom])
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -322,8 +350,6 @@ def _step2_dataset(
                 Q = Q.transpose((1, 2, 0))
                 extra_args["W_sqrt"] = W_sqrt
                 extra_args["O"] = pred_loco[chrom]
-            else:
-                raise ValueError("trait_type must be qt or bt")
 
             for block in blocks:
                 result_dfs = _step2_block(
@@ -331,6 +357,7 @@ def _step2_dataset(
                     Y,
                     Q,
                     trait_type,
+                    test_type,
                     block,
                     idx_sample,
                     min_ac,
@@ -357,7 +384,8 @@ def step2(
     step1_predictions: dict[str, np.ndarray],
     out_prefixes: list[str],
     phenotypes: list[str],
-    trait_type: "str",
+    trait_type: str = "qt",
+    test_type: str = "score",
     B: int = 1000,
     min_ac: int = 1,
     idx_sample: Optional[ArrayLike] = None,
@@ -380,18 +408,28 @@ def step2(
             the psam file) to retain
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+        test_type: Either "score" or "wald"
     """
-    Y, X, idx_sample = validate_step2_inputs(
-        datasets, Y, X, step1_predictions, out_prefixes, B, idx_sample, variants
+    Y, X, idx_sample, test, trait = validate_step2_inputs(
+        datasets,
+        Y,
+        X,
+        step1_predictions,
+        out_prefixes,
+        B,
+        idx_sample,
+        variants,
+        test_type,
+        trait_type,
     )
 
-    if trait_type == "qt":
+    if trait.value == "qt":
         X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
         step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
         pred_loco = {k: step1_prs - v for k, v in step1_predictions.items()}
-    elif trait_type == "bt":
+    else:
         covar_model = jax.vmap(
             logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
         )
@@ -409,8 +447,6 @@ def step2(
             )(jnp.asarray(X_leave), Y, offset_covar, jnp.ones(Y.shape[0]), 0)
             eta_chrom = np.einsum("ncp,cp->np", X_leave, beta_chrom) + offset_covar
             pred_loco[chrom] = eta_chrom
-    else:
-        raise ValueError("trait_type must be qt or bt")
 
     for i, dataset in enumerate(datasets):
         pgen_path = dataset.plink_prefix + ".pgen"
@@ -423,7 +459,8 @@ def step2(
             idx_sample,
             out_prefixes[i],
             phenotypes,
-            trait_type,
+            trait,
+            test,
             desc,
             B,
             min_ac,

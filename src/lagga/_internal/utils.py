@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-"""Functions used by multiple modules"""
+"""Functions and classes used by multiple modules"""
 
 import jax
 from jaxtyping import Array
@@ -10,6 +10,26 @@ import jax.numpy as jnp
 from lanctools import LancData
 import numpy as np
 from numpy.typing import NDArray
+from enum import Enum
+
+### ─────────────────────────────────────────────────────────────
+### Classes
+### ─────────────────────────────────────────────────────────────
+
+
+class TestType(Enum):
+    SCORE = "score"
+    WALD = "wald"
+
+
+class TraitType(Enum):
+    QT = "qt"
+    BT = "bt"
+
+
+### ─────────────────────────────────────────────────────────────
+### Functions
+### ─────────────────────────────────────────────────────────────
 
 
 def stdize(X: Array) -> Array:
