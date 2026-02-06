@@ -415,6 +415,7 @@ def step2(
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
+    test_type: str = typer.Option("score", help="Test type: score or wald"),
     adjust_lanc: bool = typer.Option(
         True, help="Adjust single variant tests for local ancestry"
     ),
@@ -459,7 +460,7 @@ def step2(
         outs,
         pheno_names,
         trait_type,
-        "score",
+        test_type,
         block_size,
         min_ac,
         idx_sample,
@@ -544,6 +545,7 @@ def all_steps(
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
     ),
+    test_type: str = typer.Option("score", help="Test type: score or wald"),
     loocv: bool = typer.Option(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
@@ -610,7 +612,7 @@ def all_steps(
         outs,
         pheno_names,
         trait_type,
-        "score",
+        test_type,
         block_size2,
         min_ac,
         idx_sample,
