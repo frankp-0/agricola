@@ -21,7 +21,7 @@ from .models import logistic_ridge
 
 
 def wls_resid(X: Array, Q: Array, W: Array) -> Array:
-    Xhat = jnp.einsum("ncp,mcp,mkp->nkp", Q, Q, X * W)
+    Xhat = jnp.einsum("ncp,mcp,mkp->nkp", Q, Q, X * W) / W
     return X - Xhat
 
 
