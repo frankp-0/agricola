@@ -20,9 +20,36 @@ from .models import logistic_ridge
 ### ─────────────────────────────────────────────────────────────
 
 
-def wls_resid(X: Array, Q: Array, W: Array) -> Array:
+def wls_qr_res(X: Array, Q: Array, W: Array) -> Array:
     Xhat = jnp.einsum("ncp,mcp,mkp->nkp", Q, Q, X * W) / W
     return X - Xhat
+
+
+def ols_qr_res(X: Array, Q: Array) -> Array:
+    return X - Q @ (Q.T @ X)
+
+
+def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
+    N, K = X.shape
+    alpha = N * 1e-8
+    XtX = X.T @ X + alpha * jnp.identity(K)
+    XtX_inv = jnp.linalg.inv(XtX)
+    beta = XtX_inv @ (X.T @ Y)
+    resid = Y - X @ beta
+    sse = jnp.sum(resid**2, axis=0)
+    return beta, sse, XtX_inv
+
+
+def logit(X: Array, Y: Array, O: Array) -> tuple[Array, Array]:
+    N = X.shape[0]
+    beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
+        X, Y, O, jnp.ones(N), 1e-8, 10
+    )
+    mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
+    w = mu * (1 - mu)
+    XW = X * jnp.sqrt(w[:, None, :])
+    I_inv = pinv(jnp.einsum("nkp,nlp->pkl", XW, XW))
+    return beta, I_inv
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -39,18 +66,18 @@ def _qt_score_lanc_core(
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = G - Q @ (Q.T @ G)
-    L = L - Q @ (Q.T @ L)
-    H = H - Q @ (Q.T @ H)
+    G = ols_qr_res(G, Q)
+    L = ols_qr_res(L, Q)
+    H = ols_qr_res(H, Q)
 
     ## Fit null model: Y ~ L
-    LtL_inv = pinv(L.T @ L)
-    r_L = Y - L @ (LtL_inv @ L.T @ Y)
+    QL, _ = qr(L)
+    r_L = ols_qr_res(Y, QL)
     mse_null = jnp.sum(r_L**2, axis=0) / (N - (K - 1))
 
     ## Residualize G, H by L
-    G_res = G - L @ (LtL_inv @ (L.T @ G))
-    H_res = H - L @ (LtL_inv @ (L.T @ H))
+    G_res = ols_qr_res(G, QL)
+    H_res = ols_qr_res(H, QL)
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ r_L
@@ -74,12 +101,11 @@ def _bt_score_lanc_core(
     H = jnp.sum(G, axis=1, keepdims=True)
 
     ## Residualize by covariates
-    H = wls_resid(H[:, :, None], Q_w, W_sqrt[:, None, :])[:, 0, :]
-    G = wls_resid(G[:, :, None], Q_w, W_sqrt[:, None, :])
-    L = wls_resid(L[:, :, None], Q_w, W_sqrt[:, None, :])
+    H = wls_qr_res(H[:, :, None], Q_w, W_sqrt[:, None, :])[:, 0, :]
+    G = wls_qr_res(G[:, :, None], Q_w, W_sqrt[:, None, :])
+    L = wls_qr_res(L[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Fit L + offset null model (logistic)
-    ## logistic_ridge(X, y, offset, sample_weights, l2, maxiter) -> beta (K-1,)
     beta_L = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
         L, Y, O, jnp.ones(L.shape[0]), 0.0, 10
     )
@@ -92,8 +118,8 @@ def _bt_score_lanc_core(
         jnp.moveaxis(L * W_L_sqrt[:, None, :], (0, 1, 2), (1, 2, 0)), mode="reduced"
     )
     QL = QL.transpose((1, 2, 0))
-    G_res = wls_resid(G, QL, W_L_sqrt[:, None, :])
-    H_res = wls_resid(H[:, None, :], QL, W_L_sqrt[:, None, :])[:, 0, :]
+    G_res = wls_qr_res(G, QL, W_L_sqrt[:, None, :])
+    H_res = wls_qr_res(H[:, None, :], QL, W_L_sqrt[:, None, :])[:, 0, :]
 
     ## Score test for anc-deconvoluted genotypes
     U = jnp.einsum("nkp,np->kp", G, R)
@@ -121,8 +147,8 @@ def _qt_score_nolanc_core(
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = G - Q @ (Q.T @ G)
-    H = H - Q @ (Q.T @ H)
+    G = ols_qr_res(G, Q)
+    H = ols_qr_res(H, Q)
     mse_null = jnp.mean(Y**2, axis=0)
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
@@ -147,8 +173,8 @@ def _bt_score_nolanc_core(
     H = jnp.sum(G, axis=1, keepdims=True)
 
     ## Residualize by covariates
-    H = wls_resid(H[:, :, None], Q_w, W_sqrt[:, None, :])[:, 0, :]
-    G = wls_resid(G[:, :, None], Q_w, W_sqrt[:, None, :])
+    H = wls_qr_res(H[:, :, None], Q_w, W_sqrt[:, None, :])[:, 0, :]
+    G = wls_qr_res(G[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Null model
     mu = expit(O)
@@ -185,30 +211,19 @@ def _qt_wald_lanc_core(
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = G - Q @ (Q.T @ G)
-    L = L - Q @ (Q.T @ L)
-    H = H - Q @ (Q.T @ H)
-
-    ## Helper
-    def do_wald(X, Y):
-        XtX = jnp.einsum("nc,nd->cd", X, X)
-        I_ = jnp.identity(XtX.shape[1], XtX.dtype)
-        XtX_inv = jnp.linalg.inv(XtX + 1e-8 * I_)
-        XtY = jnp.einsum("nc,np->cp", X, Y)
-        beta = XtX_inv @ XtY
-        resid = Y - X @ beta
-        sse = jnp.sum(resid**2, axis=0)
-        return beta, sse, XtX_inv
+    G = ols_qr_res(G, Q)
+    L = ols_qr_res(L, Q)
+    H = ols_qr_res(H, Q)
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, sse_G, XtX_inv_G = do_wald(jnp.concatenate([G, L], axis=1), Y)
+    beta_G, sse_G, XtX_inv_G = ols(jnp.concatenate([G, L], axis=1), Y)
     chisq_het = jnp.einsum(
         "kp,kl,lp->p", beta_G[:K, :], pinv(XtX_inv_G[:K, :K]), beta_G[:K, :]
     ) / (sse_G / (N - (2 * K - 1)))
     df_het = matrix_rank(XtX_inv_G[:K, :K])
 
     ## Wald test for genotypes
-    beta_H, sse_H, XtX_inv_H = do_wald(jnp.concatenate([H[:, None], L], axis=1), Y)
+    beta_H, sse_H, XtX_inv_H = ols(jnp.concatenate([H[:, None], L], axis=1), Y)
     chisq_hom = (beta_H[0, :] ** 2) / (1e-8 + XtX_inv_H[0, 0]) / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G[:K, :], df_het
@@ -223,29 +238,18 @@ def _qt_wald_nolanc_core(
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = G - Q @ (Q.T @ G)
-    H = H - Q @ (Q.T @ H)
-
-    ## Helper
-    def do_wald(X, Y):
-        XtX = jnp.einsum("nc,nd->cd", X, X)
-        I_ = jnp.identity(XtX.shape[1], XtX.dtype)
-        XtX_inv = jnp.linalg.inv(XtX + 1e-8 * I_)
-        XtY = jnp.einsum("nc,np->cp", X, Y)
-        beta = XtX_inv @ XtY
-        resid = Y - X @ beta
-        sse = jnp.sum(resid**2, axis=0)
-        return beta, sse, XtX_inv
+    G = ols_qr_res(G, Q)
+    H = ols_qr_res(H, Q)
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, sse_G, XtX_inv_G = do_wald(G, Y)
+    beta_G, sse_G, XtX_inv_G = ols(G, Y)
     chisq_het = jnp.einsum("kp,kl,lp->p", beta_G, pinv(XtX_inv_G), beta_G) / (
         sse_G / (N - K)
     )
     df_het = matrix_rank(XtX_inv_G)
 
     ## Wald test for genotypes
-    beta_H, sse_H, XtX_inv_H = do_wald(H[:, None], Y)
+    beta_H, sse_H, XtX_inv_H = ols(H[:, None], Y)
     chisq_hom = (beta_H[0, :] ** 2) / (1e-8 + XtX_inv_H[0, 0]) / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G, df_het
@@ -254,36 +258,25 @@ def _qt_wald_nolanc_core(
 def _bt_wald_lanc_core(
     G: Array, L: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
-    N, K = G.shape
+    K = G.shape[1]
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
 
     ## Residualize by covariates
-    H = wls_resid(H[:, :, None], Q_w, W_sqrt[:, None, :])
-    G = wls_resid(G[:, :, None], Q_w, W_sqrt[:, None, :])
-    L = wls_resid(L[:, :, None], Q_w, W_sqrt[:, None, :])
-
-    ## Helper
-    def do_wald(X, Y, O):
-        beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
-            X, Y, O, jnp.ones(N), 1e-8, 10
-        )
-        mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
-        w = mu * (1 - mu)
-        XW = X * jnp.sqrt(w[:, None, :])
-        I_inv = pinv(jnp.einsum("nkp,nlp->pkl", XW, XW))
-        return (beta, I_inv)
+    H = wls_qr_res(H[:, :, None], Q_w, W_sqrt[:, None, :])
+    G = wls_qr_res(G[:, :, None], Q_w, W_sqrt[:, None, :])
+    L = wls_qr_res(L[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, I_inv_G = do_wald(jnp.concatenate([G, L], axis=1), Y, O)
+    beta_G, I_inv_G = logit(jnp.concatenate([G, L], axis=1), Y, O)
     chisq_het = jnp.einsum(
         "pk,pkl,pl->p", beta_G[:, :K], pinv(I_inv_G[:, :K, :K]), beta_G[:, :K]
     )
     df_het = matrix_rank(I_inv_G[:, :K, :K])
 
     ## Wald test for genotypes
-    beta_H, I_inv_H = do_wald(jnp.concatenate([H, L], axis=1), Y, O)
+    beta_H, I_inv_H = logit(jnp.concatenate([H, L], axis=1), Y, O)
     chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0] + 1e-8)
 
     return chisq_hom, chisq_het, beta_G[:, :K].T, df_het
@@ -292,35 +285,24 @@ def _bt_wald_lanc_core(
 def _bt_wald_nolanc_core(
     G: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
-    N, K = G.shape
+    K = G.shape[1]
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
 
     ## Residualize by covariates
-    H = wls_resid(H[:, :, None], Q_w, W_sqrt[:, None, :])
-    G = wls_resid(G[:, :, None], Q_w, W_sqrt[:, None, :])
-
-    ## Helper
-    def do_wald(X, Y, O):
-        beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
-            X, Y, O, jnp.ones(N), 1e-8, 10
-        )
-        mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
-        w = mu * (1 - mu)
-        XW = X * jnp.sqrt(w[:, None, :])
-        I_inv = pinv(jnp.einsum("nkp,nlp->pkl", XW, XW))
-        return (beta, I_inv)
+    H = wls_qr_res(H[:, :, None], Q_w, W_sqrt[:, None, :])
+    G = wls_qr_res(G[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, I_inv_G = do_wald(G, Y, O)
+    beta_G, I_inv_G = logit(G, Y, O)
     chisq_het = jnp.einsum(
         "pk,pkl,pl->p", beta_G[:, :K], pinv(I_inv_G[:, :K, :K]), beta_G[:, :K]
     )
     df_het = matrix_rank(I_inv_G[:, :K, :K])
 
     ## Wald test for genotypes
-    beta_H, I_inv_H = do_wald(H, Y, O)
+    beta_H, I_inv_H = logit(H, Y, O)
     chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0] + 1e-8)
 
     return chisq_hom, chisq_het, beta_G.T, df_het
