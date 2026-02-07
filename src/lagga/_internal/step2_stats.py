@@ -9,10 +9,9 @@ This module contains functions for calculating the tests statistics used in lagg
 
 import jax
 import jax.numpy as jnp
-from jax.numpy.linalg import pinv, matrix_rank, qr
+from jax.numpy.linalg import inv, pinv, matrix_rank, qr
 from jaxtyping import Array
 from jax.scipy.special import expit
-from typing import Callable, Any
 from .models import logistic_ridge
 
 ### ─────────────────────────────────────────────────────────────
@@ -41,14 +40,16 @@ def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
 
 
 def logit(X: Array, Y: Array, O: Array) -> tuple[Array, Array]:
-    N = X.shape[0]
+    N, K, _ = X.shape
+    alpha = N * 1e-8
     beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
-        X, Y, O, jnp.ones(N), 1e-8, 10
+        X, Y, O, jnp.ones(N), alpha, 10
     )
     mu = expit(jnp.einsum("nkp,pk->np", X, beta) + O)
     w = mu * (1 - mu)
     XW = X * jnp.sqrt(w[:, None, :])
-    I_inv = pinv(jnp.einsum("nkp,nlp->pkl", XW, XW))
+    XtX_W = jnp.einsum("nkp,nlp->pkl", XW, XW)
+    I_inv = jnp.linalg.inv(XtX_W + alpha * jnp.identity(K)[None, :, :])
     return beta, I_inv
 
 
@@ -123,15 +124,18 @@ def _bt_score_lanc_core(
 
     ## Score test for anc-deconvoluted genotypes
     U = jnp.einsum("nkp,np->kp", G, R)
-    I22_inv = jnp.linalg.pinv(jnp.einsum("nkp,nlp->pkl", G_res, G_res))
+    GW = G_res * W_L_sqrt[:, None, :]
+    GtG_W = jnp.einsum("nkp,nlp->pkl", GW, GW)
+    I22_inv = jnp.linalg.pinv(GtG_W)
     chisq_het = jnp.einsum("kp,pkl,lp->p", U, I22_inv, U)
     beta_anc = U * jnp.diagonal(I22_inv, axis1=-1).T
     df_het = jnp.linalg.matrix_rank(I22_inv)
 
     ## Score test for genotypes
     UH = jnp.sum(H * R, axis=0)
+    HW = H * W_L_sqrt
     I22_inv_H = (
-        jnp.linalg.pinv(jnp.sum(H_res**2, axis=0).reshape((H_res.shape[1], 1, 1)))
+        jnp.linalg.pinv(jnp.sum(HW**2, axis=0).reshape((H_res.shape[1], 1, 1)))
         .squeeze(1)
         .squeeze(1)
     )
@@ -224,7 +228,7 @@ def _qt_wald_lanc_core(
 
     ## Wald test for genotypes
     beta_H, sse_H, XtX_inv_H = ols(jnp.concatenate([H[:, None], L], axis=1), Y)
-    chisq_hom = (beta_H[0, :] ** 2) / (1e-8 + XtX_inv_H[0, 0]) / (sse_H / (N - K))
+    chisq_hom = (beta_H[0, :] ** 2) / XtX_inv_H[0, 0] / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G[:K, :], df_het
 
@@ -250,7 +254,7 @@ def _qt_wald_nolanc_core(
 
     ## Wald test for genotypes
     beta_H, sse_H, XtX_inv_H = ols(H[:, None], Y)
-    chisq_hom = (beta_H[0, :] ** 2) / (1e-8 + XtX_inv_H[0, 0]) / (sse_H / (N - K))
+    chisq_hom = (beta_H[0, :] ** 2) / XtX_inv_H[0, 0] / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G, df_het
 
@@ -271,13 +275,13 @@ def _bt_wald_lanc_core(
     ## Wald test for anc-deconvoluted genotypes
     beta_G, I_inv_G = logit(jnp.concatenate([G, L], axis=1), Y, O)
     chisq_het = jnp.einsum(
-        "pk,pkl,pl->p", beta_G[:, :K], pinv(I_inv_G[:, :K, :K]), beta_G[:, :K]
+        "pk,pkl,pl->p", beta_G[:, :K], inv(I_inv_G[:, :K, :K]), beta_G[:, :K]
     )
     df_het = matrix_rank(I_inv_G[:, :K, :K])
 
     ## Wald test for genotypes
     beta_H, I_inv_H = logit(jnp.concatenate([H, L], axis=1), Y, O)
-    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0] + 1e-8)
+    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0])
 
     return chisq_hom, chisq_het, beta_G[:, :K].T, df_het
 
@@ -297,13 +301,13 @@ def _bt_wald_nolanc_core(
     ## Wald test for anc-deconvoluted genotypes
     beta_G, I_inv_G = logit(G, Y, O)
     chisq_het = jnp.einsum(
-        "pk,pkl,pl->p", beta_G[:, :K], pinv(I_inv_G[:, :K, :K]), beta_G[:, :K]
+        "pk,pkl,pl->p", beta_G[:, :K], inv(I_inv_G[:, :K, :K]), beta_G[:, :K]
     )
     df_het = matrix_rank(I_inv_G[:, :K, :K])
 
     ## Wald test for genotypes
     beta_H, I_inv_H = logit(H, Y, O)
-    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0] + 1e-8)
+    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0])
 
     return chisq_hom, chisq_het, beta_G.T, df_het
 
