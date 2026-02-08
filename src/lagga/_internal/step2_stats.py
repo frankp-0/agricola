@@ -225,7 +225,7 @@ def _qt_wald_lanc_core(
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, sse_G, GtG = ols(jnp.concatenate([G, L], axis=1), Y)
-    GtG_inv = inv(GtG + alpha * jnp.identity(K))
+    GtG_inv = inv(GtG + alpha * jnp.identity(2 * K - 1))
     chisq_het = jnp.einsum(
         "kp,kl,lp->p", beta_G[:K, :], inv(GtG_inv[:K, :K]), beta_G[:K, :]
     ) / (sse_G / (N - (2 * K - 1)))
@@ -278,7 +278,7 @@ def _bt_wald_lanc_core(
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, GtG = logit(jnp.concatenate([G, L], axis=1), Y, O)
-    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
+    GtG_inv = inv(GtG + alpha * jnp.identity(2 * K - 1)[None, :, :])
     chisq_het = jnp.einsum(
         "pk,pkl,pl->p", beta_G[:, :K], inv(GtG_inv[:, :K, :K]), beta_G[:, :K]
     )
@@ -294,8 +294,6 @@ def _bt_wald_lanc_core(
 def _bt_wald_nolanc_core(
     G: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
-    N, K = G.shape
-
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
 
