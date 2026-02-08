@@ -9,7 +9,7 @@ This module contains functions for calculating the tests statistics used in lagg
 
 import jax
 import jax.numpy as jnp
-from jax.numpy.linalg import inv, matrix_rank, qr
+from jax.numpy.linalg import inv, matrix_rank, qr, solve
 from jaxtyping import Array
 from jax.scipy.special import expit
 from .models import logistic_ridge
@@ -32,7 +32,7 @@ def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
     N, K = X.shape
     alpha = N * 1e-6
     XtX = X.T @ X
-    beta = jnp.linalg.solve(XtX + alpha * jnp.identity(K), X.T @ Y)
+    beta = solve(XtX + alpha * jnp.identity(K), X.T @ Y)
     resid = Y - X @ beta
     sse = jnp.sum(resid**2, axis=0)
     return beta, sse, XtX
@@ -198,7 +198,7 @@ def _bt_score_nolanc_core(
     GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
     chisq_het = jnp.einsum("kp,pkl,lp->p", U, GtG_inv, U)
     beta_anc = U * jnp.diagonal(GtG_inv, axis1=-1).T
-    df_het = jnp.linalg.matrix_rank(GtG)
+    df_het = matrix_rank(GtG)
 
     ## Score test for genotypes
     HW = H * jnp.sqrt(w)
