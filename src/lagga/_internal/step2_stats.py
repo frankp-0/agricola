@@ -133,7 +133,7 @@ def _bt_score_lanc_core(
 
     ## Score test for genotypes
     UH = jnp.sum(H * R, axis=0)
-    HW = H * W_L_sqrt
+    HW = H_res * W_L_sqrt
     I22_inv_H = (
         jnp.linalg.pinv(jnp.sum(HW**2, axis=0).reshape((H_res.shape[1], 1, 1)))
         .squeeze(1)
