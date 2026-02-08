@@ -60,7 +60,7 @@ def _qt_score_lanc_core(
     G: Array, L: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -99,7 +99,7 @@ def _bt_score_lanc_core(
     G: Array, L: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
@@ -147,7 +147,7 @@ def _qt_score_nolanc_core(
     G: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -177,7 +177,7 @@ def _bt_score_nolanc_core(
     G: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
@@ -213,7 +213,7 @@ def _qt_wald_lanc_core(
     G: Array, L: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -266,7 +266,7 @@ def _bt_wald_lanc_core(
     G: Array, L: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
-    alpha = N * 1e-5
+    alpha = N * 1e-6
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
