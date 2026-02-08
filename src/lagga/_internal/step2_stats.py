@@ -9,7 +9,7 @@ This module contains functions for calculating the tests statistics used in lagg
 
 import jax
 import jax.numpy as jnp
-from jax.numpy.linalg import inv, pinv, matrix_rank, qr
+from jax.numpy.linalg import inv, matrix_rank, qr
 from jaxtyping import Array
 from jax.scipy.special import expit
 from .models import logistic_ridge
@@ -31,16 +31,15 @@ def ols_qr_res(X: Array, Q: Array) -> Array:
 def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
     N, K = X.shape
     alpha = N * 1e-6
-    XtX = X.T @ X + alpha * jnp.identity(K)
-    XtX_inv = jnp.linalg.inv(XtX)
-    beta = XtX_inv @ (X.T @ Y)
+    XtX = X.T @ X
+    beta = jnp.linalg.solve(XtX + alpha * jnp.identity(K), X.T @ Y)
     resid = Y - X @ beta
     sse = jnp.sum(resid**2, axis=0)
-    return beta, sse, XtX_inv
+    return beta, sse, XtX
 
 
 def logit(X: Array, Y: Array, O: Array) -> tuple[Array, Array]:
-    N, K, _ = X.shape
+    N, _, _ = X.shape
     alpha = N * 1e-6
     beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
         X, Y, O, jnp.ones(N), alpha, 10
@@ -49,8 +48,7 @@ def logit(X: Array, Y: Array, O: Array) -> tuple[Array, Array]:
     w = mu * (1 - mu)
     XW = X * jnp.sqrt(w[:, None, :])
     XtX_W = jnp.einsum("nkp,nlp->pkl", XW, XW)
-    I_inv = jnp.linalg.inv(XtX_W + alpha * jnp.identity(K)[None, :, :])
-    return beta, I_inv
+    return beta, XtX_W
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -62,6 +60,7 @@ def _qt_score_lanc_core(
     G: Array, L: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
+    alpha = N * 1e-5
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -82,15 +81,16 @@ def _qt_score_lanc_core(
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ r_L
-    I22_inv = pinv(G_res.T @ G_res)
-    chisq_het = jnp.einsum("kp,kl,lp->p", U, I22_inv, U) / mse_null
-    beta_anc = U * jnp.diagonal(I22_inv)[:, None]
-    df_het = matrix_rank(I22_inv)
+    GtG = G_res.T @ G_res
+    GtG_inv = inv(GtG + alpha * jnp.identity(K))
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U) / mse_null
+    beta_anc = U * jnp.diagonal(GtG_inv)[:, None]
+    df_het = matrix_rank(GtG)
 
     ## Score test for genotypes (homogeneous test)
     UH = H.T @ r_L
-    I22_inv_H = 1.0 / jnp.sum(H_res**2)
-    chisq_hom = (UH**2) * I22_inv_H / mse_null
+    HtH = jnp.sum(H_res**2)
+    chisq_hom = (UH**2) / HtH / mse_null
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -98,6 +98,9 @@ def _qt_score_lanc_core(
 def _bt_score_lanc_core(
     G: Array, L: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
+    N, K = G.shape
+    alpha = N * 1e-5
+
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
 
@@ -125,21 +128,17 @@ def _bt_score_lanc_core(
     ## Score test for anc-deconvoluted genotypes
     U = jnp.einsum("nkp,np->kp", G, R)
     GW = G_res * W_L_sqrt[:, None, :]
-    GtG_W = jnp.einsum("nkp,nlp->pkl", GW, GW)
-    I22_inv = jnp.linalg.pinv(GtG_W)
-    chisq_het = jnp.einsum("kp,pkl,lp->p", U, I22_inv, U)
-    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1).T
-    df_het = jnp.linalg.matrix_rank(I22_inv)
+    GtG = jnp.einsum("nkp,nlp->pkl", GW, GW)
+    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
+    chisq_het = jnp.einsum("kp,pkl,lp->p", U, GtG_inv, U)
+    beta_anc = U * jnp.diagonal(GtG_inv, axis1=-1).T
+    df_het = matrix_rank(GtG)
 
     ## Score test for genotypes
     UH = jnp.sum(H * R, axis=0)
     HW = H_res * W_L_sqrt
-    I22_inv_H = (
-        jnp.linalg.pinv(jnp.sum(HW**2, axis=0).reshape((H_res.shape[1], 1, 1)))
-        .squeeze(1)
-        .squeeze(1)
-    )
-    chisq_hom = (UH**2) * I22_inv_H
+    HtH = jnp.sum(HW**2, axis=0)
+    chisq_hom = (UH**2) / (HtH + alpha)
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -147,6 +146,9 @@ def _bt_score_lanc_core(
 def _qt_score_nolanc_core(
     G: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
+    N, K = G.shape
+    alpha = N * 1e-5
+
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
@@ -157,15 +159,16 @@ def _qt_score_nolanc_core(
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ Y
-    I22_inv = pinv(G.T @ G)
-    chisq_het = jnp.einsum("kp,kl,lp->p", U, I22_inv, U) / mse_null
-    beta_anc = U * jnp.diagonal(I22_inv)[:, None]
-    df_het = matrix_rank(I22_inv)
+    GtG = G.T @ G
+    GtG_inv = inv(G.T @ G + alpha * jnp.identity(K))
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U) / mse_null
+    beta_anc = U * jnp.diagonal(GtG_inv)[:, None]
+    df_het = matrix_rank(GtG)
 
     ## Score test for genotypes (homogeneous test)
     UH = H.T @ Y
-    I22_inv_H = 1.0 / jnp.sum(H**2)
-    chisq_hom = (UH**2) * I22_inv_H / mse_null
+    HtH = jnp.sum(H**2)
+    chisq_hom = (UH**2) / (HtH + alpha) / mse_null
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -173,6 +176,9 @@ def _qt_score_nolanc_core(
 def _bt_score_nolanc_core(
     G: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
+    N, K = G.shape
+    alpha = N * 1e-5
+
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
 
@@ -188,20 +194,17 @@ def _bt_score_nolanc_core(
     ## Score test for anc-deconvoluted genotypes
     GW = G * jnp.sqrt(w[:, None, :])
     U = jnp.einsum("nkp,np->kp", G, R)
-    I22_inv = jnp.linalg.pinv(jnp.einsum("nkp,nlp->pkl", GW, GW))
-    chisq_het = jnp.einsum("kp,pkl,lp->p", U, I22_inv, U)
-    beta_anc = U * jnp.diagonal(I22_inv, axis1=-1).T
-    df_het = jnp.linalg.matrix_rank(I22_inv)
+    GtG = jnp.einsum("nkp,nlp->pkl", GW, GW)
+    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
+    chisq_het = jnp.einsum("kp,pkl,lp->p", U, GtG_inv, U)
+    beta_anc = U * jnp.diagonal(GtG_inv, axis1=-1).T
+    df_het = jnp.linalg.matrix_rank(GtG)
 
     ## Score test for genotypes
     HW = H * jnp.sqrt(w)
     UH = jnp.sum(H * R, axis=0)
-    I22_inv_H = (
-        jnp.linalg.pinv(jnp.sum(HW**2, axis=0).reshape((H.shape[1], 1, 1)))
-        .squeeze(1)
-        .squeeze(1)
-    )
-    chisq_hom = (UH**2) * I22_inv_H
+    HtH = jnp.sum(HW**2)
+    chisq_hom = (UH**2) / (HtH + alpha)
 
     return chisq_hom, chisq_het, beta_anc, df_het
 
@@ -210,6 +213,7 @@ def _qt_wald_lanc_core(
     G: Array, L: Array, Y: Array, Q: Array
 ) -> tuple[Array, Array, Array, Array]:
     N, K = G.shape
+    alpha = N * 1e-5
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -220,15 +224,16 @@ def _qt_wald_lanc_core(
     H = ols_qr_res(H, Q)
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, sse_G, XtX_inv_G = ols(jnp.concatenate([G, L], axis=1), Y)
+    beta_G, sse_G, GtG = ols(jnp.concatenate([G, L], axis=1), Y)
+    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
     chisq_het = jnp.einsum(
-        "kp,kl,lp->p", beta_G[:K, :], pinv(XtX_inv_G[:K, :K]), beta_G[:K, :]
+        "kp,kl,lp->p", beta_G[:K, :], inv(GtG_inv[:K, :K]), beta_G[:K, :]
     ) / (sse_G / (N - (2 * K - 1)))
-    df_het = matrix_rank(XtX_inv_G[:K, :K])
+    df_het = matrix_rank(GtG) - matrix_rank(GtG[K:, K:])
 
     ## Wald test for genotypes
-    beta_H, sse_H, XtX_inv_H = ols(jnp.concatenate([H[:, None], L], axis=1), Y)
-    chisq_hom = (beta_H[0, :] ** 2) / XtX_inv_H[0, 0] / (sse_H / (N - K))
+    beta_H, sse_H, HtH = ols(jnp.concatenate([H[:, None], L], axis=1), Y)
+    chisq_hom = (beta_H[0, :] ** 2) * HtH[0, 0] / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G[:K, :], df_het
 
@@ -246,15 +251,13 @@ def _qt_wald_nolanc_core(
     H = ols_qr_res(H, Q)
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, sse_G, XtX_inv_G = ols(G, Y)
-    chisq_het = jnp.einsum("kp,kl,lp->p", beta_G, pinv(XtX_inv_G), beta_G) / (
-        sse_G / (N - K)
-    )
-    df_het = matrix_rank(XtX_inv_G)
+    beta_G, sse_G, GtG = ols(G, Y)
+    chisq_het = jnp.einsum("kp,kl,lp->p", beta_G, GtG, beta_G) / (sse_G / (N - K))
+    df_het = matrix_rank(GtG)
 
     ## Wald test for genotypes
-    beta_H, sse_H, XtX_inv_H = ols(H[:, None], Y)
-    chisq_hom = (beta_H[0, :] ** 2) / XtX_inv_H[0, 0] / (sse_H / (N - K))
+    beta_H, sse_H, HtH = ols(H[:, None], Y)
+    chisq_hom = (beta_H[0, :] ** 2) * HtH[0, 0] / (sse_H / (N - K))
 
     return chisq_hom, chisq_het, beta_G, df_het
 
@@ -262,7 +265,8 @@ def _qt_wald_nolanc_core(
 def _bt_wald_lanc_core(
     G: Array, L: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
-    K = G.shape[1]
+    N, K = G.shape
+    alpha = N * 1e-5
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
@@ -273,15 +277,16 @@ def _bt_wald_lanc_core(
     L = wls_qr_res(L[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, I_inv_G = logit(jnp.concatenate([G, L], axis=1), Y, O)
+    beta_G, GtG = logit(jnp.concatenate([G, L], axis=1), Y, O)
+    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
     chisq_het = jnp.einsum(
-        "pk,pkl,pl->p", beta_G[:, :K], inv(I_inv_G[:, :K, :K]), beta_G[:, :K]
+        "pk,pkl,pl->p", beta_G[:, :K], inv(GtG_inv[:, :K, :K]), beta_G[:, :K]
     )
-    df_het = matrix_rank(I_inv_G[:, :K, :K])
+    df_het = matrix_rank(GtG) - matrix_rank(GtG[:, K:, K:])
 
     ## Wald test for genotypes
-    beta_H, I_inv_H = logit(jnp.concatenate([H, L], axis=1), Y, O)
-    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0])
+    beta_H, HtH = logit(jnp.concatenate([H, L], axis=1), Y, O)
+    chisq_hom = beta_H[:, 0] ** 2 * HtH[:, 0, 0]
 
     return chisq_hom, chisq_het, beta_G[:, :K].T, df_het
 
@@ -289,7 +294,7 @@ def _bt_wald_lanc_core(
 def _bt_wald_nolanc_core(
     G: Array, Y: Array, Q_w: Array, W_sqrt: Array, O: Array
 ) -> tuple[Array, Array, Array, Array]:
-    K = G.shape[1]
+    N, K = G.shape
 
     ## Genotypes
     H = jnp.sum(G, axis=1, keepdims=True)
@@ -299,13 +304,13 @@ def _bt_wald_nolanc_core(
     G = wls_qr_res(G[:, :, None], Q_w, W_sqrt[:, None, :])
 
     ## Wald test for anc-deconvoluted genotypes
-    beta_G, I_inv_G = logit(G, Y, O)
-    chisq_het = jnp.einsum("pk,pkl,pl->p", beta_G, inv(I_inv_G), beta_G)
-    df_het = matrix_rank(I_inv_G)
+    beta_G, GtG = logit(G, Y, O)
+    chisq_het = jnp.einsum("pk,pkl,pl->p", beta_G, GtG, beta_G)
+    df_het = matrix_rank(GtG)
 
     ## Wald test for genotypes
-    beta_H, I_inv_H = logit(H, Y, O)
-    chisq_hom = beta_H[:, 0] ** 2 / (I_inv_H[:, 0, 0])
+    beta_H, HtH = logit(H, Y, O)
+    chisq_hom = beta_H[:, 0] ** 2 * HtH[:, 0, 0]
 
     return chisq_hom, chisq_het, beta_G.T, df_het
 
