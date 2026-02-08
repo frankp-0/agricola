@@ -225,7 +225,7 @@ def _qt_wald_lanc_core(
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, sse_G, GtG = ols(jnp.concatenate([G, L], axis=1), Y)
-    GtG_inv = inv(GtG + alpha * jnp.identity(K)[None, :, :])
+    GtG_inv = inv(GtG + alpha * jnp.identity(K))
     chisq_het = jnp.einsum(
         "kp,kl,lp->p", beta_G[:K, :], inv(GtG_inv[:K, :K]), beta_G[:K, :]
     ) / (sse_G / (N - (2 * K - 1)))
