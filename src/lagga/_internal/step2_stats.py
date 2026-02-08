@@ -30,7 +30,7 @@ def ols_qr_res(X: Array, Q: Array) -> Array:
 
 def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
     N, K = X.shape
-    alpha = N * 1e-8
+    alpha = N * 1e-6
     XtX = X.T @ X + alpha * jnp.identity(K)
     XtX_inv = jnp.linalg.inv(XtX)
     beta = XtX_inv @ (X.T @ Y)
@@ -41,7 +41,7 @@ def ols(X: Array, Y: Array) -> tuple[Array, Array, Array]:
 
 def logit(X: Array, Y: Array, O: Array) -> tuple[Array, Array]:
     N, K, _ = X.shape
-    alpha = N * 1e-8
+    alpha = N * 1e-6
     beta = jax.vmap(logistic_ridge, in_axes=(2, 1, 1, None, None, None))(
         X, Y, O, jnp.ones(N), alpha, 10
     )
@@ -300,10 +300,8 @@ def _bt_wald_nolanc_core(
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, I_inv_G = logit(G, Y, O)
-    chisq_het = jnp.einsum(
-        "pk,pkl,pl->p", beta_G[:, :K], inv(I_inv_G[:, :K, :K]), beta_G[:, :K]
-    )
-    df_het = matrix_rank(I_inv_G[:, :K, :K])
+    chisq_het = jnp.einsum("pk,pkl,pl->p", beta_G, inv(I_inv_G), beta_G)
+    df_het = matrix_rank(I_inv_G)
 
     ## Wald test for genotypes
     beta_H, I_inv_H = logit(H, Y, O)
