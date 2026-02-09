@@ -13,14 +13,14 @@ from lagga._internal.models import (
 
 
 @pytest.fixture
-def simple_data():
+def toy_data():
     """
     Simple deterministic dataset where OLS is well-defined.
     """
     X = jnp.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
     Y = jnp.array([1.0, 2.0, 3.0])
-    w_train = jnp.ones((X.shape[0], 1))
-    w_test = jnp.ones((X.shape[0], 1))
+    w_train = jnp.ones((X.shape[0]))
+    w_test = jnp.ones((X.shape[0]))
     return X, Y, w_train, w_test
 
 
@@ -29,14 +29,14 @@ def simple_data():
 ### ─────────────────────────────────────────────────────────────
 
 
-def test_ridge_OLS_when_lambda_0(simple_data):
+def test_ridge_OLS_when_lambda_0(toy_data):
     """
     Ridge with alpha=0 should match the OLS solution.
     """
-    X, Y, w_train, _ = simple_data
+    X, Y, w_train, _ = toy_data
     alphas = jnp.array([0.0])
 
-    beta = ridge(X, Y, w_train, alphas)[:, 0, 0]
+    beta = ridge(X, Y, w_train, alphas)[:, 0]
 
     # Closed-form OLS
     beta_ols = jnp.linalg.solve(X.T @ X, X.T @ Y)
@@ -49,12 +49,12 @@ def test_ridge_OLS_when_lambda_0(simple_data):
     )
 
 
-def test_ridge_zero_when_big_lambda(simple_data):
+def test_ridge_zero_when_big_lambda(toy_data):
     """
     Very large ridge penalty should drive coefficients to ~0,
     hence predictions ~0.
     """
-    X, Y, w_train, _ = simple_data
+    X, Y, w_train, _ = toy_data
     alphas = jnp.array([1e6])
 
     beta = ridge(X, Y, w_train, alphas)
