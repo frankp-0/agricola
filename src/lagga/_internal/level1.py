@@ -270,8 +270,7 @@ def level1(
                 )
 
             loco_arr[:, p, :] = loco_p
-
-        pbar.update(1)
+            pbar.update(1)
 
     level1_loco = {}
     for i, chrom in enumerate(level0_files.keys()):
