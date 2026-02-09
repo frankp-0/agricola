@@ -167,7 +167,8 @@ def level0(
     """Perform level 0 ridge regressions
 
     Args:
-        datasets: A list of LancData objects (likely one per chromosome)
+        datasets: A list of LancData objects (either single object or one
+            per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K

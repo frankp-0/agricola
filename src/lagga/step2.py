@@ -285,7 +285,8 @@ def step2(
     """Perform lagga step 2
 
     Args:
-        datasets: A list of LancData objects
+        datasets: A list of LancData objects (either single object or one
+            per-chromosome)
         Y: A (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
         step1_predictions: A dict with chromosome-specific linear predictions from step 1. The values are (N, P) NumPy arrays
