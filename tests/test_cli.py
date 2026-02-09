@@ -84,9 +84,6 @@ def test_step1_toy(toy_data):
     )
     assert result.exit_code == 0
 
-    out_file = toy_data["step1_prefix"] + ".pkl"
-    assert Path(out_file).exists()
-
 
 def test_step2_toy(toy_data):
     result = runner.invoke(

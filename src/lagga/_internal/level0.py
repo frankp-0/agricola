@@ -11,6 +11,7 @@ module is the `level0` function.
 """
 
 import os
+import tempfile
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
@@ -80,7 +81,7 @@ def level0(
     B: int = 2000,
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
-    level0_dir: str = "level0",
+    level0_dir: Optional[str] = None,
 ) -> dict[str, str]:
     """Perform level 0 ridge regressions
 
@@ -112,7 +113,14 @@ def level0(
     K = len(h2_prior)
 
     ## Perform level 0 for each dataset
+    if level0_dir is None:
+        tmp = tempfile.TemporaryDirectory()
+        level0_dir = tmp.name
+
     os.makedirs(level0_dir, exist_ok=True)
+
+    print(level0_dir)
+
     level0_files = {}
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
