@@ -35,6 +35,9 @@ def validate_level0_inputs(
     Y = jnp.asarray(Y)
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
+
+    Y_means = jnp.nanmean(Y, axis=0)
+    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
     N = Y.shape[0]
 
     ## X
@@ -111,7 +114,10 @@ def validate_level1_inputs(
     Y = jnp.asarray(Y)
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-    N, P = Y.shape
+
+    Y_means = jnp.nanmean(Y, axis=0)
+    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
+    N, _ = Y.shape
 
     ## X
     if X is None:

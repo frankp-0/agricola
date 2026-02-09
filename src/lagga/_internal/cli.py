@@ -137,7 +137,7 @@ def load_pheno_and_covars(
     samples: list[str] = [sample for sample in samples_sub if sample in samples_pheno]
 
     if covar_file:
-        df_covar = read_pheno_covar(covar_file)
+        df_covar = read_pheno_covar(covar_file).dropna()
         samples_covar = df_covar["IID"].astype(str).to_list()
         samples = [sample for sample in samples if sample in samples_covar]
         df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
