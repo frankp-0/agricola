@@ -119,8 +119,6 @@ def level0(
 
     os.makedirs(level0_dir, exist_ok=True)
 
-    print(level0_dir)
-
     level0_files = {}
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
@@ -137,10 +135,9 @@ def level0(
                 [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
             )
 
-        chromosomes = list(
-            set([ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant])
-        )
-        for chrom in chromosomes:
+        chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
+        chroms = list(set(chromosomes))
+        for chrom in chroms:
             idx_chrom = np.array(
                 [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
             )
