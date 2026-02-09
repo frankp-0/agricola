@@ -203,7 +203,7 @@ def _bt_score_nolanc_core(
     ## Score test for genotypes
     HW = H * jnp.sqrt(w)
     UH = jnp.sum(H * R, axis=0)
-    HtH = jnp.sum(HW**2)
+    HtH = jnp.sum(HW**2, axis=0)
     chisq_hom = (UH**2) / (HtH + alpha)
 
     return chisq_hom, chisq_het, beta_anc, df_het
