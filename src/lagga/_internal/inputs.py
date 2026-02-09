@@ -7,7 +7,6 @@
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
-from numpy.typing import NDArray
 from typing import Optional
 from lanctools import LancData
 from .utils import stdize, assert_covar_full_rank, TraitType, TestType
@@ -100,20 +99,13 @@ def validate_level0_inputs(
 
 
 def validate_level1_inputs(
-    Z: dict[str, NDArray],
     Y: ArrayLike,
     X: Optional[ArrayLike],
     train_mask: Optional[ArrayLike],
     test_mask: Optional[ArrayLike],
     h2_prior: ArrayLike,
-) -> tuple[
-    dict[str, NDArray],
-    Array,
-    Array,
-    Array,
-    Array,
-    Array,
-]:
+    trait_type: str,
+) -> tuple[Array, Array, Array, Array, Array, TraitType]:
     """Validate input data for level1"""
     ## Y
     Y = jnp.asarray(Y)
@@ -158,44 +150,6 @@ def validate_level1_inputs(
     if test_mask is None:
         test_mask = jnp.array([1])
 
-    ## Z
-    if not isinstance(Z, dict):
-        raise TypeError(f"Z must be a dict, got {type(Z)}")
-
-    if len(Z) == 0:
-        raise ValueError("Z must not be empty")
-    Z_N = None
-    Z_P = None
-    for chrom, Z_chrom in Z.items():
-        if not isinstance(Z_chrom, (np.ndarray, jnp.ndarray)):
-            raise TypeError(
-                f"Z[{chrom}] must be a numpy/jax array, got {type(Z_chrom)}"
-            )
-        if Z_chrom.ndim != 3:
-            raise ValueError(
-                f"Z[{chrom}] must be 3D (N, P, N_blocks), got shape {Z_chrom.shape}"
-            )
-
-        n_chrom, p_chrom, _ = Z_chrom.shape
-
-        if Z_N is None:
-            Z_N = n_chrom
-            Z_P = p_chrom
-        else:
-            if n_chrom != Z_N:
-                raise ValueError(
-                    f"All Z arrays must have same N; got {Z_N} vs {n_chrom} in Z[{chrom}]"
-                )
-            if p_chrom != Z_P:
-                raise ValueError(
-                    f"All Z arrays must have same P; got {Z_P} vs {p_chrom} in Z[{chrom}]"
-                )
-
-    if Z_N != N:
-        raise ValueError(f"Z arrays have N={Z_N} but Y has N={N}")
-
-    if Z_P != P:
-        raise ValueError(f"Z arrays have P={Z_P} but Y has P={P}")
     ## H2
     h2_prior = jnp.asarray(h2_prior)
     if h2_prior.ndim != 1:
@@ -203,7 +157,7 @@ def validate_level1_inputs(
     if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
         raise ValueError("h2_prior values must be in the open interval (0, 1)")
 
-    return (Z, Y, X, train_mask, test_mask, h2_prior)
+    return (Y, X, train_mask, test_mask, h2_prior, TraitType(trait_type))
 
 
 def validate_step2_inputs(

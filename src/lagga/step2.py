@@ -8,7 +8,6 @@ This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
 """
 
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
@@ -22,7 +21,6 @@ from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
 from ._internal.utils import stdize, get_geno_lanc_deconv, TestType, TraitType
-from ._internal.models import logistic_ridge
 from ._internal.step2_stats import (
     qt_score_lanc,
     qt_score_nolanc,
@@ -150,7 +148,7 @@ def _step2_block(
 def _step2_dataset(
     dataset: LancData,
     Y: Array,
-    pred_loco: dict[str, np.ndarray],
+    step1_predictions: dict[str, np.ndarray],
     X: Array,
     idx_sample: Optional[Array],
     out_prefix: str,
@@ -168,7 +166,7 @@ def _step2_dataset(
     Args:
         dataset: A LancData object
         Y: A (N, P) jax array of outcomes
-        pred_loco: A dict of (N,P) numpy arrays containing LOCO predictions
+        step1_predictions: A dict of (N,P) numpy arrays containing LOCO predictions
         X: A (N, C) jax array of covariates
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
@@ -224,12 +222,12 @@ def _step2_dataset(
             ]
 
             extra_args = {}
-            if trait_type.value == "qt":
+            if trait_type == TraitType.QT:
                 Q, _ = jnp.linalg.qr(X, mode="reduced")
-                Y = Y - pred_loco[chrom]
+                Y = Y - step1_predictions[chrom]
             else:
                 ## QR decomposition of weighted covariates
-                mu = expit(pred_loco[chrom])
+                mu = expit(step1_predictions[chrom])
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 Q, _ = jnp.linalg.qr(
                     jnp.moveaxis(
@@ -239,7 +237,7 @@ def _step2_dataset(
                 )
                 Q = Q.transpose((1, 2, 0))
                 extra_args["W_sqrt"] = W_sqrt
-                extra_args["O"] = pred_loco[chrom]
+                extra_args["O"] = step1_predictions[chrom]
 
             for block in blocks:
                 result_dfs = _step2_block(
@@ -289,7 +287,7 @@ def step2(
             per-chromosome)
         Y: A (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
-        step1_predictions: A dict with chromosome-specific linear predictions from step 1. The values are (N, P) NumPy arrays
+        step1_predictions: A dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays
         out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
@@ -314,30 +312,10 @@ def step2(
         trait_type,
     )
 
-    if trait.value == "qt":
+    if trait_type == TraitType.QT:
         X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
-        step1_prs = np.sum(np.stack(list(step1_predictions.values())), axis=0)
-        pred_loco = {k: step1_prs - v for k, v in step1_predictions.items()}
-    else:
-        covar_model = jax.vmap(
-            logistic_ridge, in_axes=(None, 1, None, None, None), out_axes=1
-        )
-        offset_covar = X @ covar_model(
-            X, Y, jnp.zeros(X.shape[0]), jnp.ones(Y.shape[0]), 0
-        )
-        chromosome_offsets = np.stack(
-            [v - offset_covar for v in step1_predictions.values()], axis=1
-        )
-        pred_loco = {}
-        for i, chrom in enumerate(step1_predictions):
-            X_leave = np.delete(chromosome_offsets, i, axis=1)
-            beta_chrom = jax.vmap(
-                logistic_ridge, in_axes=(2, 1, 1, None, None), out_axes=1
-            )(jnp.asarray(X_leave), Y, offset_covar, jnp.ones(Y.shape[0]), 0)
-            eta_chrom = np.einsum("ncp,cp->np", X_leave, beta_chrom) + offset_covar
-            pred_loco[chrom] = eta_chrom
 
     for i, dataset in enumerate(datasets):
         pgen_path = dataset.plink_prefix + ".pgen"
@@ -345,7 +323,7 @@ def step2(
         _step2_dataset(
             dataset,
             Y,
-            pred_loco,
+            step1_predictions,
             X,
             idx_sample,
             out_prefixes[i],

@@ -41,14 +41,10 @@ def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     """
     _, b = X.shape
 
-    ## Reshape weights to 1D and Y to 2D
-    train_mask = train_mask.reshape(-1, 1)
-    if Y.ndim == 1:
-        Y = Y.reshape(-1, 1)
-
     ## Perform ridge regression
-    XTX = X.T @ (X * train_mask)
-    XTY = X.T @ (Y * train_mask)
+    Xm = X * train_mask[:, None]
+    XTX = Xm.T @ Xm
+    XTY = Xm.T @ Y
     I_ = jnp.eye(b, dtype=XTY.dtype)
 
     def ridge_fit(alpha):
