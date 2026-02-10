@@ -184,9 +184,6 @@ def validate_step2_inputs(
     Y = jnp.asarray(Y)
     if Y.ndim != 2:
         raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-
-    Y_means = jnp.nanmean(Y, axis=0)
-    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
     N, P = Y.shape
 
     if X is None:

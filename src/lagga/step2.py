@@ -41,7 +41,6 @@ from ._internal.inputs import validate_step2_inputs
 def _step2_block(
     dataset: LancData,
     Y: Array,
-    M: Array,
     Q: Array,
     trait_type: TraitType,
     test_type: TestType,
@@ -56,7 +55,6 @@ def _step2_block(
     Args:
         dataset: A LancData object
         Y: A (N, P) jax array of outcomes
-        M: A (N, P) jax array of 0/1 indicating whether Y is non-missing
         Q: A (N, C) jax array. The orthogonal matrix Q in the QR decomposition of
             the covariates. For trait_type="bt", this is weighted by estimated
             variance in the covariate-only model.
@@ -74,47 +72,37 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
-    N_eff = jnp.sum(M, axis=0)
-
     func_map = {
-        (TraitType.QT, TestType.SCORE, True): (
-            qt_score_lanc,
-            lambda: (G, L, Y, Q, M, N_eff),
-        ),
-        (TraitType.QT, TestType.SCORE, False): (
-            qt_score_nolanc,
-            lambda: (G, Y, Q, M, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, True): (
-            qt_wald_lanc,
-            lambda: (G, L, Y, Q, M, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, False): (
-            qt_wald_nolanc,
-            lambda: (G, Y, Q, M, N_eff),
-        ),
+        (TraitType.QT, TestType.SCORE, True): (qt_score_lanc, lambda: (G, L, Y, Q)),
+        (TraitType.QT, TestType.SCORE, False): (qt_score_nolanc, lambda: (G, Y, Q)),
+        (TraitType.QT, TestType.WALD, True): (qt_wald_lanc, lambda: (G, L, Y, Q)),
+        (TraitType.QT, TestType.WALD, False): (qt_wald_nolanc, lambda: (G, Y, Q)),
         (TraitType.BT, TestType.SCORE, True): (
             bt_score_lanc,
-            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"], M, N_eff),
+            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
         ),
         (TraitType.BT, TestType.SCORE, False): (
             bt_score_nolanc,
-            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"], M, N_eff),
+            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
         ),
         (TraitType.BT, TestType.WALD, True): (
             bt_wald_lanc,
-            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"], M, N_eff),
+            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
         ),
         (TraitType.BT, TestType.WALD, False): (
             bt_wald_nolanc,
-            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"], M, N_eff),
+            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
         ),
     }
 
     test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
     chisq_hom, chisq_het, beta_anc, df_het = test_func(*arg_fn())
 
-    log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
+    if trait_type == TraitType.QT:
+        log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
+    else:
+        log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
+
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
@@ -122,23 +110,18 @@ def _step2_block(
         [
             log10p_het[:, None, :],
             log10p_hom[:, None, :],
-            beta_anc.transpose(0, 2, 1),
-            np.repeat(N_eff[None, :], beta_anc.shape[0], axis=0)[:, None, :],
+            beta_anc,
         ],
         axis=1,
     )
 
     ## Get column names for results
     ancs = dataset.ancestries
-    colnames: list[str] = [
-        "log10p_het",
-        "log10p_hom",
-        *["beta_" + anc for anc in ancs],
-        "N",
-    ]
+    colnames: list[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
+    block_info["N"] = Y.shape[0]
 
     ## Filter out variants that fail min_ac
     anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
@@ -165,7 +148,6 @@ def _step2_block(
 def _step2_dataset(
     dataset: LancData,
     Y: Array,
-    M: Array,
     step1_predictions: dict[str, np.ndarray],
     X: Array,
     idx_sample: Optional[Array],
@@ -184,7 +166,6 @@ def _step2_dataset(
     Args:
         dataset: A LancData object
         Y: A (N, P) jax array of outcomes
-        M: A (N, P) jax array of 0/1 indicating whether Y is non-missing
         step1_predictions: A dict of (N,P) numpy arrays containing LOCO predictions
         X: A (N, C) jax array of covariates
         idx_sample: An optional numpy array with ordered indices of samples (in
@@ -262,7 +243,6 @@ def _step2_dataset(
                 result_dfs = _step2_block(
                     dataset,
                     Y,
-                    M,
                     Q,
                     trait_type,
                     test_type,
@@ -319,8 +299,6 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         test_type: Either "score" or "wald"
     """
-    M = (~jnp.isnan(Y)).astype(jnp.float32)
-
     Y, X, idx_sample, test, trait = validate_step2_inputs(
         datasets,
         Y,
@@ -344,7 +322,6 @@ def step2(
         _step2_dataset(
             dataset,
             Y,
-            M,
             step1_predictions,
             X,
             idx_sample,
