@@ -79,19 +79,19 @@ def _step2_block(
     func_map = {
         (TraitType.QT, TestType.SCORE, True): (
             qt_score_lanc,
-            lambda: (G, L, Y, Q, N_eff),
+            lambda: (G, L, Y, Q, M, N_eff),
         ),
         (TraitType.QT, TestType.SCORE, False): (
             qt_score_nolanc,
-            lambda: (G, Y, Q, N_eff),
+            lambda: (G, Y, Q, M, N_eff),
         ),
         (TraitType.QT, TestType.WALD, True): (
             qt_wald_lanc,
-            lambda: (G, L, Y, Q, N_eff),
+            lambda: (G, L, Y, Q, M, N_eff),
         ),
         (TraitType.QT, TestType.WALD, False): (
             qt_wald_nolanc,
-            lambda: (G, Y, Q, N_eff),
+            lambda: (G, Y, Q, M, N_eff),
         ),
         (TraitType.BT, TestType.SCORE, True): (
             bt_score_lanc,
@@ -319,7 +319,7 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         test_type: Either "score" or "wald"
     """
-    M = (~jnp.isnan(Y)).astype(jnp.float32)
+    M = ~jnp.isnan(Y)
 
     Y, X, idx_sample, test, trait = validate_step2_inputs(
         datasets,

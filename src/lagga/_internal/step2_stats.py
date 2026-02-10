@@ -54,10 +54,15 @@ def logit(X: Array, Y: Array, O: Array, W: Array, alpha: float) -> tuple[Array, 
 
 
 def _qt_score_lanc_core(
-    G: Array, L: Array, Y: Array, Q: Array, N_eff: int
+    G: Array, L: Array, Y: Array, Q: Array, M: Array, N_eff: int
 ) -> tuple[Array, Array, Array, Array]:
     K = G.shape[1]
     alpha = N_eff * 1e-6
+
+    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
+    L_means = jnp.sum(L * M[:, None], axis=0) / N_eff
+    G = jnp.where((~M)[:, None], G_means, G)
+    L = jnp.where((~M)[:, None], L_means, L)
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -143,10 +148,13 @@ def _bt_score_lanc_core(
 
 
 def _qt_score_nolanc_core(
-    G: Array, Y: Array, Q: Array, N_eff: int
+    G: Array, Y: Array, Q: Array, M: Array, N_eff: int
 ) -> tuple[Array, Array, Array, Array]:
     K = G.shape[1]
     alpha = N_eff * 1e-6
+
+    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
+    G = jnp.where((~M)[:, None], G_means, G)
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -215,10 +223,15 @@ def _bt_score_nolanc_core(
 
 
 def _qt_wald_lanc_core(
-    G: Array, L: Array, Y: Array, Q: Array, N_eff: int
+    G: Array, L: Array, Y: Array, Q: Array, M: Array, N_eff: int
 ) -> tuple[Array, Array, Array, Array]:
     K = G.shape[1]
     alpha = N_eff * 1e-6
+
+    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
+    L_means = jnp.sum(L * M[:, None], axis=0) / N_eff
+    G = jnp.where((~M)[:, None], G_means, G)
+    L = jnp.where((~M)[:, None], L_means, L)
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -247,9 +260,12 @@ def _qt_wald_lanc_core(
 
 
 def _qt_wald_nolanc_core(
-    G: Array, Y: Array, Q: Array, N_eff: int
+    G: Array, Y: Array, Q: Array, M: Array, N_eff: int
 ) -> tuple[Array, Array, Array, Array]:
     K = G.shape[1]
+
+    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
+    G = jnp.where((~M)[:, None], G_means, G)
 
     ## Genotypes
     H = jnp.sum(G, axis=1)
@@ -334,8 +350,8 @@ def _bt_wald_nolanc_core(
 
 qt_score_lanc = jax.jit(
     jax.vmap(
-        jax.vmap(_qt_score_lanc_core, in_axes=(None, None, 1, None, 0)),
-        in_axes=(1, 1, None, None, None),
+        jax.vmap(_qt_score_lanc_core, in_axes=(None, None, 1, None, 1, 0)),
+        in_axes=(1, 1, None, None, None, None),
     )
 )
 
@@ -349,8 +365,8 @@ bt_score_lanc = jax.jit(
 
 qt_score_nolanc = jax.jit(
     jax.vmap(
-        jax.vmap(_qt_score_nolanc_core, in_axes=(None, 1, None, 0)),
-        in_axes=(1, None, None, None),
+        jax.vmap(_qt_score_nolanc_core, in_axes=(None, 1, None, 1, 0)),
+        in_axes=(1, None, None, None, None),
     )
 )
 
@@ -364,8 +380,8 @@ bt_score_nolanc = jax.jit(
 
 qt_wald_lanc = jax.jit(
     jax.vmap(
-        jax.vmap(_qt_wald_lanc_core, in_axes=(None, None, 1, None, 0)),
-        in_axes=(1, 1, None, None, None),
+        jax.vmap(_qt_wald_lanc_core, in_axes=(None, None, 1, None, 1, 0)),
+        in_axes=(1, 1, None, None, None, None),
     )
 )
 
@@ -379,8 +395,8 @@ bt_wald_lanc = jax.jit(
 
 qt_wald_nolanc = jax.jit(
     jax.vmap(
-        jax.vmap(_qt_wald_nolanc_core, in_axes=(None, 1, None, 0)),
-        in_axes=(1, None, None, None),
+        jax.vmap(_qt_wald_nolanc_core, in_axes=(None, 1, None, 1, 0)),
+        in_axes=(1, None, None, None, None),
     )
 )
 
