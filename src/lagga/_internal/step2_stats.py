@@ -59,18 +59,13 @@ def _qt_score_lanc_core(
     K = G.shape[1]
     alpha = N_eff * 1e-6
 
-    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
-    L_means = jnp.sum(L * M[:, None], axis=0) / N_eff
-    G = jnp.where((~M)[:, None], G_means, G)
-    L = jnp.where((~M)[:, None], L_means, L)
-
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = ols_qr_res(G, Q)
-    L = ols_qr_res(L, Q)
-    H = ols_qr_res(H, Q)
+    G = ols_qr_res(G, Q) * M[:, None]
+    L = ols_qr_res(L, Q) * M[:, None]
+    H = ols_qr_res(H, Q) * M
 
     ## Fit null model: Y ~ L
     QL, _ = qr(L)
@@ -153,15 +148,12 @@ def _qt_score_nolanc_core(
     K = G.shape[1]
     alpha = N_eff * 1e-6
 
-    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
-    G = jnp.where((~M)[:, None], G_means, G)
-
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = ols_qr_res(G, Q)
-    H = ols_qr_res(H, Q)
+    G = ols_qr_res(G, Q) * M[:, None]
+    H = ols_qr_res(H, Q) * M
     mse_null = jnp.sum(Y**2, axis=0) / N_eff
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
@@ -228,18 +220,13 @@ def _qt_wald_lanc_core(
     K = G.shape[1]
     alpha = N_eff * 1e-6
 
-    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
-    L_means = jnp.sum(L * M[:, None], axis=0) / N_eff
-    G = jnp.where((~M)[:, None], G_means, G)
-    L = jnp.where((~M)[:, None], L_means, L)
-
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = ols_qr_res(G, Q)
-    L = ols_qr_res(L, Q)
-    H = ols_qr_res(H, Q)
+    G = ols_qr_res(G, Q) * M[:, None]
+    L = ols_qr_res(L, Q) * M[:, None]
+    H = ols_qr_res(H, Q) * M
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, sse_G, GtG = ols(jnp.concatenate([G, L], axis=1), Y)
@@ -264,15 +251,12 @@ def _qt_wald_nolanc_core(
 ) -> tuple[Array, Array, Array, Array]:
     K = G.shape[1]
 
-    G_means = jnp.sum(G * M[:, None], axis=0) / N_eff
-    G = jnp.where((~M)[:, None], G_means, G)
-
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
     ## Residualize by covariates
-    G = ols_qr_res(G, Q)
-    H = ols_qr_res(H, Q)
+    G = ols_qr_res(G, Q) * M[:, None]
+    H = ols_qr_res(H, Q) * M
 
     ## Wald test for anc-deconvoluted genotypes
     beta_G, sse_G, GtG = ols(G, Y)
