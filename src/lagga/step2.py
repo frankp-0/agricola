@@ -319,7 +319,7 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         test_type: Either "score" or "wald"
     """
-    M = ~jnp.isnan(Y)
+    M = (~jnp.isnan(Y)).astype(jnp.float32)
 
     Y, X, idx_sample, test, trait = validate_step2_inputs(
         datasets,
