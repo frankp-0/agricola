@@ -123,17 +123,22 @@ def _step2_block(
             log10p_het[:, None, :],
             log10p_hom[:, None, :],
             beta_anc.transpose(0, 2, 1),
+            np.repeat(N_eff[None, :], beta_anc.shape[0], axis=0)[:, None, :],
         ],
         axis=1,
     )
 
     ## Get column names for results
     ancs = dataset.ancestries
-    colnames: list[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
+    colnames: list[str] = [
+        "log10p_het",
+        "log10p_hom",
+        *["beta_" + anc for anc in ancs],
+        "N",
+    ]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
-    block_info["N"] = Y.shape[0]
 
     ## Filter out variants that fail min_ac
     anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
