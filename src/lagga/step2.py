@@ -74,6 +74,11 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
+    ## Filter variants with low ac
+    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    ac_variant_mask = ac.sum(axis=1) >= min_ac
+    valid_idx = np.array(ac_variant_mask)
+
     ## Adjust G, L for missingness
     N_eff = jnp.sum(M, axis=0)
 
@@ -141,25 +146,24 @@ def _step2_block(
 
     ## Get column names for results
     ancs = dataset.ancestries
-    colnames: list[str] = ["log10p_het", "log10p_hom", *["beta_" + anc for anc in ancs]]
+    colnames: list[str] = [
+        "log10p_het",
+        *["beta_" + anc for anc in ancs],
+        "log10p_hom",
+        "beta_hom",
+    ]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
     block_info["N"] = Y.shape[0]
-
-    ## Filter out variants that fail min_ac
-    anc_variant_mask = G.sum(axis=0).sum(axis=1) >= min_ac
-    valid_idx = np.array(anc_variant_mask)
-    block_info_filtered = block_info[valid_idx].reset_index(drop=True)
-    result_arr_filtered = result_arr[valid_idx, :, :]
 
     ## Format results into list of dataframes
     p = Y.shape[1]
     result_dfs = [
         pd.concat(
             [
-                block_info_filtered,
-                pd.DataFrame(data=result_arr_filtered[:, :, i], columns=colnames),  # pyright: ignore
+                block_info[valid_idx[:, i]].reset_index(drop=True),
+                pd.DataFrame(data=result_arr[valid_idx[:, i], :, i], columns=colnames),  # pyright: ignore
             ],
             axis=1,
         )
