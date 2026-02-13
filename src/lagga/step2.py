@@ -9,6 +9,7 @@ perform single variant association tests. The entry-point is the `step2` functio
 """
 
 import jax.numpy as jnp
+from jax import jit
 from jaxtyping import Array, ArrayLike
 import numpy as np
 from scipy.stats import chi2
@@ -41,6 +42,7 @@ from ._internal.inputs import validate_step2_inputs
 def _step2_block(
     dataset: LancData,
     Y: Array,
+    M: Array,
     Q: Array,
     trait_type: TraitType,
     test_type: TestType,
@@ -72,45 +74,67 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
+    ## Adjust G, L for missingness
+    N_eff = jnp.sum(M, axis=0)
+
+    @jit
+    def adjust_G(G, M, N_eff):
+        return (
+            G[:, :, :, None]
+            - jnp.sum(G[:, :, :, None] * M[:, None, None, :], axis=0) / N_eff
+        )
+
+    G = adjust_G(G, M, N_eff)
+    L = adjust_G(L, M, N_eff)
+
     func_map = {
-        (TraitType.QT, TestType.SCORE, True): (qt_score_lanc, lambda: (G, L, Y, Q)),
-        (TraitType.QT, TestType.SCORE, False): (qt_score_nolanc, lambda: (G, Y, Q)),
-        (TraitType.QT, TestType.WALD, True): (qt_wald_lanc, lambda: (G, L, Y, Q)),
-        (TraitType.QT, TestType.WALD, False): (qt_wald_nolanc, lambda: (G, Y, Q)),
+        (TraitType.QT, TestType.SCORE, True): (
+            qt_score_lanc,
+            lambda: (G, L, Y, Q, N_eff),
+        ),
+        (TraitType.QT, TestType.SCORE, False): (
+            qt_score_nolanc,
+            lambda: (G, Y, Q, N_eff),
+        ),
+        (TraitType.QT, TestType.WALD, True): (
+            qt_wald_lanc,
+            lambda: (G, L, Y, Q, N_eff),
+        ),
+        (TraitType.QT, TestType.WALD, False): (
+            qt_wald_nolanc,
+            lambda: (G, Y, Q, N_eff),
+        ),
         (TraitType.BT, TestType.SCORE, True): (
             bt_score_lanc,
-            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
         ),
         (TraitType.BT, TestType.SCORE, False): (
             bt_score_nolanc,
-            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
         ),
         (TraitType.BT, TestType.WALD, True): (
             bt_wald_lanc,
-            lambda: (G, L, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
         ),
         (TraitType.BT, TestType.WALD, False): (
             bt_wald_nolanc,
-            lambda: (G, Y, Q, extra_args["W_sqrt"], extra_args["O"]),
+            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
         ),
     }
 
     test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
-    chisq_hom, chisq_het, beta_anc, df_het = test_func(*arg_fn())
+    chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
 
-    if trait_type == TraitType.QT:
-        log10p_het = chi2.logsf(chisq_het, df_het[:, None]) / np.log(10)
-    else:
-        log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
-
+    log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
     result_arr = np.concatenate(
         [
             log10p_het[:, None, :],
+            beta_het,
             log10p_hom[:, None, :],
-            beta_anc,
+            beta_hom[:, None, :],
         ],
         axis=1,
     )
@@ -148,6 +172,7 @@ def _step2_block(
 def _step2_dataset(
     dataset: LancData,
     Y: Array,
+    M: Array,
     step1_predictions: dict[str, np.ndarray],
     X: Array,
     idx_sample: Optional[Array],
@@ -222,27 +247,26 @@ def _step2_dataset(
             ]
 
             extra_args = {}
+
+            Q = jnp.linalg.qr(X.transpose(2, 0, 1), mode="reduced")[0].transpose(
+                1, 2, 0
+            )
             if trait_type == TraitType.QT:
-                Q, _ = jnp.linalg.qr(X, mode="reduced")
                 Y = Y - step1_predictions[chrom]
+                Y = Y - jnp.sum(Y * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                ## QR decomposition of weighted covariates
                 mu = expit(step1_predictions[chrom])
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
-                Q, _ = jnp.linalg.qr(
-                    jnp.moveaxis(
-                        X[:, :, None] * W_sqrt[:, None, :], (0, 1, 2), (1, 2, 0)
-                    ),
-                    mode="reduced",
-                )
-                Q = Q.transpose((1, 2, 0))
                 extra_args["W_sqrt"] = W_sqrt
-                extra_args["O"] = step1_predictions[chrom]
+
+                O = jnp.asarray(step1_predictions[chrom])
+                extra_args["O"] = O
 
             for block in blocks:
                 result_dfs = _step2_block(
                     dataset,
                     Y,
+                    M,
                     Q,
                     trait_type,
                     test_type,
@@ -299,6 +323,8 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         test_type: Either "score" or "wald"
     """
+    M = (~jnp.isnan(Y)).astype(jnp.float32)
+
     Y, X, idx_sample, test, trait = validate_step2_inputs(
         datasets,
         Y,
@@ -312,9 +338,16 @@ def step2(
         trait_type,
     )
 
+    trait_type: TraitType = trait
+    ## Adjust phenotype for covariates to match step 1
     if trait_type == TraitType.QT:
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
+
+    ## Adjust covariates for per-phenotype missingness
+    X = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(
+        M, axis=0
+    )
 
     for i, dataset in enumerate(datasets):
         pgen_path = dataset.plink_prefix + ".pgen"
@@ -322,6 +355,7 @@ def step2(
         _step2_dataset(
             dataset,
             Y,
+            M,
             step1_predictions,
             X,
             idx_sample,
