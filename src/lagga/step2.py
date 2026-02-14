@@ -84,10 +84,12 @@ def _step2_block(
 
     @jit
     def adjust_G(G, M, N_eff):
-        return (
+        G = (
             G[:, :, :, None]
             - jnp.sum(G[:, :, :, None] * M[:, None, None, :], axis=0) / N_eff
         )
+        G = G * M[:, None, None, :]
+        return G
 
     G = adjust_G(G, M, N_eff)
     L = adjust_G(L, M, N_eff)
@@ -266,6 +268,8 @@ def _step2_dataset(
                 O = jnp.asarray(step1_predictions[chrom])
                 extra_args["O"] = O
 
+            Y = Y * M
+
             for block in blocks:
                 result_dfs = _step2_block(
                     dataset,
@@ -352,6 +356,7 @@ def step2(
     X = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(
         M, axis=0
     )
+    X = X * M[:, None, :]
 
     for i, dataset in enumerate(datasets):
         pgen_path = dataset.plink_prefix + ".pgen"
