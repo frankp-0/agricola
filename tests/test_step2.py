@@ -160,7 +160,7 @@ def test_step2_valid_input(tmp_path, toy_data):
         out_prefixes,
         phenotypes,
         "qt",
-        adjust_lanc=False,
+        adjust_lanc=True,
     )
 
     Y = jnp.round(expit(Y))
@@ -173,5 +173,5 @@ def test_step2_valid_input(tmp_path, toy_data):
         out_prefixes,
         phenotypes,
         "bt",
-        adjust_lanc=False,
+        adjust_lanc=True,
     )
