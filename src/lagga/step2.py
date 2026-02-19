@@ -100,7 +100,7 @@ def _step2_block(
         G = adjust_G(G, M, N_eff)
 
     ## Filter variants with low ac
-    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    ac = (G * M[:, None, None, :]).sum(axis=0)
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     valid_idx = np.array(ac_variant_mask)
 
