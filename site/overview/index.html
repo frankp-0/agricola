@@ -617,7 +617,9 @@ to calculate cross-validated whole-genome LOCO predictions for each phenotype.</
     GENOME["Set of M common variants"]
     PREDS[" "]
     PRED["(N, 5M/B) matrix of predictors"]
+    PHENO["Phenotype"]
     GENOME ==&gt; |Divide genome into blocks of size B| BLOCKS ==&gt; |Per-block regressions for 5 penalties| PREDS ==&gt; PRED
+    PHENO ==&gt; PREDS
 
     subgraph BLOCKS[" "]
         direction LR
@@ -643,14 +645,36 @@ to calculate cross-validated whole-genome LOCO predictions for each phenotype.</
         G --- H
     end
 
-    linkStyle 3 stroke-width:0px;
     linkStyle 4 stroke-width:0px;
     linkStyle 5 stroke-width:0px;
     linkStyle 6 stroke-width:0px;
     linkStyle 7 stroke-width:0px;
     linkStyle 8 stroke-width:0px;
+    linkStyle 9 stroke-width:0px;
 </code></pre>
 <h4 id="level-1-ridge-regression">Level 1 ridge regression</h4>
+<pre class="mermaid"><code>flowchart LR
+
+A["Level 0 predictions"]
+B["Phenotype"]
+C["Cross-validated&lt;br/&gt;whole-genome predictions"]
+
+
+    subgraph LOCO[" "]
+        direction TB
+        D["Chr1 LOCO prediction"]
+        E["Chr2 LOCO prediction"]
+        F[...]
+        G["Chr22 LOCO prediction"]
+
+        D --- E
+        E --- F
+        F --- G
+    end
+
+A ==&gt; C
+B ==&gt; C
+C ==&gt; LOCO</code></pre>
 <h3 id="step-2-single-variant-tests">Step 2: single-variant tests</h3>
 
 

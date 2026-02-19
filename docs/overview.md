@@ -75,7 +75,9 @@ flowchart TB
     GENOME["Set of M common variants"]
     PREDS[" "]
     PRED["(N, 5M/B) matrix of predictors"]
+    PHENO["Phenotype"]
     GENOME ==> |Divide genome into blocks of size B| BLOCKS ==> |Per-block regressions for 5 penalties| PREDS ==> PRED
+    PHENO ==> PREDS
 
     subgraph BLOCKS[" "]
         direction LR
@@ -101,15 +103,40 @@ flowchart TB
         G --- H
     end
 
-    linkStyle 3 stroke-width:0px;
     linkStyle 4 stroke-width:0px;
     linkStyle 5 stroke-width:0px;
     linkStyle 6 stroke-width:0px;
     linkStyle 7 stroke-width:0px;
     linkStyle 8 stroke-width:0px;
+    linkStyle 9 stroke-width:0px;
 
 ```
 
 #### Level 1 ridge regression
+
+```mermaid
+flowchart LR
+
+A["Level 0 predictions"]
+B["Phenotype"]
+C["Cross-validated<br/>whole-genome predictions"]
+
+
+    subgraph LOCO[" "]
+        direction TB
+        D["Chr1 LOCO prediction"]
+        E["Chr2 LOCO prediction"]
+        F[...]
+        G["Chr22 LOCO prediction"]
+
+        D --- E
+        E --- F
+        F --- G
+    end
+
+A ==> C
+B ==> C
+C ==> LOCO
+```
 
 ### Step 2: single-variant tests
