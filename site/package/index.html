@@ -1,0 +1,1351 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local ancestry GWAS with GPU acceleration">
+      
+      
+        <meta name="author" content="Franklin Ockerman">
+      
+      
+      
+        <link rel="prev" href="../cli/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.16">
+    
+    
+      
+        <title>Documentation for lagga Python API - lagga</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.dfcb43b2.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#documentation-for-lagga-python-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="lagga" class="md-header__button md-logo" aria-label="lagga" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lagga
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Documentation for lagga Python API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="lagga" class="md-nav__button md-logo" aria-label="lagga" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    lagga
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-snail" viewBox="0 0 24 24"><path d="M2 13a6 6 0 1 0 12 0 4 4 0 1 0-8 0 2 2 0 0 0 4 0"/><circle cx="10" cy="13" r="8"/><path d="M2 21h12c4.4 0 8-3.6 8-8V7a2 2 0 1 0-4 0v6M18 3l1.1 2.2M22 3l-1.1 2.2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command-Line Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Package
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lagga.step1.step1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lagga.step2.step2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step2
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lagga.step1.step1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lagga.step2.step2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step2
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="documentation-for-lagga-python-api">Documentation for lagga Python API</h1>
+<p><code>lagga</code> exports two functions which can be used in place of the recommended command line workflow:</p>
+<hr />
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="lagga.step1.step1" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">lagga</span><span class="o">.</span><span class="n">step1</span><span class="o">.</span><span class="n">step1</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">train_mask</span><span class="p">,</span> <span class="n">test_mask</span><span class="p">,</span> <span class="n">h2_prior</span><span class="p">,</span> <span class="n">trait_type</span><span class="p">,</span> <span class="n">loocv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">B</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">idx_sample</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">variants</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">level0_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Perform lagga step 1</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>datasets</code>
+            </td>
+            <td>
+                  <code><autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>list</autoref>[<autoref identifier="lanctools.LancData" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>LancData</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A list of LancData objects (either single object or one
+per-chromosome)</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>Y</code>
+            </td>
+            <td>
+                  <code><autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, P) jax array of phenotypes</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>X</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>Optional</autoref>[<autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, C) jax array of covariates (no intercept)</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>train_mask</code>
+            </td>
+            <td>
+                  <code><autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, K) jax array indicating training set status for each set k in 1, ..., K</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>test_mask</code>
+            </td>
+            <td>
+                  <code><autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, K) jax array indicating test set status for each set k in 1, ..., K</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>h2_prior</code>
+            </td>
+            <td>
+                  <code><autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A 1D jax array of prior values for snp heritability</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>trait_type</code>
+            </td>
+            <td>
+                  <code><autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>str</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Either "qt" or "bt"</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>loocv</code>
+            </td>
+            <td>
+                  <code><autoref identifier="bool" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>bool</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A boolean indicating whether to perform LOOCV instead of standard
+cross validation. Ignored for trait_type="qt".</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>B</code>
+            </td>
+            <td>
+                  <code><autoref identifier="int" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>int</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of variants per block</p>
+              </div>
+            </td>
+            <td>
+                  <code>2000</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>idx_sample</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>Optional</autoref>[<autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>ArrayLike</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional (N_sub,) jax array with indices of samples to include</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>variants</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>Optional</autoref>[<autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>list</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>str</autoref>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A list of variant IDs to include in the analysis. If not provided, all variants are used</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>level0_dir</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional hover>Optional</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step1.step1" optional>str</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The directory where level 0 predictions are written</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><autoref identifier="dict" backlink-type="returned-by" backlink-anchor="lagga.step1.step1" optional>dict</autoref>[<autoref identifier="str" backlink-type="returned-by" backlink-anchor="lagga.step1.step1" optional>str</autoref>, <autoref identifier="numpy.typing.NDArray" backlink-type="returned-by" backlink-anchor="lagga.step1.step1" optional hover>NDArray</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/lagga/step1.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step1</span><span class="p">(</span>
+    <span class="n">datasets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LancData</span><span class="p">],</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">],</span>
+    <span class="n">train_mask</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">test_mask</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h2_prior</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">trait_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">loocv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">B</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2000</span><span class="p">,</span>
+    <span class="n">idx_sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">variants</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">level0_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">NDArray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform lagga step 1</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        datasets: A list of LancData objects (either single object or one</span>
+<span class="sd">            per-chromosome)</span>
+<span class="sd">        Y: A (N, P) jax array of phenotypes</span>
+<span class="sd">        X: A (N, C) jax array of covariates (no intercept)</span>
+<span class="sd">        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K</span>
+<span class="sd">        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K</span>
+<span class="sd">        h2_prior: A 1D jax array of prior values for snp heritability</span>
+<span class="sd">        trait_type: Either &quot;qt&quot; or &quot;bt&quot;</span>
+<span class="sd">        loocv: A boolean indicating whether to perform LOOCV instead of standard</span>
+<span class="sd">            cross validation. Ignored for trait_type=&quot;qt&quot;.</span>
+<span class="sd">        B: The number of variants per block</span>
+<span class="sd">        idx_sample: An optional (N_sub,) jax array with indices of samples to include</span>
+<span class="sd">        variants: A list of variant IDs to include in the analysis. If not provided, all variants are used</span>
+<span class="sd">        level0_dir: The directory where level 0 predictions are written</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">level0_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span>
+        <span class="n">level0_dir</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">level0_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">level0_files</span> <span class="o">=</span> <span class="n">level0</span><span class="p">(</span>
+        <span class="n">datasets</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">train_mask</span><span class="p">,</span>
+        <span class="n">test_mask</span><span class="p">,</span>
+        <span class="n">h2_prior</span><span class="p">,</span>
+        <span class="n">B</span><span class="p">,</span>
+        <span class="n">idx_sample</span><span class="p">,</span>
+        <span class="n">variants</span><span class="p">,</span>
+        <span class="n">level0_dir</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">step1_predictions</span> <span class="o">=</span> <span class="n">level1</span><span class="p">(</span>
+        <span class="n">level0_files</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">train_mask</span><span class="p">,</span> <span class="n">test_mask</span><span class="p">,</span> <span class="n">h2_prior</span><span class="p">,</span> <span class="n">trait_type</span><span class="p">,</span> <span class="n">loocv</span>
+    <span class="p">)</span>
+
+    <span class="c1">## Cleanup</span>
+    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">level0_files</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">level0_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">level0_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">rmdir</span><span class="p">(</span><span class="n">level0_dir</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">step1_predictions</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="lagga.step2.step2" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">lagga</span><span class="o">.</span><span class="n">step2</span><span class="o">.</span><span class="n">step2</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">step1_predictions</span><span class="p">,</span> <span class="n">out_prefixes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">trait_type</span><span class="o">=</span><span class="s1">&#39;qt&#39;</span><span class="p">,</span> <span class="n">test_type</span><span class="o">=</span><span class="s1">&#39;score&#39;</span><span class="p">,</span> <span class="n">B</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">min_ac</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">idx_sample</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">variants</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">adjust_lanc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Perform lagga step 2</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>datasets</code>
+            </td>
+            <td>
+                  <code><autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>list</autoref>[<autoref identifier="lanctools.LancData" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>LancData</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A list of LancData objects (either single object or one
+per-chromosome)</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>Y</code>
+            </td>
+            <td>
+                  <code><autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>ArrayLike</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, P) jax array of outcomes</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>X</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>Optional</autoref>[<autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>ArrayLike</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A (N, C) jax array of covariates</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>step1_predictions</code>
+            </td>
+            <td>
+                  <code><autoref identifier="dict" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>dict</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref>, <autoref identifier="numpy.ndarray" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>ndarray</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>out_prefixes</code>
+            </td>
+            <td>
+                  <code><autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>list</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>phenotypes</code>
+            </td>
+            <td>
+                  <code><autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>list</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A list of phenotype names</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>trait_type</code>
+            </td>
+            <td>
+                  <code><autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>either "qt" or "bt"</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;qt&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>B</code>
+            </td>
+            <td>
+                  <code><autoref identifier="int" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>int</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The block size (max number of variants to read at once)</p>
+              </div>
+            </td>
+            <td>
+                  <code>1000</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_ac</code>
+            </td>
+            <td>
+                  <code><autoref identifier="int" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>int</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the minimum allele count threshold</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>idx_sample</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>Optional</autoref>[<autoref identifier="jaxtyping.ArrayLike" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>ArrayLike</autoref>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional numpy array with ordered indices of samples (in
+the psam file) to retain</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>variants</code>
+            </td>
+            <td>
+                  <code><autoref identifier="typing.Optional" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional hover>Optional</autoref>[<autoref identifier="list" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>list</autoref>[<autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional list of variant IDs to retain</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>adjust_lanc</code>
+            </td>
+            <td>
+                  <code><autoref identifier="bool" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>bool</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A boolean indicating whether to adjust tests for local ancestry</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>test_type</code>
+            </td>
+            <td>
+                  <code><autoref identifier="str" backlink-type="used-by" backlink-anchor="lagga.step2.step2" optional>str</autoref></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Either "score" or "wald"</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;score&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/lagga/step2.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step2</span><span class="p">(</span>
+    <span class="n">datasets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LancData</span><span class="p">],</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">],</span>
+    <span class="n">step1_predictions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+    <span class="n">out_prefixes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">phenotypes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">trait_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;qt&quot;</span><span class="p">,</span>
+    <span class="n">test_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span>
+    <span class="n">B</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="n">min_ac</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">idx_sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ArrayLike</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">variants</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">adjust_lanc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform lagga step 2</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        datasets: A list of LancData objects (either single object or one</span>
+<span class="sd">            per-chromosome)</span>
+<span class="sd">        Y: A (N, P) jax array of outcomes</span>
+<span class="sd">        X: A (N, C) jax array of covariates</span>
+<span class="sd">        step1_predictions: A dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays</span>
+<span class="sd">        out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet</span>
+<span class="sd">        phenotypes: A list of phenotype names</span>
+<span class="sd">        trait_type: either &quot;qt&quot; or &quot;bt&quot;</span>
+<span class="sd">        B: The block size (max number of variants to read at once)</span>
+<span class="sd">        min_ac: the minimum allele count threshold</span>
+<span class="sd">        idx_sample: An optional numpy array with ordered indices of samples (in</span>
+<span class="sd">            the psam file) to retain</span>
+<span class="sd">        variants: An optional list of variant IDs to retain</span>
+<span class="sd">        adjust_lanc: A boolean indicating whether to adjust tests for local ancestry</span>
+<span class="sd">        test_type: Either &quot;score&quot; or &quot;wald&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">jnp</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">Y</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">idx_sample</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">trait</span> <span class="o">=</span> <span class="n">validate_step2_inputs</span><span class="p">(</span>
+        <span class="n">datasets</span><span class="p">,</span>
+        <span class="n">Y</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">step1_predictions</span><span class="p">,</span>
+        <span class="n">out_prefixes</span><span class="p">,</span>
+        <span class="n">B</span><span class="p">,</span>
+        <span class="n">idx_sample</span><span class="p">,</span>
+        <span class="n">variants</span><span class="p">,</span>
+        <span class="n">test_type</span><span class="p">,</span>
+        <span class="n">trait_type</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">trait_type</span><span class="p">:</span> <span class="n">TraitType</span> <span class="o">=</span> <span class="n">trait</span>
+    <span class="c1">## Adjust phenotype for covariates to match step 1</span>
+    <span class="k">if</span> <span class="n">trait_type</span> <span class="o">==</span> <span class="n">TraitType</span><span class="o">.</span><span class="n">QT</span><span class="p">:</span>
+        <span class="n">Q</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">qr</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;reduced&quot;</span><span class="p">)</span>
+        <span class="n">Y</span> <span class="o">=</span> <span class="n">stdize</span><span class="p">(</span><span class="n">Y</span> <span class="o">-</span> <span class="p">(</span><span class="n">Q</span> <span class="o">@</span> <span class="p">(</span><span class="n">Q</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Y</span><span class="p">)))</span>
+
+    <span class="c1">## Adjust covariates for per-phenotype missingness</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">M</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+        <span class="n">M</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">X</span> <span class="o">*</span> <span class="n">M</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">datasets</span><span class="p">):</span>
+        <span class="n">pgen_path</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">plink_prefix</span> <span class="o">+</span> <span class="s2">&quot;.pgen&quot;</span>
+        <span class="n">desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Getting step 2 results for file: </span><span class="si">{</span><span class="n">pgen_path</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">_step2_dataset</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">Y</span><span class="p">,</span>
+            <span class="n">M</span><span class="p">,</span>
+            <span class="n">step1_predictions</span><span class="p">,</span>
+            <span class="n">X</span><span class="p">,</span>
+            <span class="n">idx_sample</span><span class="p">,</span>
+            <span class="n">out_prefixes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="n">phenotypes</span><span class="p">,</span>
+            <span class="n">trait</span><span class="p">,</span>
+            <span class="n">test</span><span class="p">,</span>
+            <span class="n">desc</span><span class="p">,</span>
+            <span class="n">B</span><span class="p">,</span>
+            <span class="n">min_ac</span><span class="p">,</span>
+            <span class="n">variants</span><span class="p">,</span>
+            <span class="n">adjust_lanc</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../cli/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Command-Line Interface">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Command-Line Interface
+              </div>
+            </div>
+          </a>
+        
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Franklin Ockerman
+
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.indexes","navigation.instant","navigation.instant.prefetch","navigation.path","navigation.sections","navigation.top","navigation.tracking","search.highlight"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.8ffeb9c9.min.js"></script>
+      
+    
+  </body>
+</html>

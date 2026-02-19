@@ -20,12 +20,12 @@ tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
 Tools like Tractor, Tractor-Mix, and SAIGE-Tractor address this gap. **lagga** follows the same
-conceptual approach-performing single-variant association tests with explicit
-local ancestry adjustment-but combines it with:
+conceptual approach—performing single-variant association tests with explicit
+local ancestry adjustment—and combines it with:
 
 - **Accelerated linear algebra** via [JAX](https://docs.jax.dev)
 - **CUDA GPU, TPU, or CPU support** for flexible compute environments
-- **Efficient local ancestry queries** using [lanctools](https://github.com/frankp-0/lanctools)
+- **Efficient local ancestry queries** using [lanctools](https://lanctools.readthedocs.io/)
 - **Multi-phenotype** modeling
 - **Adjustment for sample relatedness**
 

@@ -5,7 +5,8 @@ in admixed individuals. Like [regenie](https://rgcgithub.github.io/regenie),
 **lagga** uses whole-genome regression to capture polygenic effects and correct
 for cryptic relatedness. Like [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/),
 **lagga** then calculates ancestry-specific effect estimates, conditioned
-on local ancestry. We describe this two-step process in greater detail below.
+on local ancestry and whole-genome predictions. This two-step procedure is
+described in greater detail below.
 
 ```mermaid
 flowchart TB 
@@ -51,3 +52,64 @@ class C1,C2 pheno;
 class F loco;
 class D,E,H lagga;
 ```
+
+## lagga
+
+### Step 1: whole-genome regression
+
+Step 1 of **lagga** closely follows the approach taken in **regenie**.
+The goal here is to calculate leave-one-chromosome-out polygenic
+scores using a reasonable subset of genetic markers. This is accomplished using
+two layers of ridge regression. In the level 0 ridge regression, separate
+regressions are performed using blocks of consecutive markers. This accounts
+for linkage disequilibrium within blocks and yields a reduced set of genetic
+predictors. In the level 1 ridge regression, the level 0 predictors are used
+to calculate cross-validated whole-genome LOCO predictions for each phenotype.
+
+
+#### Level 0 ridge regression
+
+```mermaid
+flowchart TB
+
+    GENOME["Set of M common variants"]
+    PREDS[" "]
+    PRED["(N, 5M/B) matrix of predictors"]
+    GENOME ==> |Divide genome into blocks of size B| BLOCKS ==> |Per-block regressions for 5 penalties| PREDS ==> PRED
+
+    subgraph BLOCKS[" "]
+        direction LR
+        A[Block 1]
+        B[Block 2]
+        C[...]
+        D[Block M/B]
+
+        A --- B
+        B --- C
+        C --- D
+    end
+
+    subgraph PREDS[" "]
+        direction LR
+        E["Block 1 predictions"]
+        F["Block 2 predictions"]
+        G[...]
+        H["Block M/B predictions"]
+
+        E --- F
+        F --- G
+        G --- H
+    end
+
+    linkStyle 3 stroke-width:0px;
+    linkStyle 4 stroke-width:0px;
+    linkStyle 5 stroke-width:0px;
+    linkStyle 6 stroke-width:0px;
+    linkStyle 7 stroke-width:0px;
+    linkStyle 8 stroke-width:0px;
+
+```
+
+#### Level 1 ridge regression
+
+### Step 2: single-variant tests
