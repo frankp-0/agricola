@@ -92,52 +92,53 @@ def _step2_block(
         N_eff = jnp.sum(M, axis=0)
         G = adjust_G(G, M, N_eff)
         L = adjust_G(L, M, N_eff)
+        func_map = {
+            (TraitType.QT, TestType.SCORE, True): (
+                qt_score_lanc,
+                lambda: (G, L, Y, Q, N_eff),
+            ),
+            (TraitType.QT, TestType.WALD, True): (
+                qt_wald_lanc,
+                lambda: (G, L, Y, Q, N_eff),
+            ),
+            (TraitType.BT, TestType.SCORE, True): (
+                bt_score_lanc,
+                lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
+            ),
+            (TraitType.BT, TestType.WALD, True): (
+                bt_wald_lanc,
+                lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
+            ),
+        }
     else:
         G = get_geno_deconv(dataset, block)
         if idx_sample is not None:
             G = G[idx_sample]
         N_eff = jnp.sum(M, axis=0)
         G = adjust_G(G, M, N_eff)
+        func_map = {
+            (TraitType.QT, TestType.SCORE, False): (
+                qt_score_nolanc,
+                lambda: (G, Y, Q, N_eff),
+            ),
+            (TraitType.QT, TestType.WALD, False): (
+                qt_wald_nolanc,
+                lambda: (G, Y, Q, N_eff),
+            ),
+            (TraitType.BT, TestType.SCORE, False): (
+                bt_score_nolanc,
+                lambda: (G, Y, Q, extra_args["O"], M, N_eff),
+            ),
+            (TraitType.BT, TestType.WALD, False): (
+                bt_wald_nolanc,
+                lambda: (G, Y, Q, extra_args["O"], M, N_eff),
+            ),
+        }
 
     ## Filter variants with low ac
     ac = (G * M[:, None, None, :]).sum(axis=0)
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     valid_idx = np.array(ac_variant_mask)
-
-    func_map = {
-        (TraitType.QT, TestType.SCORE, True): (
-            qt_score_lanc,
-            lambda: (G, L, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.SCORE, False): (
-            qt_score_nolanc,
-            lambda: (G, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, True): (
-            qt_wald_lanc,
-            lambda: (G, L, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, False): (
-            qt_wald_nolanc,
-            lambda: (G, Y, Q, N_eff),
-        ),
-        (TraitType.BT, TestType.SCORE, True): (
-            bt_score_lanc,
-            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.BT, TestType.SCORE, False): (
-            bt_score_nolanc,
-            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.BT, TestType.WALD, True): (
-            bt_wald_lanc,
-            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.BT, TestType.WALD, False): (
-            bt_wald_nolanc,
-            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-        ),
-    }
 
     test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
     chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
