@@ -176,7 +176,9 @@ def _step2_block(
         pd.concat(
             [
                 block_info[valid_idx[:, i]].reset_index(drop=True),
-                pd.DataFrame(data=result_arr[valid_idx[:, i], :, i], columns=colnames),  # pyright: ignore
+                pd.DataFrame(
+                    data=result_arr[valid_idx[:, i], :, i], columns=pd.Index(colnames)
+                ),
             ],
             axis=1,
         )
@@ -248,7 +250,7 @@ def _step2_dataset(
     for p in out_paths:
         p.parent.mkdir(parents=True, exist_ok=True)
 
-    writers = [None] * len(phenotypes)
+    writers: list[Optional[pq.ParquetWriter]] = [None] * len(phenotypes)
     schemas = [None] * len(phenotypes)
 
     ## Perform step 2 for each chromosome and block
@@ -295,16 +297,21 @@ def _step2_dataset(
                     extra_args,
                     adjust_lanc,
                 )
+
                 for i, df in enumerate(result_dfs):
                     table = pa.Table.from_pandas(df, preserve_index=False)
-                    if writers[i] is None:
-                        writers[i] = pq.ParquetWriter(out_paths[i], table.schema)  # pyright: ignore
+
+                    writer = writers[i]
+
+                    if writer is None:
+                        writer = pq.ParquetWriter(out_paths[i], table.schema)
+                        writers[i] = writer
                         schemas[i] = table.schema
                     else:
                         table = pa.Table.from_pandas(
                             df, schema=schemas[i], preserve_index=False
                         )
-                    writers[i].write_table(table)  # pyright: ignore
+                    writer.write_table(table)
                 pbar.update(1)
 
 
@@ -344,7 +351,7 @@ def step2(
     """
     M = (~jnp.isnan(Y)).astype(jnp.float32)
 
-    Y, X, idx_sample, test, trait = validate_step2_inputs(
+    Y, X, idx_sample, test_type_enum, trait_type_enum = validate_step2_inputs(
         datasets,
         Y,
         X,
@@ -357,9 +364,8 @@ def step2(
         trait_type,
     )
 
-    trait_type: TraitType = trait
     ## Adjust phenotype for covariates to match step 1
-    if trait_type == TraitType.QT:
+    if trait_type_enum == TraitType.QT:
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
 
@@ -381,8 +387,8 @@ def step2(
             idx_sample,
             out_prefixes[i],
             phenotypes,
-            trait,
-            test,
+            trait_type_enum,
+            test_type_enum,
             desc,
             B,
             min_ac,
