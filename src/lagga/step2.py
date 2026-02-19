@@ -89,6 +89,7 @@ def _step2_block(
         if idx_sample is not None:
             G = G[idx_sample]
             L = L[idx_sample]
+        ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
         N_eff = jnp.sum(M, axis=0)
         G = adjust_G(G, M, N_eff)
         L = adjust_G(L, M, N_eff)
@@ -115,6 +116,7 @@ def _step2_block(
         if idx_sample is not None:
             G = G[idx_sample]
         N_eff = jnp.sum(M, axis=0)
+        ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
         G = adjust_G(G, M, N_eff)
         func_map = {
             (TraitType.QT, TestType.SCORE, False): (
@@ -136,7 +138,6 @@ def _step2_block(
         }
 
     ## Filter variants with low ac
-    ac = (G * M[:, None, None, :]).sum(axis=0)
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     valid_idx = np.array(ac_variant_mask)
 
