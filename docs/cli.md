@@ -6,18 +6,6 @@ The whole-genome regression and single variant tests can be performed in
 
 ---
 
-## Workflow Overview
-```mermaid
-flowchart LR
-  A[plink2 files
-.lanc files
-phenotype file]
-  B[Step 1: Whole-genome regression]
-   C[Step 2: Variant inference]
-  A --> B --> C
-```
-
-
 ## Basic Usage
 
 To get help, use the `--help` flag:

@@ -4,7 +4,7 @@ icon: lucide/snail
 
 # lagga
 
-**lagga** is a Python package and command-line tool for conducting **genome-wide
+**lagga** is a command-line tool and Python package for conducting **genome-wide
 association studies (GWAS) in admixed populations**. Inspired by [regenie](https://rgcgithub.github.io/regenie)
 and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **lagga**
 provides a scalable, local-ancestry–aware framework that handles relatedness, population
@@ -19,7 +19,7 @@ improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
-Tools like Tractor and SAIGE-Tractor address this gap. **lagga** follows the same
+Tools like Tractor, Tractor-Mix, and SAIGE-Tractor address this gap. **lagga** follows the same
 conceptual approach-performing single-variant association tests with explicit
 local ancestry adjustment-but combines it with:
 
