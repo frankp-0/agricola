@@ -83,9 +83,17 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 | `--plink-list` | TEXT | optional | File containing plink2 prefixes, one per line |
 | `--lanc-file` | TEXT | optional | Local ancestry .lanc file. This option can be repeated to specify multiple files |
 | `--lanc-list` | TEXT | optional | File containing .lanc file paths, one per line |
+| `--ancestries` | TEXT | optional | Ancestry names, comma-separated and ordered as in .lanc files |
 | `--pheno-file` | TEXT | required | Phenotype file |
-| `--ancestries` | TEXT | optional | Ancesry names, comma-separated and ordered as in .lanc files |
+| `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option
+can be repeated to specify multiple files or omitted to use all phenotypes |
+| `--pheno-list` | TEXT | optional | File containing phenotypes to include in
+the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--covar-file` | TEXT | optional | Covariates file |
+| `--covar` | TEXT | optional | Covariate to include in the analysis. This option
+can be repeated to specify multiple files or omitted to use all covariates |
+| `--covar-list` | TEXT | optional | File containing covariates to include in
+the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 
@@ -100,8 +108,12 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
     Plink2 and .lanc files must match, meaning you must provide the same number
     of plink2/.lanc files in the same order.
 
+!!! warning
+
     Either `--plink-prefix` or `--plink-list` must be provided, but not both.
-    The same applies to `--lanc-file` and `--lanc-list`
+    The same applies to `--lanc-file` and `--lanc-list`. For `--pheno` and
+    `--pheno-list` and `--covar` and `--covar-list`, either one may be provided
+    or neither (to use all phenotypes/covariates).
 
 ### Step 1 Options
 

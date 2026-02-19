@@ -895,22 +895,70 @@ lagga<span class="w"> </span>step2<span class="w"> </span><span class="se">\</sp
 <td>File containing .lanc file paths, one per line</td>
 </tr>
 <tr>
+<td><code>--ancestries</code></td>
+<td>TEXT</td>
+<td>optional</td>
+<td>Ancestry names, comma-separated and ordered as in .lanc files</td>
+</tr>
+<tr>
 <td><code>--pheno-file</code></td>
 <td>TEXT</td>
 <td>required</td>
 <td>Phenotype file</td>
 </tr>
 <tr>
-<td><code>--ancestries</code></td>
+<td><code>--pheno</code></td>
 <td>TEXT</td>
 <td>optional</td>
-<td>Ancesry names, comma-separated and ordered as in .lanc files</td>
+<td>Phenotype to include in the analysis. This option</td>
+</tr>
+<tr>
+<td>can be repeated to specify multiple files or omitted to use all phenotypes</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pheno-list</code></td>
+<td>TEXT</td>
+<td>optional</td>
+<td>File containing phenotypes to include in</td>
+</tr>
+<tr>
+<td>the analysis, one per line. This option can be omitted to use all phenotypes</td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td><code>--covar-file</code></td>
 <td>TEXT</td>
 <td>optional</td>
 <td>Covariates file</td>
+</tr>
+<tr>
+<td><code>--covar</code></td>
+<td>TEXT</td>
+<td>optional</td>
+<td>Covariate to include in the analysis. This option</td>
+</tr>
+<tr>
+<td>can be repeated to specify multiple files or omitted to use all covariates</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>--covar-list</code></td>
+<td>TEXT</td>
+<td>optional</td>
+<td>File containing covariates to include in</td>
+</tr>
+<tr>
+<td>the analysis, one per line. This option can be omitted to use all phenotypes</td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td><code>--samples-file</code></td>
@@ -935,8 +983,13 @@ E.g., <code>--plink-prefix tests/data/chr20 --plink-prefix tests/data/chr21 --pl
 <p class="admonition-title">Warning</p>
 <p>Plink2 and .lanc files must match, meaning you must provide the same number
 of plink2/.lanc files in the same order.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Either <code>--plink-prefix</code> or <code>--plink-list</code> must be provided, but not both.
-The same applies to <code>--lanc-file</code> and <code>--lanc-list</code></p>
+The same applies to <code>--lanc-file</code> and <code>--lanc-list</code>. For <code>--pheno</code> and
+<code>--pheno-list</code> and <code>--covar</code> and <code>--covar-list</code>, either one may be provided
+or neither (to use all phenotypes/covariates).</p>
 </div>
 <h3 id="step-1-options">Step 1 Options</h3>
 <p>These are the non-global options for <code>step1</code>:</p>

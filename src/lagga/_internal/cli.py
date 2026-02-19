@@ -126,7 +126,13 @@ def read_pheno_covar(path) -> DataFrame:
 
 
 def load_pheno_and_covars(
-    pheno_file: str, covar_file: Optional[str], samples_sub: list[str]
+    pheno_file: str,
+    covar_file: Optional[str],
+    pheno: Optional[list[str]],
+    pheno_list: Optional[str],
+    covar: Optional[list[str]],
+    covar_list: Optional[str],
+    samples_sub: list[str],
 ) -> tuple[Array, Optional[Array], list[str], list[str]]:
     import pandas as pd
     import jax.numpy as jnp
@@ -135,6 +141,27 @@ def load_pheno_and_covars(
     samples_pheno = df_pheno["IID"].astype(str).to_list()
 
     samples: list[str] = [sample for sample in samples_sub if sample in samples_pheno]
+
+    if pheno_list is not None and pheno is not None:
+        raise ValueError("Only one of pheno and pheno_list may be provided")
+    if covar_list is not None and covar is not None:
+        raise ValueError("Only one of covar and covar_list may be provided")
+
+    if pheno_list is not None:
+        with open("tests/phenos.txt", "r") as f:
+            phenotypes = [p.strip() for p in f]
+    elif pheno is not None:
+        phenotypes = pheno
+    else:
+        phenotypes = None
+
+    if covar_list is not None:
+        with open("tests/covars.txt", "r") as f:
+            covariates = [p.strip() for p in f]
+    elif covar is not None:
+        covariates = covar
+    else:
+        covariates = None
 
     if covar_file:
         df_covar = read_pheno_covar(covar_file).dropna()
@@ -146,6 +173,8 @@ def load_pheno_and_covars(
             df_covar["IID"], categories=samples, ordered=True
         )
         df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore
+        if covariates is not None:
+            df_covar = df_covar[["IID"] + covariates]
         X = jnp.asarray(
             df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
         )
@@ -156,6 +185,9 @@ def load_pheno_and_covars(
     df_pheno["IID"] = df_pheno["IID"].astype(str)
     df_pheno["IID"] = pd.Categorical(df_pheno["IID"], categories=samples, ordered=True)
     df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)  # pyright: ignore
+
+    if phenotypes is not None:
+        df_pheno = df_pheno[["IID"] + phenotypes]
 
     Y = jnp.asarray(
         df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
@@ -290,7 +322,19 @@ def step1(
         ..., help="Step 1 predictions will be serialized and written to prefix.pkl"
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
+    pheno: Optional[list[str]] = typer.Option(
+        None, help="Phenotype to include in analysis"
+    ),
+    pheno_list: Optional[str] = typer.Option(
+        None, help="File containing phenotypes to include in analysis"
+    ),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
+    covar: Optional[list[str]] = typer.Option(
+        None, help="Covariate to include in analysis"
+    ),
+    covar_list: Optional[str] = typer.Option(
+        None, help="File containing covariates to include in analysis"
+    ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
@@ -321,7 +365,9 @@ def step1(
     variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
     samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, _, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
+    Y, X, _, samples = load_pheno_and_covars(
+        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+    )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
@@ -405,7 +451,19 @@ def step2(
         ),
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
+    pheno: Optional[list[str]] = typer.Option(
+        None, help="Phenotype to include in analysis"
+    ),
+    pheno_list: Optional[str] = typer.Option(
+        None, help="File containing phenotypes to include in analysis"
+    ),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
+    covar: Optional[list[str]] = typer.Option(
+        None, help="Covariate to include in analysis"
+    ),
+    covar_list: Optional[str] = typer.Option(
+        None, help="File containing covariates to include in analysis"
+    ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
@@ -444,7 +502,9 @@ def step2(
     variants = load_variants(variant_file)
     samples, samples_psam = load_samples(plinks, samples_file)
 
-    Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
+    Y, X, pheno_names, samples = load_pheno_and_covars(
+        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+    )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Load step1 predictions
@@ -507,7 +567,19 @@ def all_steps(
         None, help="Ordered ancestry names, comma-separated"
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
+    pheno: Optional[list[str]] = typer.Option(
+        None, help="Phenotype to include in analysis"
+    ),
+    pheno_list: Optional[str] = typer.Option(
+        None, help="File containing phenotypes to include in analysis"
+    ),
     covar_file: Optional[str] = typer.Option(None, help="Covariates file"),
+    covar: Optional[list[str]] = typer.Option(
+        None, help="Covariate to include in analysis"
+    ),
+    covar_list: Optional[str] = typer.Option(
+        None, help="File containing covariates to include in analysis"
+    ),
     out_prefix: Optional[list[str]] = typer.Option(
         None,
         help=(
@@ -582,7 +654,9 @@ def all_steps(
         outs = out_prefix
 
     samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, pheno_names, samples = load_pheno_and_covars(pheno_file, covar_file, samples)
+    Y, X, pheno_names, samples = load_pheno_and_covars(
+        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+    )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
