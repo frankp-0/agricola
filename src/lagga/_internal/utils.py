@@ -109,3 +109,24 @@ def get_geno_lanc_deconv(
     geno_masked = left_haps_mask * geno[:, :, 0:1] + right_haps_mask * geno[:, :, 1:2]
     lanc_masked = left_haps_mask + right_haps_mask
     return geno_masked, lanc_masked
+
+
+def get_geno_deconv(dataset: LancData, indices: NDArray[np.uint32]) -> Array:
+    """Queries ancestry-masked genotypes.
+
+    Args:
+        dataset: A LancData object
+        indices: A (V,) jax array of (ascending ordered) variant indices
+
+    Returns:
+        A (N, V, K) jax array of genotypes masked by K local ancestries. E.g.
+            geno_masked[:,0,1] = sum of haplotypes with ancestry 1 and an
+            alternative allele at variant index 0.
+    """
+    geno = jnp.asarray(dataset.get_geno(indices))
+    lanc = jnp.asarray(dataset.get_lanc(indices))
+    ancestries = jnp.arange(len(dataset.ancestries))
+    left_haps_mask = (lanc[:, :, 0:1] == ancestries[None, None, :]).astype(np.int32)
+    right_haps_mask = (lanc[:, :, 1:2] == ancestries[None, None, :]).astype(np.int32)
+    geno_masked = left_haps_mask * geno[:, :, 0:1] + right_haps_mask * geno[:, :, 1:2]
+    return geno_masked

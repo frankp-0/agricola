@@ -51,7 +51,7 @@ def _level0_block(
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
     ## Standardize genotype block and residualize by covariates
-    G, _ = get_geno_lanc_deconv(dataset, block)
+    G = jnp.asarray(dataset.get_geno(block))
     if idx_sample is not None:
         G = G[idx_sample]
     G = G[:, :, 0] + G[:, :, 1]

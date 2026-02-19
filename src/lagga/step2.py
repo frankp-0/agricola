@@ -21,7 +21,13 @@ import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from lanctools import LancData
-from ._internal.utils import stdize, get_geno_lanc_deconv, TestType, TraitType
+from ._internal.utils import (
+    stdize,
+    get_geno_lanc_deconv,
+    get_geno_deconv,
+    TestType,
+    TraitType,
+)
 from ._internal.step2_stats import (
     qt_score_lanc,
     qt_score_nolanc,
@@ -67,20 +73,6 @@ def _step2_block(
         extra_args: A dict containing extra arguments needed for trait_type="bt"
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
     """
-    G, L = get_geno_lanc_deconv(dataset, block)
-    L = L[:, :, 1:]
-
-    if idx_sample is not None:
-        G = G[idx_sample]
-        L = L[idx_sample]
-
-    ## Filter variants with low ac
-    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-    ac_variant_mask = ac.sum(axis=1) >= min_ac
-    valid_idx = np.array(ac_variant_mask)
-
-    ## Adjust G, L for missingness
-    N_eff = jnp.sum(M, axis=0)
 
     @jit
     def adjust_G(G, M, N_eff):
@@ -91,8 +83,26 @@ def _step2_block(
         G = G * M[:, None, None, :]
         return G
 
-    G = adjust_G(G, M, N_eff)
-    L = adjust_G(L, M, N_eff)
+    if adjust_lanc:
+        G, L = get_geno_lanc_deconv(dataset, block)
+        L = L[:, :, 1:]
+        if idx_sample is not None:
+            G = G[idx_sample]
+            L = L[idx_sample]
+        N_eff = jnp.sum(M, axis=0)
+        G = adjust_G(G, M, N_eff)
+        L = adjust_G(L, M, N_eff)
+    else:
+        G = get_geno_deconv(dataset, block)
+        if idx_sample is not None:
+            G = G[idx_sample]
+        N_eff = jnp.sum(M, axis=0)
+        G = adjust_G(G, M, N_eff)
+
+    ## Filter variants with low ac
+    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    ac_variant_mask = ac.sum(axis=1) >= min_ac
+    valid_idx = np.array(ac_variant_mask)
 
     func_map = {
         (TraitType.QT, TestType.SCORE, True): (
