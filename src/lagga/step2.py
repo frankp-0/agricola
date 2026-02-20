@@ -240,7 +240,10 @@ def _step2_dataset(
     chromosomes = [
         dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
     ]
-    chroms = list(set(chromosomes))  # unique chromosomes
+    chr_seen = set()
+    chroms = [
+        chrom for chrom in chromosomes if not (chrom in chr_seen or chr_seen.add(chrom))
+    ]
     n_blocks = sum(
         (len([c for c in chromosomes if c == chrom]) + B - 1) // B for chrom in chroms
     )

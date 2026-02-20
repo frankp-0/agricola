@@ -133,7 +133,12 @@ def level0(
         idx_variant = np.sort(idx_variant)
 
         chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
-        chroms = list(set(chromosomes))
+        chr_seen = set()
+        chroms = [
+            chrom
+            for chrom in chromosomes
+            if not (chrom in chr_seen or chr_seen.add(chrom))
+        ]
         for chrom in chroms:
             idx_chrom = np.array(
                 [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
