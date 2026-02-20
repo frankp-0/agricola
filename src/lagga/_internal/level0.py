@@ -31,6 +31,7 @@ def _level0_block(
     idx_sample: Optional[Array],
     block: NDArray,
     h2_prior: Array,
+    M: int,
 ) -> NDArray:
     """Get level 0 predictions for a single block
 
@@ -53,8 +54,7 @@ def _level0_block(
     G = stdize(G - (Q @ (Q.T @ G)))
 
     ## Calculate penalties based on prior heritability
-    B = G.shape[1]
-    alphas = B * (1 - h2_prior) / h2_prior
+    alphas = M * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
     ridge_beta = ridge(G, Y, jnp.ones(shape=(Y.shape[0])), alphas)
@@ -107,6 +107,14 @@ def level0(
 
     os.makedirs(level0_dir, exist_ok=True)
 
+    ## get M
+    if variants is not None:
+        M = len(variants)
+    else:
+        M = 0
+        for ds in datasets:
+            M += ds.pvar.get_variant_ct()
+
     level0_files = {}
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
@@ -144,7 +152,7 @@ def level0(
             col0 = 0
             with tqdm(total=n_blocks, desc=f"{desc} chr{chrom}", unit="block") as pbar:
                 for block in blocks:
-                    Z_block = _level0_block(ds, Y, Q, idx_sample, block, h2_prior)
+                    Z_block = _level0_block(ds, Y, Q, idx_sample, block, h2_prior, M)
 
                     Z[:, :, col0 : col0 + K] = Z_block
                     col0 += K
