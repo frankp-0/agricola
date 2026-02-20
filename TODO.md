@@ -3,7 +3,8 @@
 ## To Do
 
 ### Package
-- [ ] Report anc-specific allele counts
+- [ ] refit step 1 model after selecting best CV param
+- [ ] don't use masks in level 0
 - [ ] Add option to specify categorical covariates and one-hot encode them
 - [ ] LRT for homogeneous vs. heterogeneous effects
 - [ ] Firth or SPA test
