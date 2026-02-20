@@ -12,14 +12,13 @@ module is the `level0` function.
 
 import os
 import tempfile
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from .utils import stdize, get_geno_lanc_deconv
+from .utils import stdize
 from .models import ridge
 from .inputs import validate_level0_inputs
 from numpy.typing import NDArray
@@ -30,8 +29,6 @@ def _level0_block(
     Y: Array,
     Q: Array,
     idx_sample: Optional[Array],
-    train_mask: Array,
-    test_mask: Array,
     block: NDArray,
     h2_prior: Array,
 ) -> NDArray:
@@ -42,8 +39,6 @@ def _level0_block(
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         block: A (B,) ndarray with indices of variants in the block
         h2_prior: A 1D jax array of prior values for snp heritability
 
@@ -62,11 +57,8 @@ def _level0_block(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge_beta = jax.vmap(ridge, in_axes=(None, None, 1, None))(
-        G, Y, train_mask, alphas
-    )
-    ridge_Z = jnp.einsum("nb,kbpa->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
-    Z_block = jnp.sum(ridge_Z, axis=1)
+    ridge_beta = ridge(G, Y, jnp.ones(shape=(Y.shape[0])), alphas)
+    Z_block = jnp.einsum("nb,bpa->npa", G, ridge_beta)
     Z_block = np.asarray(stdize(Z_block))
     return Z_block
 
@@ -75,8 +67,6 @@ def level0(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    train_mask: ArrayLike,
-    test_mask: ArrayLike,
     h2_prior: ArrayLike,
     B: int = 2000,
     idx_sample: Optional[ArrayLike] = None,
@@ -90,8 +80,6 @@ def level0(
             per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
         B: The number of variants per block
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
@@ -102,8 +90,8 @@ def level0(
         level0_files: A dict where keys are chromosomes and values are files
             containing level 0 predictions
     """
-    (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_level0_inputs(
-        datasets, Y, X, train_mask, test_mask, h2_prior, B, idx_sample, variants
+    (Y, X, h2_prior, idx_sample) = validate_level0_inputs(
+        datasets, Y, X, h2_prior, B, idx_sample, variants
     )
 
     Q, _ = jnp.linalg.qr(X, mode="reduced")
@@ -156,9 +144,7 @@ def level0(
             col0 = 0
             with tqdm(total=n_blocks, desc=f"{desc} chr{chrom}", unit="block") as pbar:
                 for block in blocks:
-                    Z_block = _level0_block(
-                        ds, Y, Q, idx_sample, train_mask, test_mask, block, h2_prior
-                    )
+                    Z_block = _level0_block(ds, Y, Q, idx_sample, block, h2_prior)
 
                     Z[:, :, col0 : col0 + K] = Z_block
                     col0 += K

@@ -16,13 +16,11 @@ def validate_level0_inputs(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    train_mask: ArrayLike,
-    test_mask: ArrayLike,
     h2_prior: ArrayLike,
     B: int = 2000,
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
-) -> tuple[Array, Array, Array, Array, Array, Optional[Array]]:
+) -> tuple[Array, Array, Array, Optional[Array]]:
     """Validate input data for level0"""
     ## genotype/lanc data
     if not isinstance(datasets, (list, tuple)):
@@ -55,20 +53,6 @@ def validate_level0_inputs(
     X = stdize(X)
     assert_covar_full_rank(X)
 
-    ## Masks
-    train_mask = jnp.asarray(train_mask)
-    test_mask = jnp.asarray(test_mask)
-    if (
-        train_mask.ndim != 2
-        or test_mask.ndim != 2
-        or train_mask.shape != test_mask.shape
-    ):
-        raise ValueError(
-            "train_mask and test_mask must be 2D (N, K) with the same shape"
-        )
-    if train_mask.shape[0] != N or test_mask.shape[0] != N:
-        raise ValueError("train_mask/test_mask must match N of Y")
-
     ## H2
     h2_prior = jnp.asarray(h2_prior)
     if h2_prior.ndim != 1:
@@ -98,7 +82,7 @@ def validate_level0_inputs(
         if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
-    return (Y, X, train_mask, test_mask, h2_prior, idx_sample)
+    return (Y, X, h2_prior, idx_sample)
 
 
 def validate_level1_inputs(
