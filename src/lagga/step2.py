@@ -83,59 +83,52 @@ def _step2_block(
         G = G * M[:, None, None, :]
         return G
 
-    if adjust_lanc:
-        G, L = get_geno_lanc_deconv(dataset, block)
-        L = L[:, :, 1:]
-        if idx_sample is not None:
-            G = G[idx_sample]
-            L = L[idx_sample]
-        ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-        N_eff = jnp.sum(M, axis=0)
-        G = adjust_G(G, M, N_eff)
-        L = adjust_G(L, M, N_eff)
-        func_map = {
-            (TraitType.QT, TestType.SCORE, True): (
-                qt_score_lanc,
-                lambda: (G, L, Y, Q, N_eff),
-            ),
-            (TraitType.QT, TestType.WALD, True): (
-                qt_wald_lanc,
-                lambda: (G, L, Y, Q, N_eff),
-            ),
-            (TraitType.BT, TestType.SCORE, True): (
-                bt_score_lanc,
-                lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-            ),
-            (TraitType.BT, TestType.WALD, True): (
-                bt_wald_lanc,
-                lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-            ),
-        }
-    else:
-        G = get_geno_deconv(dataset, block)
-        if idx_sample is not None:
-            G = G[idx_sample]
-        N_eff = jnp.sum(M, axis=0)
-        ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-        G = adjust_G(G, M, N_eff)
-        func_map = {
-            (TraitType.QT, TestType.SCORE, False): (
-                qt_score_nolanc,
-                lambda: (G, Y, Q, N_eff),
-            ),
-            (TraitType.QT, TestType.WALD, False): (
-                qt_wald_nolanc,
-                lambda: (G, Y, Q, N_eff),
-            ),
-            (TraitType.BT, TestType.SCORE, False): (
-                bt_score_nolanc,
-                lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-            ),
-            (TraitType.BT, TestType.WALD, False): (
-                bt_wald_nolanc,
-                lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-            ),
-        }
+    N_eff = jnp.sum(M, axis=0)
+    G, L = get_geno_lanc_deconv(dataset, block)
+    if idx_sample is not None:
+        G = G[idx_sample]
+        L = L[idx_sample]
+    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    lac = (L[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    af_lanc = ac / lac
+    prop_lanc = jnp.sum(L[:, :, :, None], axis=0) / N_eff[None, None, :] / 2
+    L = L[:, :, 1:]
+    G = adjust_G(G, M, N_eff)
+    L = adjust_G(L, M, N_eff)
+    func_map = {
+        (TraitType.QT, TestType.SCORE, True): (
+            qt_score_lanc,
+            lambda: (G, L, Y, Q, N_eff),
+        ),
+        (TraitType.QT, TestType.WALD, True): (
+            qt_wald_lanc,
+            lambda: (G, L, Y, Q, N_eff),
+        ),
+        (TraitType.BT, TestType.SCORE, True): (
+            bt_score_lanc,
+            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
+        ),
+        (TraitType.BT, TestType.WALD, True): (
+            bt_wald_lanc,
+            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
+        ),
+        (TraitType.QT, TestType.SCORE, False): (
+            qt_score_nolanc,
+            lambda: (G, Y, Q, N_eff),
+        ),
+        (TraitType.QT, TestType.WALD, False): (
+            qt_wald_nolanc,
+            lambda: (G, Y, Q, N_eff),
+        ),
+        (TraitType.BT, TestType.SCORE, False): (
+            bt_score_nolanc,
+            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
+        ),
+        (TraitType.BT, TestType.WALD, False): (
+            bt_wald_nolanc,
+            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
+        ),
+    }
 
     ## Filter variants with low ac
     ac_variant_mask = ac.sum(axis=1) >= min_ac
@@ -148,12 +141,16 @@ def _step2_block(
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
+    B, P = log10p_hom.shape
     result_arr = np.concatenate(
         [
             log10p_het[:, None, :],
             beta_het,
             log10p_hom[:, None, :],
             beta_hom[:, None, :],
+            np.broadcast_to(N_eff, (B, 1, P)),
+            af_lanc,
+            prop_lanc,
         ],
         axis=1,
     )
@@ -165,11 +162,13 @@ def _step2_block(
         *["beta_" + anc for anc in ancs],
         "log10p_hom",
         "beta_hom",
+        "N",
+        *["AF_" + anc for anc in ancs],
+        *["LAprop_" + anc for anc in ancs],
     ]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
-    block_info["N"] = Y.shape[0]
 
     ## Format results into list of dataframes
     p = Y.shape[1]
