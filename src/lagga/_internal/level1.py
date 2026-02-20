@@ -64,12 +64,11 @@ def _ridge_cv_qt(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Would love to vmap this but it uses way too much memory
+    _fit_ridge = jax.jit(ridge)
     eta = np.zeros(shape=(N, A, C))
     for fold in range(K):
         for a in range(A):
-            beta = jax.jit(ridge)(Z, Y, train_mask[:, fold], alphas[a].reshape((1)))[
-                :, 0
-            ]
+            beta = _fit_ridge(Z, Y, train_mask[:, fold], alphas[a].reshape((1)))[:, 0]
             beta_mask = np.zeros(shape=(B, C))
             col0 = 0
             for c in range(C):
@@ -80,16 +79,24 @@ def _ridge_cv_qt(
             eta_chroms = Z @ (beta[:, None] * beta_mask) * test_mask[:, fold, None]
             eta[:, a, :] += eta_chroms
 
-    # Get best CV alpha
+    ## Get best CV alpha
     eta_all = np.sum(eta, axis=2)
     cv_errors = np.sum((np.asarray(Y)[:, None] - eta_all) ** 2, axis=0)
-    alpha_idx = np.argmin(cv_errors)
+    alpha_best = alphas[np.argmin(cv_errors)]
 
-    # Get best CV prediction
-    eta = eta[:, alpha_idx]
+    ## Refit model
+    beta = _fit_ridge(Z, Y, jnp.ones(shape=(N,)), alpha_best.reshape((1)))[:, 0]
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
+    eta_chroms = Z @ (beta[:, None] * beta_mask)
 
     ## Get loco prediction
-    eta_loco = np.sum(eta, axis=1)[:, None] - eta
+    eta_all = np.sum(eta_chroms, axis=1)
+    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
@@ -125,10 +132,11 @@ def _ridge_cv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
+    _fit_logistic_ridge = jax.jit(logistic_ridge)
     eta = np.zeros(shape=(N, A, C))
     for fold in range(K):
         for a in range(A):
-            beta = jax.jit(logistic_ridge)(Z, Y, offset, train_mask[:, fold], alphas[a])
+            beta = _fit_logistic_ridge(Z, Y, offset, train_mask[:, fold], alphas[a])
             beta_mask = np.zeros(shape=(B, C))
             col0 = 0
             for c in range(C):
@@ -143,13 +151,21 @@ def _ridge_cv_bt(
     eta_all = np.sum(eta, axis=2) + offset[:, None]
     l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
-    alpha_idx = np.argmax(l_alphas)
+    alpha_best = alphas[np.argmax(l_alphas)]
 
-    ## Get best CV prediction
-    eta = eta[:, alpha_idx, :]
+    ## Refit model
+    beta = _fit_logistic_ridge(Z, Y, offset, jnp.ones(shape=(N,)), alpha_best)
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
+    eta_chroms = Z @ (beta[:, None] * beta_mask)
 
     ## Get loco prediction
-    eta_loco = np.sum(eta, axis=1)[:, None] - eta + offset[:, None]
+    eta_all = np.sum(eta_chroms, axis=1) + offset
+    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
@@ -176,9 +192,10 @@ def _ridge_loocv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
+    _fit_logistic_ridge_loo = jax.jit(logistic_ridge_loo)
     eta = np.zeros(shape=(N, A, C))
     for a in range(A):
-        beta = jax.jit(logistic_ridge_loo)(Z, Y, offset, alphas[a]).T
+        beta = _fit_logistic_ridge_loo(Z, Y, offset, alphas[a]).T
         col0 = 0
         for c in range(C):
             n_block = n_blocks[c]
@@ -191,13 +208,21 @@ def _ridge_loocv_bt(
     eta_all = np.sum(eta, axis=2) + offset[:, None]
     l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
-    alpha_idx = np.argmax(l_alphas)
+    alpha_best = alphas[np.argmax(l_alphas)]
 
-    # Get best CV prediction
-    eta = eta[:, alpha_idx, :]
+    ## Refit model
+    beta = logistic_ridge(Z, Y, offset, jnp.ones(shape=(N,)), alpha_best)
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
+    eta_chroms = Z @ (beta[:, None] * beta_mask)
 
-    ## Get loco prediction + offset
-    eta_loco = np.sum(eta, axis=1)[:, None] - eta + offset[:, None]
+    ## Get loco prediction
+    eta_all = np.sum(eta_chroms, axis=1) + offset
+    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
