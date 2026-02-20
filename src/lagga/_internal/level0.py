@@ -130,6 +130,7 @@ def level0(
             idx_variant = np.array(
                 [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
             )
+        idx_variant = np.sort(idx_variant)
 
         chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
         chroms = list(set(chromosomes))
