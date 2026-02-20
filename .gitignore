@@ -8,3 +8,4 @@ wheels/
 
 # Misc
 .coverage
+site/
