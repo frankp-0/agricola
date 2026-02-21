@@ -1,21 +1,21 @@
-# lagga
+# agricola
 
-**lagga** is a Python package and command-line tool for conducting **genome-wide
+**agricola** is a Python package and command-line tool for conducting **genome-wide
 association studies (GWAS) in admixed populations**. Inspired by [regenie](https://rgcgithub.github.io/regenie)
-and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **lagga**
+and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **agricola**
 provides a scalable, local-ancestry–aware framework that handles relatedness, population
 structure, and ancestry effect heterogeneity.
 
 ---
 
-## Why lagga?
+## Why agricola?
 
 Admixed individuals have unique LD patterns that can improve signal localization and 
 improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
-Tools like Tractor and SAIGE-Tractor address this gap. **lagga** follows the same
+Tools like Tractor and SAIGE-Tractor address this gap. **agricola** follows the same
 conceptual approach-performing single-variant association tests with explicit
 local ancestry adjustment-but combines it with:
 
@@ -34,15 +34,15 @@ local ancestry adjustment-but combines it with:
 Install via pip:
 
 ```bash
-pip install lagga
+pip install agricola
 ```
 
 For GPU or TPU support:
 
 ```bash
-pip install lagga[cuda]
+pip install agricola[cuda]
 ```
 
 ```bash
-pip install lagga[tpu]
+pip install agricola[tpu]
 ```

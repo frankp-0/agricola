@@ -1,6 +1,6 @@
-# lagga CLI
+# agricola CLI
 
-`lagga` provides a command-line interface for running local-ancestry-aware GWAS.
+`agricola` provides a command-line interface for running local-ancestry-aware GWAS.
 The whole-genome regression and single variant tests can be performed in
 **two steps** (`step1`, `step2`) or in a **single pipeline** (`all-steps`).
 
@@ -11,15 +11,15 @@ The whole-genome regression and single variant tests can be performed in
 To get help, use the `--help` flag:
 
 ```bash
-lagga --help
-lagga step2 --help
+agricola --help
+agricola step2 --help
 ```
 
 ### Examples
-A typical `lagga` run may look like:
+A typical `agricola` run may look like:
 
 ```bash
-lagga all-steps \
+agricola all-steps \
   --plink-list tests/data/plinks.txt \
   --lanc-list tests/data/lancs.txt \
   --pheno-file tests/data/pheno.tsv \
@@ -32,7 +32,7 @@ lagga all-steps \
 Alternatively, steps 0/1 and 2 can be performed separately:
 
 ```bash
-lagga step1 \
+agricola step1 \
   --plink-list tests/data/plinks.txt \
   --lanc-list tests/data/lancs.txt  \
   --pheno-file tests/data/pheno.tsv \
@@ -41,7 +41,7 @@ lagga step1 \
   --variant-file tests/data/variants.txt \
   --trait-type qt
 
-lagga step2 \
+agricola step2 \
   --plink-list tests/data/plinks.txt \
   --lanc-list tests/data/lancs.txt  \
   --pheno-file tests/data/pheno.tsv \

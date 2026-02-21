@@ -5,7 +5,7 @@
 import pytest
 import jax.numpy as jnp
 import jax
-from lagga._internal.utils import (
+from agricola._internal.utils import (
     stdize,
     get_cv_mask,
     assert_covar_full_rank,

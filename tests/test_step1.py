@@ -9,8 +9,8 @@ import jax.numpy as jnp
 import jax
 from lanctools import LancData
 from jax.scipy.special import expit
-from lagga._internal.level0 import level0
-from lagga._internal.level1 import level1
+from agricola._internal.level0 import level0
+from agricola._internal.level1 import level1
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-"""lagga step 2 tests.
+"""agricola step 2 tests.
 
 This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
@@ -333,7 +333,7 @@ def step2(
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
 ) -> None:
-    """Perform lagga step 2
+    """Perform agricola step 2
 
     Args:
         datasets: A list of LancData objects (either single object or one

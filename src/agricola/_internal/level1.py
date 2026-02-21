@@ -4,7 +4,7 @@
 
 """Level-1 whole genome predictions.
 
-This module performs "level 1" of lagga step1. It takes the block-wise predictions for
+This module performs "level 1" of agricola step1. It takes the block-wise predictions for
 each trait and combines them into a single prediction per-chromosome per-trait
 using ridge or logistic ridge regression with cross-validation. The entry-point
 for this module is the `level1` function.

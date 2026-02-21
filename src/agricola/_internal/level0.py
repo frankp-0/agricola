@@ -4,7 +4,7 @@
 
 """Level-0 block-wise whole-genome ridge predictions.
 
-This module performs "level 0" of lagga step1. It splits the genome into blocks and
+This module performs "level 0" of agricola step1. It splits the genome into blocks and
 performs a ridge regression within each block. It returns block-wise predictions
 for each trait across a sequence of heritability priors. The entry-point for this
 module is the `level0` function.
