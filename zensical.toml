@@ -1,6 +1,6 @@
 [project]
 
-site_name = "lagga"
+site_name = "agricola"
 
 site_description = "Local ancestry GWAS with GPU acceleration"
 

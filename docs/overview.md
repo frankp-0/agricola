@@ -1,10 +1,10 @@
 # Overview
 
-**lagga** is a framework for conducting genome-wide association studies
+**agricola** is a framework for conducting genome-wide association studies
 in admixed individuals. Like [regenie](https://rgcgithub.github.io/regenie),
-**lagga** uses whole-genome regression to capture polygenic effects and correct
+**agricola** uses whole-genome regression to capture polygenic effects and correct
 for cryptic relatedness. Like [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/),
-**lagga** then calculates ancestry-specific effect estimates, conditioned
+**agricola** then calculates ancestry-specific effect estimates, conditioned
 on local ancestry and whole-genome predictions. This two-step procedure is
 described in greater detail below.
 
@@ -45,19 +45,19 @@ C2 --> H
 classDef geno fill:#FFF8F0;
 classDef pheno fill:#9DD9D2;
 classDef loco fill:#FF8811;
-classDef lagga fill:#F4D06F;
+classDef agricola fill:#F4D06F;
 
 class A,B1,G,B2 geno;
 class C1,C2 pheno;
 class F loco;
-class D,E,H lagga;
+class D,E,H agricola;
 ```
 
-## lagga
+## agricola
 
 ### Step 1: Whole-Genome Regression
 
-Step 1 of **lagga** closely follows the approach taken in **regenie**.
+Step 1 of **agricola** closely follows the approach taken in **regenie**.
 The goal here is to calculate leave-one-chromosome-out polygenic
 scores using a reasonable subset of genetic markers. This is accomplished using
 two layers of ridge regression. In the level 0 ridge regression, separate
@@ -116,7 +116,7 @@ In level 0 of step 1, the genome is divided into blocks of consecutive SNPs
 and ridge regression is used to generate per-block predictions.
 
 First, a subset of $M$ (e.g. 500,000) variants is chosen to capture common
-variation. Supposing block-size $B$ and sample size $N$, **lagga** reads
+variation. Supposing block-size $B$ and sample size $N$, **agricola** reads
 variants into $J=\lceil M/B \rceil$ blocks. For a given $N\times J$ block of
 genotypes $G_B$ and $N\times 1$ phenotype $Y$, a series of ridge regressions is
 performed for pre-specified penalties $\lambda_1, \lambda_2, \cdots, \lambda_A$:

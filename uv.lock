@@ -664,7 +664,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lagga"
+name = "agricola"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [

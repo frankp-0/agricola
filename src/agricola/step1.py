@@ -4,7 +4,7 @@
 
 """Level-1 whole genome predictions.
 
-This module performs "step 1" of lagga, combining the "level 0" and "level 1"
+This module performs "step 1" of agricola, combining the "level 0" and "level 1"
 steps . The entry-point for this module is the `step1` function.
 """
 
@@ -32,7 +32,7 @@ def step1(
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
 ) -> dict[str, NDArray]:
-    """Perform lagga step 1
+    """Perform agricola step 1
 
     Args:
         datasets: A list of LancData objects (either single object or one
@@ -63,8 +63,6 @@ def step1(
         datasets,
         Y,
         X,
-        train_mask,
-        test_mask,
         h2_prior,
         B,
         idx_sample,

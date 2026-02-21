@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-"""The command line interface for lagga."""
+"""The command line interface for agricola."""
 
 from __future__ import annotations
 import logging
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
-app = typer.Typer(help="lagga CLI")
-logger = logging.getLogger("lagga")
+app = typer.Typer(help="agricola CLI")
+logger = logging.getLogger("agricola")
 logging.getLogger("jax").setLevel(logging.WARNING)
 
 
@@ -263,7 +263,7 @@ def setup_logging(verbose: bool, quiet: bool) -> None:
 
 def get_version() -> str:
     try:
-        return version("lagga")
+        return version("agricola")
     except PackageNotFoundError:
         return "unknown"
 

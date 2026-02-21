@@ -1,8 +1,8 @@
 [project]
-name = "lagga"
+name = "agricola"
 version = "0.0.0"
 license = "MIT"
-description = "Local ancestry GWAS with GPU Acceleration"
+description = "Admixed GWAS for Related Individuals Conditioning On Local Ancestry"
 readme = "README.md"
 authors = [{ name = "Franklin Ockerman", email = "frank.ockerman@gmail.com" }]
 requires-python = ">=3.10"
@@ -39,7 +39,7 @@ where = ["src"]
 [tool.uv.sources]
 
 [project.scripts]
-lagga = "lagga._internal.cli:main_entry"
+agricola = "agricola._internal.cli:main_entry"
 
 [project.optional-dependencies]
 cuda = ["jax[cuda]>=0.6.2"]

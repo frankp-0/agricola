@@ -4,7 +4,7 @@
 
 """Single variant associations.
 
-This module contains functions for calculating the tests statistics used in lagga step 2
+This module contains functions for calculating the tests statistics used in agricola step 2
 """
 
 from jax import jit, vmap

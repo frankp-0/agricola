@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from jax.scipy.special import expit
-from lagga import step2
+from agricola import step2
 from lanctools import LancData
 
 

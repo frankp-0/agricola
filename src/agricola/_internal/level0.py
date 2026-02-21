@@ -4,7 +4,7 @@
 
 """Level-0 block-wise whole-genome ridge predictions.
 
-This module performs "level 0" of lagga step1. It splits the genome into blocks and
+This module performs "level 0" of agricola step1. It splits the genome into blocks and
 performs a ridge regression within each block. It returns block-wise predictions
 for each trait across a sequence of heritability priors. The entry-point for this
 module is the `level0` function.
@@ -12,14 +12,13 @@ module is the `level0` function.
 
 import os
 import tempfile
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from .utils import stdize, get_geno_lanc_deconv
+from .utils import stdize
 from .models import ridge
 from .inputs import validate_level0_inputs
 from numpy.typing import NDArray
@@ -30,10 +29,9 @@ def _level0_block(
     Y: Array,
     Q: Array,
     idx_sample: Optional[Array],
-    train_mask: Array,
-    test_mask: Array,
     block: NDArray,
     h2_prior: Array,
+    M: int,
 ) -> NDArray:
     """Get level 0 predictions for a single block
 
@@ -42,8 +40,6 @@ def _level0_block(
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         block: A (B,) ndarray with indices of variants in the block
         h2_prior: A 1D jax array of prior values for snp heritability
 
@@ -58,15 +54,11 @@ def _level0_block(
     G = stdize(G - (Q @ (Q.T @ G)))
 
     ## Calculate penalties based on prior heritability
-    B = G.shape[1]
-    alphas = B * (1 - h2_prior) / h2_prior
+    alphas = M * (1 - h2_prior) / h2_prior
 
     ## Perform ridge regression
-    ridge_beta = jax.vmap(ridge, in_axes=(None, None, 1, None))(
-        G, Y, train_mask, alphas
-    )
-    ridge_Z = jnp.einsum("nb,kbpa->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
-    Z_block = jnp.sum(ridge_Z, axis=1)
+    ridge_beta = ridge(G, Y, jnp.ones(shape=(Y.shape[0])), alphas)
+    Z_block = jnp.einsum("nb,bpa->npa", G, ridge_beta)
     Z_block = np.asarray(stdize(Z_block))
     return Z_block
 
@@ -75,8 +67,6 @@ def level0(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    train_mask: ArrayLike,
-    test_mask: ArrayLike,
     h2_prior: ArrayLike,
     B: int = 2000,
     idx_sample: Optional[ArrayLike] = None,
@@ -90,8 +80,6 @@ def level0(
             per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
-        train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
-        test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
         B: The number of variants per block
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
@@ -102,8 +90,8 @@ def level0(
         level0_files: A dict where keys are chromosomes and values are files
             containing level 0 predictions
     """
-    (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_level0_inputs(
-        datasets, Y, X, train_mask, test_mask, h2_prior, B, idx_sample, variants
+    (Y, X, h2_prior, idx_sample) = validate_level0_inputs(
+        datasets, Y, X, h2_prior, B, idx_sample, variants
     )
 
     Q, _ = jnp.linalg.qr(X, mode="reduced")
@@ -118,6 +106,14 @@ def level0(
         level0_dir = tmp.name
 
     os.makedirs(level0_dir, exist_ok=True)
+
+    ## get M
+    if variants is not None:
+        M = len(variants)
+    else:
+        M = 0
+        for ds in datasets:
+            M += ds.pvar.get_variant_ct()
 
     level0_files = {}
     for ds in datasets:
@@ -134,9 +130,15 @@ def level0(
             idx_variant = np.array(
                 [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
             )
+        idx_variant = np.sort(idx_variant)
 
         chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
-        chroms = list(set(chromosomes))
+        chr_seen = set()
+        chroms = [
+            chrom
+            for chrom in chromosomes
+            if not (chrom in chr_seen or chr_seen.add(chrom))
+        ]
         for chrom in chroms:
             idx_chrom = np.array(
                 [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
@@ -156,9 +158,7 @@ def level0(
             col0 = 0
             with tqdm(total=n_blocks, desc=f"{desc} chr{chrom}", unit="block") as pbar:
                 for block in blocks:
-                    Z_block = _level0_block(
-                        ds, Y, Q, idx_sample, train_mask, test_mask, block, h2_prior
-                    )
+                    Z_block = _level0_block(ds, Y, Q, idx_sample, block, h2_prior, M)
 
                     Z[:, :, col0 : col0 + K] = Z_block
                     col0 += K
