@@ -217,3 +217,8 @@ residualized phenotype $\tilde{Y}$ as $Y$.
 For binary traits, the LOCO prediction
 $\hat{\eta}_c$ is provided as an offset in logistic regression models of the form
 $\text{logit}(p) = \hat{\eta}_c + Z\beta$.
+
+## Miscellaneous
+
+**agricola** currently supports only autosomes. Analysis with sex chromosomes
+is an area of future development.

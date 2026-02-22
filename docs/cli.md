@@ -59,15 +59,99 @@ agricola step2 \
 
 #### Genotype
 
+**agricola** accepts genotype files in plink2 .pgen format (with corresponding
+.pvar and .psam). Please see the [plink2 documentation](https://www.cog-genomics.org/plink/2.0/) for futher details.
+**agricola** accepts either 1) a single pgen file with multiple chromosomes, or 2) a set of plink2
+files, each corresponding to a separate chromosome.
+
+!!! info
+    
+    Extension to other formats such as bgen or vcf is possible but
+    is not currently a priority. **agricola** requires phasing information,
+    so unphased formats such as .bed are not possible.
+
+!!! warning
+
+    It is assumed that all pgen/pvar files are sorted by chromosome and position.
+    
+
 #### Local Ancestry
 
-#### Phenotype
+**agricola** accepts only .lanc files, as defined by admix-kit, for local ancestry.
+This format was chosen for its flexibility, low memory overhead, and simplicity.
+Please see the admix-kit documentation for further details.
+
+To make working with this format easier, we introduce the **lanctools**
+Python package and CLI tool. **lanctools** can convert RFMix msp.tsv
+files or FLARE vcf.gz files into .lanc format. We provide an example below.
+Please see the [lanctools documentation](https://lanctools.readthedocs.io) for further details.
+
+```bash
+# convert FLARE to .lanc format
+lanctools convert-rfmix --file chr1.msp.tsv --plink-prefix chr1 --output chr1.lanc
+```
+
+Although most local ancestry inference algorithms produce chromosome-specific files,
+you may prefer to work with a single file containing multiple chromosomes.
+To do so, first merge pgen files using plink2, then use the `lanctools merge`
+command to combine the .lanc files.
+
+```bash
+# merge multiple .lanc files
+lanctools merge --file chr1.lanc,chr2.lanc,chr3.lanc --outfile chr1_3.lanc
+```
+
+#### Phenotypes and Covariates
+
+Phenotype and covariate files are expected to be whitespace-delimited text files.
+This means that column names may not contain whitespace.
+If a header is not provided, it is assumed that the first column is for family IDs
+(FID) and the second column is for individual IDs (IID). If a header line
+is provided, it must begin with a `#` character and must include "IID" as a
+column name. Two valid examples are given below
+
+```
+#IID	height	crp_irnt
+sample1	165	-1.23
+sample2	175	-2.04
+sample3	161	0.81
+```
+
+```
+sample1	sample1	165	-1.23
+sample2	sample2	175	-2.04
+sample3	sample3	161	0.81
+```
 
 ### Outputs
 
 #### Step 1 Intermediate
 
+Whole-genome leave-one-chromosome-out (LOCO) predictions from step 1 are saved
+to the file `{prefix}.pkl`. This is file consists of a serialized dictionary,
+where keys are chromosomes and values are $(N, P)$ NumPy arrays with
+predictions for each sample and phenotype.
+
 #### Step 2 Results
+
+Summary statistics from step 2 of **agricola** are saved in [Apache Parquet](https://parquet.apache.org/)
+format, one output file per input plink file and phenotype. These files have
+the following schema:
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| chrom | string | Chromosome |
+| pos | int | Genomic position |
+| ref | string | Reference allele |
+| alt | string |  Alternate allele |
+| id | string | Variant ID |
+| log10p_het | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
+| beta_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
+| log10p_hom | double | P-value for $\beta=0$ under homogeneous model (all ancestry effects equal) |
+| N | int | Sample size |
+| AF_{anc} | double | Ancestry-specific allele frequency |
+| LAprop_{anc} | double | Proportion of haplotypes from ancestry anc |
 
 ---
 
