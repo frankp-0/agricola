@@ -365,7 +365,7 @@ def step1(
     variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
     samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, _, samples = load_pheno_and_covars(
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
@@ -379,6 +379,7 @@ def step1(
         datasets,
         Y,
         X,
+        phenotypes,
         train_mask,
         test_mask,
         h2_prior_arr,
@@ -502,7 +503,7 @@ def step2(
     variants = load_variants(variant_file)
     samples, samples_psam = load_samples(plinks, samples_file)
 
-    Y, X, pheno_names, samples = load_pheno_and_covars(
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
@@ -518,7 +519,7 @@ def step2(
         X,
         predictions,
         outs,
-        pheno_names,
+        phenotypes,
         trait_type,
         test_type,
         block_size,
@@ -654,7 +655,7 @@ def all_steps(
         outs = out_prefix
 
     samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, pheno_names, samples = load_pheno_and_covars(
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
@@ -668,6 +669,7 @@ def all_steps(
         datasets,
         Y,
         X,
+        phenotypes,
         train_mask,
         test_mask,
         h2_prior_arr,
@@ -684,7 +686,7 @@ def all_steps(
         X,
         predictions,
         outs,
-        pheno_names,
+        phenotypes,
         trait_type,
         test_type,
         block_size2,

@@ -13,6 +13,7 @@ import tempfile
 from jaxtyping import ArrayLike
 from numpy.typing import NDArray
 from typing import Optional
+from pandas import DataFrame
 from ._internal.level0 import level0
 from ._internal.level1 import level1
 from lanctools import LancData
@@ -22,6 +23,7 @@ def step1(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
+    phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
@@ -31,7 +33,7 @@ def step1(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
-) -> dict[str, NDArray]:
+) -> dict[str, DataFrame]:
     """Perform agricola step 1
 
     Args:
@@ -69,8 +71,17 @@ def step1(
         variants,
         level0_dir,
     )
+
     step1_predictions = level1(
-        level0_files, Y, X, train_mask, test_mask, h2_prior, trait_type, loocv
+        level0_files,
+        Y,
+        X,
+        phenotypes,
+        train_mask,
+        test_mask,
+        h2_prior,
+        trait_type,
+        loocv,
     )
 
     ## Cleanup

@@ -9,7 +9,7 @@ This module contains functions for calculating the tests statistics used in agri
 
 from jax import jit, vmap
 import jax.numpy as jnp
-from jax.numpy.linalg import inv, matrix_rank, qr, solve
+from jax.numpy.linalg import inv, matrix_rank
 from jaxtyping import Array
 from jax.scipy.special import expit
 from .models import logistic_ridge

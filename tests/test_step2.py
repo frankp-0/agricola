@@ -7,6 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from jax.scipy.special import expit
+import pandas as pd
 from agricola import step2
 from lanctools import LancData
 
@@ -29,12 +30,12 @@ def valid_inputs(P=3, C=1):
     key1 = jax.random.key(471464)
     key2 = jax.random.key(7314120)
     N = 20
-    step1_predictions = {
-        str(i): np.asarray(
-            jax.random.normal(jax.random.split(key0, 3)[i - 21], shape=(N, P))
-        )
-        for i in range(20, 23)
-    }
+    step1_predictions = {}
+    for i in range(20, 23):
+        arr = jax.random.normal(jax.random.split(key0, 3)[i - 21], shape=(N, P))
+        df = pd.DataFrame(arr, columns=pd.Index([str(i) for i in range(3)]))
+        step1_predictions[str(i)] = df
+
     Y = jax.random.normal(key1, shape=(N, P))
     X = jax.random.normal(key2, shape=(N, C))
     return Y, X, step1_predictions

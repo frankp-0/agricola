@@ -10,7 +10,6 @@ using ridge or logistic ridge regression with cross-validation. The entry-point
 for this module is the `level1` function.
 """
 
-import os
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
@@ -19,6 +18,7 @@ from numpy.typing import NDArray
 from numpy.lib.format import open_memmap
 from tqdm import tqdm
 from typing import Optional
+from pandas import DataFrame, Index
 from .utils import stdize, TraitType
 from .models import (
     ridge,
@@ -235,12 +235,13 @@ def level1(
     level0_files: dict[str, str],
     Y: ArrayLike,
     X: Optional[ArrayLike],
+    phenotypes: list[str],
     train_mask: Optional[ArrayLike],
     test_mask: Optional[ArrayLike],
     h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
-) -> dict[str, NDArray]:
+) -> dict[str, DataFrame]:
     """Perform level 1 ridge regressions
 
     Args:
@@ -259,7 +260,7 @@ def level1(
     """
     ## Validate inputs
     Y, X, train_mask, test_mask, h2_prior, trait = validate_level1_inputs(
-        Y, X, train_mask, test_mask, h2_prior, trait_type
+        Y, X, phenotypes, train_mask, test_mask, h2_prior, trait_type
     )
     N, P = Y.shape
     C = len(level0_files)
@@ -299,6 +300,6 @@ def level1(
 
     level1_loco = {}
     for i, chrom in enumerate(level0_files.keys()):
-        level1_loco[chrom] = loco_arr[:, :, i]
+        level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))
 
     return level1_loco

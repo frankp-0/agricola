@@ -322,7 +322,7 @@ def step2(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    step1_predictions: dict[str, np.ndarray],
+    step1_predictions: dict[str, pd.DataFrame],
     out_prefixes: list[str],
     phenotypes: list[str],
     trait_type: str = "qt",
@@ -354,17 +354,20 @@ def step2(
     """
     M = (~jnp.isnan(Y)).astype(jnp.float32)
 
-    Y, X, idx_sample, test_type_enum, trait_type_enum = validate_step2_inputs(
-        datasets,
-        Y,
-        X,
-        step1_predictions,
-        out_prefixes,
-        B,
-        idx_sample,
-        variants,
-        test_type,
-        trait_type,
+    Y, X, step1_predictions_np, idx_sample, test_type_enum, trait_type_enum = (
+        validate_step2_inputs(
+            datasets,
+            Y,
+            X,
+            phenotypes,
+            step1_predictions,
+            out_prefixes,
+            B,
+            idx_sample,
+            variants,
+            test_type,
+            trait_type,
+        )
     )
 
     ## Adjust phenotype for covariates to match step 1
@@ -385,7 +388,7 @@ def step2(
             dataset,
             Y,
             M,
-            step1_predictions,
+            step1_predictions_np,
             X,
             idx_sample,
             out_prefixes[i],

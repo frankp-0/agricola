@@ -9,6 +9,7 @@ from jaxtyping import Array, ArrayLike
 import numpy as np
 from typing import Optional
 from lanctools import LancData
+import pandas as pd
 from .utils import stdize, assert_covar_full_rank, TraitType, TestType
 
 
@@ -88,6 +89,7 @@ def validate_level0_inputs(
 def validate_level1_inputs(
     Y: ArrayLike,
     X: Optional[ArrayLike],
+    phenotypes: list[str],
     train_mask: Optional[ArrayLike],
     test_mask: Optional[ArrayLike],
     h2_prior: ArrayLike,
@@ -102,6 +104,11 @@ def validate_level1_inputs(
     Y_means = jnp.nanmean(Y, axis=0)
     Y = jnp.where(jnp.isnan(Y), Y_means, Y)
     N, _ = Y.shape
+
+    if len(phenotypes) != Y.shape[1]:
+        raise ValueError(
+            f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns"
+        )
 
     ## X
     if X is None:
@@ -154,14 +161,15 @@ def validate_step2_inputs(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    step1_predictions: dict[str, np.ndarray],
+    phenotypes: list[str],
+    step1_predictions: dict[str, pd.DataFrame],
     out_prefixes: list[str],
     B: int,
     idx_sample: Optional[ArrayLike],
     variants: Optional[list[str]],
     test_type: str,
     trait_type: str,
-) -> tuple[Array, Array, Optional[Array], TestType, TraitType]:
+) -> tuple[Array, Array, dict[str, np.ndarray], Optional[Array], TestType, TraitType]:
     """Validate input data for step1"""
 
     ## Y
@@ -172,6 +180,11 @@ def validate_step2_inputs(
     Y_means = jnp.nanmean(Y, axis=0)
     Y = jnp.where(jnp.isnan(Y), Y_means, Y)
     N, P = Y.shape
+
+    if len(phenotypes) != Y.shape[1]:
+        raise ValueError(
+            f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns"
+        )
 
     if X is None:
         X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
@@ -195,10 +208,11 @@ def validate_step2_inputs(
             raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
     N_pred = None
     P_pred = None
+    step1_predictions_np = {}
     for chrom, pred_chrom in step1_predictions.items():
-        if not isinstance(pred_chrom, (np.ndarray, jnp.ndarray)):
+        if not isinstance(pred_chrom, pd.DataFrame):
             raise TypeError(
-                f"step1_predictions[{chrom}] must be a numpy/jax array, got {type(pred_chrom)}"
+                f"step1_predictions[{chrom}] must be a pandas DataFrame, got {type(pred_chrom)}"
             )
         if pred_chrom.ndim != 2:
             raise ValueError(
@@ -219,6 +233,8 @@ def validate_step2_inputs(
                 raise ValueError(
                     f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
                 )
+        step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
+
     if not len(out_prefixes) == len(datasets):
         raise ValueError("out_prefixes and datasets must have same number of elements")
 
@@ -250,4 +266,11 @@ def validate_step2_inputs(
         if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
             raise ValueError("idx_sample outside range of N samples")
 
-    return (Y, X, idx_sample, TestType(test_type), TraitType(trait_type))
+    return (
+        Y,
+        X,
+        step1_predictions_np,
+        idx_sample,
+        TestType(test_type),
+        TraitType(trait_type),
+    )
