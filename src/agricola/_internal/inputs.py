@@ -241,9 +241,6 @@ def validate_step2_inputs(
     if N_pred != N:
         raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
 
-    if P_pred != P:
-        raise ValueError(f"step1_predictions arrays have P={P_pred} but Y has P={P}")
-
     ## B
     if not isinstance(B, int) or B <= 0:
         raise ValueError(f"B must be a positive integer, got {B}")
