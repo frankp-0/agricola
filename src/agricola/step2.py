@@ -135,25 +135,31 @@ def _step2_block(
     valid_idx = np.array(ac_variant_mask)
 
     test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
-    chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
+
+    log10p_lrt: np.ndarray | None = None
+
+    if test_type == TestType.WALD:
+        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt = test_func(
+            *arg_fn()
+        )
+        log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
+    else:
+        chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
 
     log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
     B, P = log10p_hom.shape
-    result_arr = np.concatenate(
-        [
-            log10p_het[:, None, :],
-            beta_het,
-            log10p_hom[:, None, :],
-            beta_hom[:, None, :],
-            np.broadcast_to(N_eff, (B, 1, P)),
-            af_lanc,
-            prop_lanc,
-        ],
-        axis=1,
-    )
+    result_components = [
+        log10p_het[:, None, :],
+        beta_het,
+        log10p_hom[:, None, :],
+        beta_hom[:, None, :],
+        np.broadcast_to(N_eff, (B, 1, P)),
+        af_lanc,
+        prop_lanc,
+    ]
 
     ## Get column names for results
     ancs = dataset.ancestries
@@ -166,6 +172,12 @@ def _step2_block(
         *["AF_" + anc for anc in ancs],
         *["LAprop_" + anc for anc in ancs],
     ]
+
+    if log10p_lrt is not None:
+        result_components.append(log10p_lrt[:, None, :])
+        colnames.append("log10p_lrt")
+
+    result_arr = np.concatenate(result_components, axis=1)
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants

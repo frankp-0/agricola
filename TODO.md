@@ -4,7 +4,6 @@
 
 ### Package
 - [ ] Add option to specify categorical covariates and one-hot encode them
-- [ ] LRT for homogeneous vs. heterogeneous effects
 - [ ] Firth or SPA test
 - [ ] Add greeting message to CLI
 - [ ] Print JAX device

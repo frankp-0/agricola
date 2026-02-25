@@ -135,7 +135,7 @@ def _qt_score_nolanc(
 
 def _qt_wald_lanc(
     G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
     alpha = N_eff * 1e-6
 
     ## Genotypes
@@ -147,15 +147,17 @@ def _qt_wald_lanc(
     H = H - Q @ (Q.T @ H)
 
     ## Tests
-    chisq_het, beta_het, df_het, _ = ols_block(G, L, Y, N_eff, alpha)
-    chisq_hom, beta_hom, df_hom, _ = ols_block(H, L, Y, N_eff, alpha)
+    chisq_het, beta_het, df_het, sse_het = ols_block(G, L, Y, N_eff, alpha)
+    chisq_hom, beta_hom, df_hom, sse_hom = ols_block(H, L, Y, N_eff, alpha)
+    chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
+    df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 def _qt_wald_nolanc(
     G: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
     alpha = N_eff * 1e-6
 
     ## Genotypes
@@ -166,10 +168,12 @@ def _qt_wald_nolanc(
     H = H - Q @ (Q.T @ H)
 
     ## Tests
-    chisq_het, beta_het, df_het, _ = ols(G, Y, N_eff, alpha)
-    chisq_hom, beta_hom, df_hom, _ = ols(H, Y, N_eff, alpha)
+    chisq_het, beta_het, df_het, sse_het = ols(G, Y, N_eff, alpha)
+    chisq_hom, beta_hom, df_hom, sse_hom = ols(H, Y, N_eff, alpha)
+    chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
+    df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -257,7 +261,7 @@ def _bt_score_nolanc(
 
 def _bt_wald_lanc(
     G: Array, L: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
     alpha = N_eff * 1e-6
     K = G.shape[1]
 
@@ -270,9 +274,11 @@ def _bt_wald_lanc(
     H = H - Q @ (Q.T @ H)
 
     ## Wald test for anc-deconvoluted genotypes
+    ## TODO: add offset to mu
     Xg = jnp.concatenate([G, L], axis=1)
     betag = logistic_ridge(Xg, Y, O, M, alpha, 10)
-    mu = expit(Xg @ betag)
+    etag = Xg @ betag
+    mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Xw = Xg * W_sqrt[:, None] * M[:, None]
     XtX = Xw.T @ Xw
@@ -283,19 +289,27 @@ def _bt_wald_lanc(
     ## Wald test for genotypes
     Xh = jnp.concatenate([H[:, None], L], axis=1)
     betah = logistic_ridge(Xh, Y, O, M, alpha, 10)
-    mu = expit(Xh @ betah)
+    etah = Xh @ betah
+    mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Xw = Xh * W_sqrt[:, None] * M[:, None]
     XtX = Xw.T @ Xw
     XtXw_inv = inv(XtX + alpha * jnp.identity(K))
     chisq_hom = betah[0] ** 2 / XtXw_inv[0, 0]
+    df_hom = matrix_rank(XtX)
 
-    return chisq_hom, betah[0], chisq_het, betag[:K], df_het
+    ## LRT
+    l_het = Y.T @ etag - jnp.log(1 + jnp.exp(etag))
+    l_hom = Y.T @ etah - jnp.log(1 + jnp.exp(etah))
+    chisq_lrt = 2 * (l_het - l_hom)
+    df_lrt = df_het - df_hom
+
+    return chisq_hom, betah[0], chisq_het, betag[:K], df_het, chisq_lrt, df_lrt
 
 
 def _bt_wald_nolanc(
     G: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
     alpha = N_eff * 1e-6
 
     ## Genotypes
@@ -307,7 +321,8 @@ def _bt_wald_nolanc(
 
     ## Wald test for anc-deconvoluted genotypes
     betag = logistic_ridge(G, Y, O, M, alpha, 10)
-    mu = expit(G @ betag)
+    etag = G @ betag
+    mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Gw = G * W_sqrt[:, None] * M[:, None]
     GtG = Gw.T @ Gw
@@ -316,13 +331,21 @@ def _bt_wald_nolanc(
 
     ## Wald test for genotypes
     betah = logistic_ridge(H[:, None], Y, O, M, alpha, 10)[0]
-    mu = expit(H * betah)
+    etah = H * betah
+    mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Hw = H * W_sqrt * M
     HtH = Hw.T @ Hw
     chisq_hom = betah**2 * HtH
+    df_hom = matrix_rank(HtH)
 
-    return chisq_hom, betah, chisq_het, betag, df_het
+    ## LRT
+    l_het = Y.T @ etag - jnp.log(1 + jnp.exp(etag))
+    l_hom = Y.T @ etah - jnp.log(1 + jnp.exp(etah))
+    chisq_lrt = 2 * (l_het - l_hom)
+    df_lrt = df_het - df_hom
+
+    return chisq_hom, betah, chisq_het, betag, df_het, chisq_lrt, df_lrt
 
 
 ### ─────────────────────────────────────────────────────────────
