@@ -148,7 +148,7 @@ def load_pheno_and_covars(
         raise ValueError("Only one of covar and covar_list may be provided")
 
     if pheno_list is not None:
-        with open("tests/phenos.txt", "r") as f:
+        with open(pheno_list, "r") as f:
             phenotypes = [p.strip() for p in f]
     elif pheno is not None:
         phenotypes = pheno
@@ -156,7 +156,7 @@ def load_pheno_and_covars(
         phenotypes = None
 
     if covar_list is not None:
-        with open("tests/covars.txt", "r") as f:
+        with open(covar_list, "r") as f:
             covariates = [p.strip() for p in f]
     elif covar is not None:
         covariates = covar
