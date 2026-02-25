@@ -274,10 +274,9 @@ def _bt_wald_lanc(
     H = H - Q @ (Q.T @ H)
 
     ## Wald test for anc-deconvoluted genotypes
-    ## TODO: add offset to mu
     Xg = jnp.concatenate([G, L], axis=1)
     betag = logistic_ridge(Xg, Y, O, M, alpha, 10)
-    etag = Xg @ betag
+    etag = Xg @ betag + O
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Xw = Xg * W_sqrt[:, None] * M[:, None]
@@ -289,7 +288,7 @@ def _bt_wald_lanc(
     ## Wald test for genotypes
     Xh = jnp.concatenate([H[:, None], L], axis=1)
     betah = logistic_ridge(Xh, Y, O, M, alpha, 10)
-    etah = Xh @ betah
+    etah = Xh @ betah + O
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Xw = Xh * W_sqrt[:, None] * M[:, None]
@@ -321,7 +320,7 @@ def _bt_wald_nolanc(
 
     ## Wald test for anc-deconvoluted genotypes
     betag = logistic_ridge(G, Y, O, M, alpha, 10)
-    etag = G @ betag
+    etag = G @ betag + O
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Gw = G * W_sqrt[:, None] * M[:, None]
@@ -331,7 +330,7 @@ def _bt_wald_nolanc(
 
     ## Wald test for genotypes
     betah = logistic_ridge(H[:, None], Y, O, M, alpha, 10)[0]
-    etah = H * betah
+    etah = H * betah + O
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Hw = H * W_sqrt * M
