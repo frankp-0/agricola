@@ -132,6 +132,8 @@ def load_pheno_and_covars(
     pheno_list: Optional[str],
     covar: Optional[list[str]],
     covar_list: Optional[str],
+    catcovar: Optional[list[str]],
+    catcovar_list: Optional[str],
     samples_sub: list[str],
 ) -> tuple[Array, Optional[Array], list[str], list[str]]:
     import pandas as pd
@@ -163,6 +165,14 @@ def load_pheno_and_covars(
     else:
         covariates = None
 
+    if catcovar_list is not None:
+        with open(catcovar_list, "r") as f:
+            catcovariates = [p.strip() for p in f]
+    elif catcovar is not None:
+        catcovariates = catcovar
+    else:
+        catcovariates = None
+
     if covar_file:
         df_covar = read_pheno_covar(covar_file).dropna()
         samples_covar = df_covar["IID"].astype(str).to_list()
@@ -175,9 +185,11 @@ def load_pheno_and_covars(
         df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore
         if covariates is not None:
             df_covar = df_covar[["IID"] + covariates]
-        X = jnp.asarray(
-            df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
+
+        df_covar_noid = df_covar.drop("IID", axis=1).drop(
+            "FID", axis=1, errors="ignore"
         )
+        X = jnp.asarray(pd.get_dummies(df_covar_noid, columns=catcovariates).to_numpy())
     else:
         X = None
 
@@ -334,6 +346,12 @@ def step1(
     covar_list: Optional[str] = typer.Option(
         None, help="File containing covariates to include in analysis"
     ),
+    catcovar: Optional[list[str]] = typer.Option(
+        None, help="Categorical covariate to include in analysis"
+    ),
+    catcovar_list: Optional[str] = typer.Option(
+        None, help="File containing categorical covariates to include in analysis"
+    ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
@@ -365,7 +383,15 @@ def step1(
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
     samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, phenotypes, samples = load_pheno_and_covars(
-        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+        pheno_file,
+        covar_file,
+        pheno,
+        pheno_list,
+        covar,
+        covar_list,
+        catcovar,
+        catcovar_list,
+        samples,
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
@@ -464,6 +490,12 @@ def step2(
     covar_list: Optional[str] = typer.Option(
         None, help="File containing covariates to include in analysis"
     ),
+    catcovar: Optional[list[str]] = typer.Option(
+        None, help="Categorical covariate to include in analysis"
+    ),
+    catcovar_list: Optional[str] = typer.Option(
+        None, help="File containing categorical covariates to include in analysis"
+    ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
@@ -504,7 +536,15 @@ def step2(
     samples, samples_psam = load_samples(plinks, samples_file)
 
     Y, X, phenotypes, samples = load_pheno_and_covars(
-        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+        pheno_file,
+        covar_file,
+        pheno,
+        pheno_list,
+        covar,
+        covar_list,
+        catcovar,
+        catcovar_list,
+        samples,
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
@@ -582,6 +622,12 @@ def all_steps(
     covar_list: Optional[str] = typer.Option(
         None, help="File containing covariates to include in analysis"
     ),
+    catcovar: Optional[list[str]] = typer.Option(
+        None, help="Categorical covariate to include in analysis"
+    ),
+    catcovar_list: Optional[str] = typer.Option(
+        None, help="File containing categorical covariates to include in analysis"
+    ),
     output: Optional[list[str]] = typer.Option(
         None,
         help=(
@@ -658,7 +704,15 @@ def all_steps(
 
     samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, phenotypes, samples = load_pheno_and_covars(
-        pheno_file, covar_file, pheno, pheno_list, covar, covar_list, samples
+        pheno_file,
+        covar_file,
+        pheno,
+        pheno_list,
+        covar,
+        covar_list,
+        catcovar,
+        catcovar_list,
+        samples,
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 

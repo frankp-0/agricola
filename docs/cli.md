@@ -178,6 +178,10 @@ the analysis, one per line. This option can be omitted to use all phenotypes |
 can be repeated to specify multiple files or omitted to use all covariates |
 | `--covar-list` | TEXT | optional | File containing covariates to include in
 the analysis, one per line. This option can be omitted to use all phenotypes |
+| `--catcovar` | TEXT | optional | Categorical covariate to include in the analysis. This option
+can be repeated to specify multiple files or omitted to use all covariates |
+| `--catcovar-list` | TEXT | optional | File containing categorical covariates to include in
+the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 
@@ -198,6 +202,11 @@ the analysis, one per line. This option can be omitted to use all phenotypes |
     The same applies to `--lanc` and `--lanc-list`. For `--pheno` and
     `--pheno-list` and `--covar` and `--covar-list`, either one may be provided
     or neither (to use all phenotypes/covariates).
+
+!!! warning
+
+    Categorical covariates specified through `catcovar` or `catcovar-list` must
+    be a subset of the full list provided through `covar` or `covar-list`
 
 ### Step 1 Options
 
