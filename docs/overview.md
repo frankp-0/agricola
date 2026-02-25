@@ -203,20 +203,70 @@ be used for rare phenotypes if specified by the user.
 In step 2, variants are tested for association with phenotypes under several
 possible models, depending on the user specification.
 
+#### Notation
 
-#### Quantitative Traits
+Before defining the tests that can be performed using **agricola**, let
+the following notation serve as a reference:
+
+
+
+| Notation      | Shape |  Description |
+| --- | --- | --- |
+| \(N\) | (1,) | Sample size (max sample size across phenotypes) |
+| \(X\) | (N,C) | The covariates |
+| \(Y\) | (N,) | The phenotype. For quantitative traits, \(Y\) has been orthogonalized with respect to \(X\) and standardized to have mean zero and unit variance. |
+| \(\hat{Y}_c\) | (N,) | The LOCO prediction (linear scale) from step 1 |
+| \(G\) | (N,K) | The ancestry-deconvoluted genotypes at a given locus. This is the number of haplotypes from ancestry \(k\) with the alternate allele. |
+| \(\tilde{G}\) | (N,K) | The ancestry-deconvoluted genotypes, orthogonalized by \(X\). |
+| \(H\) | (N,) | The genotypes at a given locus. This is the total number of haplotypes with the alternate allele. |
+| \(\tilde{H}\) | (N,) | The genotypes, orthogonalized by \(X\) |
+| \(L\) | (N,K-1) | The local ancestry at a given locus. \(L_k\) is the number of haplotypes from ancestry \(k\). One ancestry is omitted since it can be determined from the other $K-1$. |
+| \(\tilde{L}\) | (N,K-1) | The local ancestry, orthogonalized by \(X\) |
+
+
+#### Tests (Quantitative Traits)
 
 For quantitative traits,
 the associations are tested with respect to the residualized phenotype
-$\tilde{Y} = Y - \hat{Y}_c$. In the following sections, we refer to this
-residualized phenotype $\tilde{Y}$ as $Y$.
+$\tilde{Y} = Y - \hat{Y}_c$. The full model is given by:
 
 
-#### Binary Traits
+\[\tilde{Y} = \tilde{L}\alpha + \tilde{G}\beta + \epsilon,\]
+
+where \(\epsilon \sim \text{Normal}(0_N, \sigma^2I_N)\).
+
+The following models can be tested using **agricola**
+
+
+| Model Name | Mean Model | Estimand | \(H_0\) | Local Ancestry Conditioned? |
+| --- | --- | --- | --- | --- |
+| \(\text{agricola}_{\text{lanc}, \text{het}}\) | \(E[\tilde{Y}] = \tilde{L}\alpha + \tilde{G}\beta\) | \(\beta\) | \(\beta = 0\)  | Yes |
+| \(\text{agricola}_{\text{nolanc}, \text{het}}\) | \(E[\tilde{Y}] = \tilde{G}\beta\) | \(\beta\) | \(\beta = 0\)  | No |
+| \(\text{agricola}_{\text{lanc}, \text{hom}}\) | \(E[\tilde{Y}] = \tilde{L}\alpha + \tilde{H}\gamma\) | \(\gamma\) | \(\gamma = 0\)  | Yes |
+| \(\text{agricola}_{\text{nolanc}, \text{hom}} \) | \(E[\tilde{Y}] = \tilde{H}\gamma\) | \(\gamma\) | \(\gamma = 0\)  | No |
+
+
+Each null hypothesis can be tested using either a Rao's score test
+(`--test-type score`) or Wald test (`--test-type wald`). The choice of local
+ancestry adjustment can be specified with `--adjust-lanc` or `--no-adjust-lanc`.
+For a given run, both the heterogeneous and homogeneous models
+(e.g. \(\text{agricola}_{\text{lanc}, \text{het}}\) and \(\text{agricola}_{\text{lanc}, \text{hom}}\)) are fit.
+
+#### Tests (Binary Traits)
 
 For binary traits, the LOCO prediction
-$\hat{\eta}_c$ is provided as an offset in logistic regression models of the form
-$\text{logit}(p) = \hat{\eta}_c + Z\beta$.
+$\hat{Y}_c$ is provided as an offset in logistic regression models of the form
+$\text{logit}(p) = \hat{Y}_c + Z\beta$. As with quantitative traits,
+the following tests can be performed (either with Wald or Rao's score test).
+
+
+| Model Name | Mean Model | Estimand | \(H_0\) | Local Ancestry Conditioned? |
+| --- | --- | --- | --- | --- |
+| \(\text{agricola}_{\text{lanc}, \text{het}}\) | \(\text{logit}(E[Y]) = \hat{Y}_c + \tilde{L}\alpha + \tilde{G}\beta\) | \(\beta\) | \(\beta = 0\)  | Yes |
+| \(\text{agricola}_{\text{nolanc}, \text{het}}\) | \(\text{logit}(E[Y]) = \hat{Y}_c + \tilde{G}\beta\) | \(\beta\) | \(\beta = 0\)  | No |
+| \(\text{agricola}_{\text{lanc}, \text{hom}}\) | \(\text{logit}(E[Y]) = \hat{Y}_c + \tilde{L}\alpha + \tilde{H}\gamma\) | \(\gamma\) | \(\gamma = 0\)  | Yes |
+| \(\text{agricola}_{\text{nolanc}, \text{hom}} \) | \(\text{logit}(E[Y]) = \hat{Y}_c + \tilde{H}\gamma\) | \(\gamma\) | \(\gamma = 0\)  | No |
+
 
 ## Miscellaneous
 

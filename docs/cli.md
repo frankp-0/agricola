@@ -234,6 +234,8 @@ These are the non-global options for `step2`:
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--variant-file` | TEXT | optional| File with variants to include, one per line |
 | `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
+| `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
+| `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 
@@ -258,6 +260,8 @@ These are the non-global options for `all-steps`
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--variant-file1` | TEXT | optional| File with variants to include for step 0/1, one per line |
 | `--variant-file2` | TEXT | optional| File with variants to include for step 2, one per line |
+| `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
+| `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
 | `--block-size0` | INTEGER | optional | Number of variants per block in step 0 [default: 2000] |
 | `--block-size2` | INTEGER | optional | Number of variants per block in step 2 [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
