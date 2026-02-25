@@ -24,17 +24,20 @@ from lanctools import LancData
 from ._internal.utils import (
     stdize,
     get_geno_lanc_deconv,
-    get_geno_deconv,
     TestType,
     TraitType,
 )
 from ._internal.step2_stats import (
     qt_score_lanc,
+    qt_score_lanc_impute,
     qt_score_nolanc,
+    qt_score_nolanc_impute,
     bt_score_lanc,
     bt_score_nolanc,
     qt_wald_lanc,
+    qt_wald_lanc_impute,
     qt_wald_nolanc,
+    qt_wald_nolanc_impute,
     bt_wald_lanc,
     bt_wald_nolanc,
 )
@@ -57,6 +60,7 @@ def _step2_block(
     min_ac: int,
     extra_args: dict,
     adjust_lanc: bool,
+    impute: bool,
 ) -> list[pd.DataFrame]:
     """Run step 2 for a single block of variants
 
@@ -72,6 +76,7 @@ def _step2_block(
         min_ac: the minimum allele count threshold
         extra_args: A dict containing extra arguments needed for trait_type="bt"
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+        impute: Whether to impute the phenotype. Much faster, but only available for qt traits
     """
 
     @jit
@@ -95,36 +100,53 @@ def _step2_block(
     L = L[:, :, 1:]
     G = adjust_G(G, M, N_eff)
     L = adjust_G(L, M, N_eff)
+
     func_map = {
-        (TraitType.QT, TestType.SCORE, True): (
+        (TraitType.QT, TestType.SCORE, True, False): (
             qt_score_lanc,
             lambda: (G, L, Y, Q, N_eff),
         ),
-        (TraitType.QT, TestType.WALD, True): (
+        (TraitType.QT, TestType.SCORE, True, True): (
+            qt_score_lanc_impute,
+            lambda: (G[:, :, :, 0], L[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
+        ),
+        (TraitType.QT, TestType.WALD, True, False): (
             qt_wald_lanc,
             lambda: (G, L, Y, Q, N_eff),
         ),
-        (TraitType.BT, TestType.SCORE, True): (
+        (TraitType.QT, TestType.WALD, True, True): (
+            qt_wald_lanc_impute,
+            lambda: (G[:, :, :, 0], L[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
+        ),
+        (TraitType.BT, TestType.SCORE, True, False): (
             bt_score_lanc,
             lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
         ),
-        (TraitType.BT, TestType.WALD, True): (
+        (TraitType.BT, TestType.WALD, True, False): (
             bt_wald_lanc,
             lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
         ),
-        (TraitType.QT, TestType.SCORE, False): (
+        (TraitType.QT, TestType.SCORE, False, False): (
             qt_score_nolanc,
             lambda: (G, Y, Q, N_eff),
         ),
-        (TraitType.QT, TestType.WALD, False): (
+        (TraitType.QT, TestType.SCORE, False, True): (
+            qt_score_nolanc_impute,
+            lambda: (G[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
+        ),
+        (TraitType.QT, TestType.WALD, False, False): (
             qt_wald_nolanc,
             lambda: (G, Y, Q, N_eff),
         ),
-        (TraitType.BT, TestType.SCORE, False): (
+        (TraitType.QT, TestType.WALD, False, True): (
+            qt_wald_nolanc_impute,
+            lambda: (G[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
+        ),
+        (TraitType.BT, TestType.SCORE, False, False): (
             bt_score_nolanc,
             lambda: (G, Y, Q, extra_args["O"], M, N_eff),
         ),
-        (TraitType.BT, TestType.WALD, False): (
+        (TraitType.BT, TestType.WALD, False, False): (
             bt_wald_nolanc,
             lambda: (G, Y, Q, extra_args["O"], M, N_eff),
         ),
@@ -134,23 +156,32 @@ def _step2_block(
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     valid_idx = np.array(ac_variant_mask)
 
-    test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc)]
+    test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc, impute)]
 
     log10p_lrt: np.ndarray | None = None
 
+    _, B, K, P = G.shape
     if test_type == TestType.WALD:
         chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt = test_func(
             *arg_fn()
         )
+        chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
         chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
+
+    chisq_hom = jnp.reshape(chisq_hom, (B, P))
+    beta_hom = jnp.reshape(beta_hom, (B, P))
+    beta_het = jnp.reshape(beta_het, (B, K, P))
+    if df_het.ndim < 2:
+        df_het = np.broadcast_to(df_het[:, None], (B, P))
+    df_het = jnp.reshape(df_het, (B, P))
+    chisq_het = jnp.reshape(chisq_het, (B, P))
 
     log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
     ## Create array with results
-    B, P = log10p_hom.shape
     result_components = [
         log10p_het[:, None, :],
         beta_het,
@@ -217,6 +248,7 @@ def _step2_dataset(
     min_ac: int = 1,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
+    impute: bool = False,
 ) -> None:
     """Run step 2 for a single dataset
 
@@ -235,6 +267,7 @@ def _step2_dataset(
         min_ac: the minimum allele count threshold
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
+        impute: Whether to impute the phenotype. Much faster, but only available for qt traits
     """
     ## Get variant indices
     if variants is None:
@@ -318,6 +351,7 @@ def _step2_dataset(
                     min_ac,
                     extra_args,
                     adjust_lanc,
+                    impute,
                 )
 
                 for i, df in enumerate(result_dfs):
@@ -352,6 +386,7 @@ def step2(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
+    impute: bool = False,
 ) -> None:
     """Perform agricola step 2
 
@@ -364,15 +399,20 @@ def step2(
         out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
+        test_type: Either "score" or "wald"
         B: The block size (max number of variants to read at once)
         min_ac: the minimum allele count threshold
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
-        test_type: Either "score" or "wald"
+        impute: Whether to impute the phenotype. Much faster, but only available
+            for qt traits. If all phenotypes are non-missing, this is ignored.
     """
-    M = (~jnp.isnan(Y)).astype(jnp.float32)
+    if impute:
+        M = jnp.ones(shape=jnp.asarray(Y).shape)
+    else:
+        M = (~jnp.isnan(jnp.asarray(Y))).astype(jnp.float32)
 
     Y, X, step1_predictions_np, idx_sample, test_type_enum, trait_type_enum = (
         validate_step2_inputs(
@@ -394,6 +434,11 @@ def step2(
     if trait_type_enum == TraitType.QT:
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
+        if (M == 1).all():
+            impute = True
+    else:
+        if impute:
+            raise ValueError("impute must be False for binary traits")
 
     ## Adjust covariates for per-phenotype missingness
     X = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(
@@ -421,4 +466,5 @@ def step2(
             min_ac,
             variants,
             adjust_lanc,
+            impute,
         )

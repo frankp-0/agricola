@@ -34,8 +34,10 @@ def ols_block(
     betax = XtXl_inv11 @ XtY + XtXl_inv12 @ LtY
     betal = XtXl_inv12.T @ XtY + XtXl_inv22 @ LtY
     res = Y - X @ betax - L @ betal
-    sse = res.T @ res
-    stat = betax.T @ inv(XtXl_inv11) @ betax / (sse / (N_eff - X.shape[1] - L.shape[1]))
+    sse = jnp.sum(res**2, axis=0)
+    stat = jnp.einsum("kp,kl,lp", betax, inv(XtXl_inv11), betax) / (
+        sse / (N_eff - X.shape[1] - L.shape[1])
+    )
     df = matrix_rank(XtX)
     return stat, betax, df, sse
 
@@ -62,6 +64,8 @@ def ols(
 def _qt_score_lanc(
     G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
 ) -> tuple[Array, Array, Array, Array, Array]:
+    Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
+
     K = G.shape[1]
     alpha = N_eff * 1e-6
 
@@ -86,8 +90,8 @@ def _qt_score_lanc(
     U = G.T @ r_L
     GtG = Gl.T @ Gl
     GtG_inv = inv(GtG + alpha * jnp.identity(K))
-    chisq_het = U.T @ GtG_inv @ U / mse_null
-    beta_het = U * jnp.diagonal(GtG_inv)
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U)
+    beta_het = U * jnp.diagonal(GtG_inv)[:, None]
     df_het = matrix_rank(GtG)
 
     ## Score test for genotypes (homogeneous test)
@@ -104,6 +108,8 @@ def _qt_score_lanc(
 def _qt_score_nolanc(
     G: Array, Y: Array, Q: Array, N_eff: Array
 ) -> tuple[Array, Array, Array, Array, Array]:
+    Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
+
     K = G.shape[1]
     alpha = N_eff * 1e-6
 
@@ -120,8 +126,8 @@ def _qt_score_nolanc(
     U = G.T @ Y
     GtG = G.T @ G
     GtG_inv = inv(GtG + alpha * jnp.identity(K))
-    chisq_het = U.T @ GtG_inv @ U / mse_null
-    beta_het = U * jnp.diagonal(GtG_inv)
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U)
+    beta_het = U * jnp.diagonal(GtG_inv)[:, None]
     df_het = matrix_rank(GtG)
 
     ## Score test for genotypes (homogeneous test)
@@ -136,6 +142,8 @@ def _qt_score_nolanc(
 def _qt_wald_lanc(
     G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
 ) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+    Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
+
     alpha = N_eff * 1e-6
 
     ## Genotypes
@@ -152,12 +160,14 @@ def _qt_wald_lanc(
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
     df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom[0], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return chisq_hom, beta_hom[0, :], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 def _qt_wald_nolanc(
     G: Array, Y: Array, Q: Array, N_eff: Array
 ) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+    Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
+
     alpha = N_eff * 1e-6
 
     ## Genotypes
@@ -173,7 +183,7 @@ def _qt_wald_nolanc(
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
     df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom[0], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return chisq_hom, beta_hom[0, :], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -359,6 +369,10 @@ qt_score_lanc = jit(
     )
 )
 
+qt_score_lanc_impute = jit(
+    vmap(_qt_score_lanc, in_axes=(1, 1, None, None, None)),
+)
+
 qt_score_nolanc = jit(
     vmap(
         vmap(_qt_score_nolanc, in_axes=(1, None, None, None)),
@@ -367,6 +381,9 @@ qt_score_nolanc = jit(
     )
 )
 
+qt_score_nolanc_impute = jit(
+    vmap(_qt_score_nolanc, in_axes=(1, None, None, None)),
+)
 
 qt_wald_lanc = jit(
     vmap(
@@ -376,6 +393,9 @@ qt_wald_lanc = jit(
     )
 )
 
+qt_wald_lanc_impute = jit(
+    vmap(_qt_wald_lanc, in_axes=(1, 1, None, None, None)),
+)
 
 qt_wald_nolanc = jit(
     vmap(
@@ -383,6 +403,10 @@ qt_wald_nolanc = jit(
         in_axes=(3, 1, 2, 0),
         out_axes=-1,
     )
+)
+
+qt_wald_nolanc_impute = jit(
+    vmap(_qt_wald_nolanc, in_axes=(1, None, None, None)),
 )
 
 bt_score_lanc = jit(

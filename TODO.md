@@ -8,5 +8,4 @@
 - [ ] Print information about stop/start time in CLI
 
 ### Documentation
-- [ ] Add score/wald to CLI docs
 - [ ] Show how you can export JAX device in environment

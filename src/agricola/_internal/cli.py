@@ -510,6 +510,10 @@ def step2(
     adjust_lanc: bool = typer.Option(
         True, help="Adjust single variant tests for local ancestry"
     ),
+    impute: bool = typer.Option(
+        False,
+        help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
+    ),
 ) -> None:
     from ..step2 import step2
     import numpy as np
@@ -568,6 +572,7 @@ def step2(
         idx_sample,
         variants,
         adjust_lanc,
+        impute,
     )
 
 
@@ -673,6 +678,10 @@ def all_steps(
     adjust_lanc: bool = typer.Option(
         True, help="Adjust single variant tests for local ancestry"
     ),
+    impute: bool = typer.Option(
+        False,
+        help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
+    ),
 ) -> None:
     import jax.numpy as jnp
     import jax
@@ -680,6 +689,10 @@ def all_steps(
     from .utils import get_cv_mask
     from ..step1 import step1
     from ..step2 import step2
+
+    ## Catch bad impute early
+    if trait_type == "bt" and impute:
+        raise typer.BadParameter("Binary traits must use --no-impute")
 
     ## Load data
     ancestries_list = list_from_csv(ancestries)
@@ -751,6 +764,7 @@ def all_steps(
         idx_sample,
         variants2,
         adjust_lanc,
+        impute,
     )
 
 
