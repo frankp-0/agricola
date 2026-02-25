@@ -217,16 +217,14 @@ def load_lanc_data(
     from lanctools import LancData
 
     if plink_prefix and plink_list:
-        raise typer.BadParameter(
-            "Specify either --plink-prefix OR --plink-list, not both"
-        )
+        raise typer.BadParameter("Specify either --plink OR --plink-list, not both")
     if lanc_file and lanc_list:
-        raise typer.BadParameter("Specify either --lanc-file OR --lanc-list, not both")
+        raise typer.BadParameter("Specify either --lanc OR --lanc-list, not both")
 
     plinks: list[str]
     if plink_prefix is None:
         if plink_list is None:
-            raise typer.BadParameter("Specify one of --plink-prefix or --plink-list")
+            raise typer.BadParameter("Specify one of --plink or --plink-list")
         with open(plink_list) as f:
             plinks = [line.strip() for line in f if line.strip()]
     else:
@@ -235,7 +233,7 @@ def load_lanc_data(
     lancs: list[str]
     if lanc_file is None:
         if lanc_list is None:
-            raise typer.BadParameter("Specify one of --lanc-file or --lanc-list")
+            raise typer.BadParameter("Specify one of --lanc or --lanc-list")
         with open(lanc_list) as f:
             lancs = [line.strip() for line in f if line.strip()]
     else:
@@ -283,7 +281,7 @@ def main(
 
 @app.command()
 def step1(
-    plink_prefix: Optional[list[str]] = typer.Option(
+    plink: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Plink2 file prefix. "
@@ -299,7 +297,7 @@ def step1(
             "This option OR --plink-prefix must be provided (not both). "
         ),
     ),
-    lanc_file: Optional[list[str]] = typer.Option(
+    lanc: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Local ancestry .lanc file. "
@@ -318,8 +316,9 @@ def step1(
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
     ),
-    out_prefix: str = typer.Option(
-        ..., help="Step 1 predictions will be serialized and written to prefix.pkl"
+    output: str = typer.Option(
+        ...,
+        help="Output prefix. Step 1 predictions will be serialized and written to {output}.pkl",
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     pheno: Optional[list[str]] = typer.Option(
@@ -360,7 +359,7 @@ def step1(
     ## Load data
     ancestries_list = list_from_csv(ancestries)
     datasets, plinks, _ = load_lanc_data(
-        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+        plink, plink_list, lanc, lanc_list, ancestries_list
     )
     variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
@@ -391,13 +390,13 @@ def step1(
     )
 
     ## Write predictions
-    with open(out_prefix + ".pkl", "wb") as f:
+    with open(output + ".pkl", "wb") as f:
         pickle.dump(predictions, f)
 
 
 @app.command()
 def step2(
-    plink_prefix: Optional[list[str]] = typer.Option(
+    plink: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Plink2 file prefix. "
@@ -413,7 +412,7 @@ def step2(
             "This option OR --plink-prefix must be provided (not both). "
         ),
     ),
-    lanc_file: Optional[list[str]] = typer.Option(
+    lanc: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Local ancestry .lanc file. "
@@ -435,7 +434,7 @@ def step2(
     step1_prefix: str = typer.Option(
         ..., help="Step 1 predictions are deserialized from prefix.pkl"
     ),
-    out_prefix: Optional[list[str]] = typer.Option(
+    output: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Output prefix, one per plink_prefix. "
@@ -444,7 +443,7 @@ def step2(
             "Example --out-prefix result_chr1 --out=prefix result_chr2"
         ),
     ),
-    out_list: Optional[str] = typer.Option(
+    output_list: Optional[str] = typer.Option(
         None,
         help=(
             "File containing output file prefixes, one per line and one per plink prefix. "
@@ -485,20 +484,20 @@ def step2(
     ## Load data
     ancestries_list = list_from_csv(ancestries)
     datasets, plinks, _ = load_lanc_data(
-        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+        plink, plink_list, lanc, lanc_list, ancestries_list
     )
 
-    if out_prefix and out_list:
-        raise typer.BadParameter("Specify either --out-prefix OR --out-list, not both")
+    if output and output_list:
+        raise typer.BadParameter("Specify either --output OR --output-list, not both")
 
     outs: list[str]
-    if out_prefix is None:
-        if out_list is None:
-            raise typer.BadParameter("Specify one of --out-prefix or --out-list")
-        with open(out_list) as f:
+    if output is None:
+        if output_list is None:
+            raise typer.BadParameter("Specify one of --output or --output-list")
+        with open(output_list) as f:
             outs = [line.strip() for line in f if line.strip()]
     else:
-        outs = out_prefix
+        outs = output
 
     variants = load_variants(variant_file)
     samples, samples_psam = load_samples(plinks, samples_file)
@@ -532,7 +531,7 @@ def step2(
 
 @app.command()
 def all_steps(
-    plink_prefix: Optional[list[str]] = typer.Option(
+    plink: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Plink2 file prefix. "
@@ -548,7 +547,7 @@ def all_steps(
             "This option OR --plink-prefix must be provided (not both). "
         ),
     ),
-    lanc_file: Optional[list[str]] = typer.Option(
+    lanc: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Local ancestry .lanc file. "
@@ -581,7 +580,7 @@ def all_steps(
     covar_list: Optional[str] = typer.Option(
         None, help="File containing covariates to include in analysis"
     ),
-    out_prefix: Optional[list[str]] = typer.Option(
+    output: Optional[list[str]] = typer.Option(
         None,
         help=(
             "Output prefix, one per plink_prefix. "
@@ -590,7 +589,7 @@ def all_steps(
             "Example --out-prefix result_chr1 --out=prefix result_chr2"
         ),
     ),
-    out_list: Optional[str] = typer.Option(
+    output_list: Optional[str] = typer.Option(
         None,
         help=(
             "File containing output file prefixes, one per line and one per plink prefix. "
@@ -636,23 +635,23 @@ def all_steps(
     ## Load data
     ancestries_list = list_from_csv(ancestries)
     datasets, plinks, _ = load_lanc_data(
-        plink_prefix, plink_list, lanc_file, lanc_list, ancestries_list
+        plink, plink_list, lanc, lanc_list, ancestries_list
     )
     variants1 = load_variants(variant_file1)
     variants2 = load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
 
-    if out_prefix and out_list:
+    if output and output_list:
         raise typer.BadParameter("Specify either --out-prefix OR --out-list, not both")
 
     outs: list[str]
-    if out_prefix is None:
-        if out_list is None:
+    if output is None:
+        if output_list is None:
             raise typer.BadParameter("Specify one of --out-prefix or --out-list")
-        with open(out_list) as f:
+        with open(output_list) as f:
             outs = [line.strip() for line in f if line.strip()]
     else:
-        outs = out_prefix
+        outs = output
 
     samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, phenotypes, samples = load_pheno_and_covars(
