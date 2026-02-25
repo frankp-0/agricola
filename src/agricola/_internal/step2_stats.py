@@ -152,7 +152,7 @@ def _qt_wald_lanc(
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
     df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return chisq_hom, beta_hom[0], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 def _qt_wald_nolanc(
@@ -173,7 +173,7 @@ def _qt_wald_nolanc(
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
     df_lrt = df_het - df_hom
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return chisq_hom, beta_hom[0], chisq_het, beta_het, df_het, chisq_lrt, df_lrt
 
 
 ### ─────────────────────────────────────────────────────────────
