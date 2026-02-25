@@ -3,6 +3,7 @@
 ## To Do
 
 ### Package
+- [ ] Add option to specify which chromosome to run
 - [ ] Add option to specify categorical covariates and one-hot encode them
 - [ ] LRT for homogeneous vs. heterogeneous effects
 - [ ] Firth or SPA test
