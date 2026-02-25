@@ -224,6 +224,7 @@ These are the non-global options for `step2`:
 | `--output` | TEXT | optional | Output prefix, one per plink_prefix |
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--variant-file` | TEXT | optional| File with variants to include, one per line |
+| `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 

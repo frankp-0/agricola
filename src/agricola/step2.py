@@ -200,6 +200,7 @@ def _step2_dataset(
     trait_type: TraitType,
     test_type: TestType,
     desc: str,
+    chrom: Optional[str],
     B: int = 2000,
     min_ac: int = 1,
     variants: Optional[list[str]] = None,
@@ -240,10 +241,16 @@ def _step2_dataset(
     chromosomes = [
         dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
     ]
-    chr_seen = set()
-    chroms = [
-        chrom for chrom in chromosomes if not (chrom in chr_seen or chr_seen.add(chrom))
-    ]
+    if chrom is not None:
+        chroms = [chrom]
+    else:
+        chr_seen = set()
+        chroms = [
+            chrom
+            for chrom in chromosomes
+            if not (chrom in chr_seen or chr_seen.add(chrom))
+        ]
+
     n_blocks = sum(
         (len([c for c in chromosomes if c == chrom]) + B - 1) // B for chrom in chroms
     )
@@ -327,6 +334,7 @@ def step2(
     phenotypes: list[str],
     trait_type: str = "qt",
     test_type: str = "score",
+    chrom: Optional[str] = None,
     B: int = 1000,
     min_ac: int = 1,
     idx_sample: Optional[ArrayLike] = None,
@@ -396,6 +404,7 @@ def step2(
             trait_type_enum,
             test_type_enum,
             desc,
+            chrom,
             B,
             min_ac,
             variants,

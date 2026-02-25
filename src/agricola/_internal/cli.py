@@ -468,6 +468,7 @@ def step2(
     variant_file: Optional[str] = typer.Option(
         None, help="File with variants to include, one per line"
     ),
+    chrom: Optional[str] = typer.Option(None, help="Chromosome"),
     block_size: int = typer.Option(1000, help="Number of variants per block"),
     min_ac: int = typer.Option(1, help="Minimum allele count"),
     trait_type: str = typer.Option(
@@ -521,6 +522,7 @@ def step2(
         phenotypes,
         trait_type,
         test_type,
+        chrom,
         block_size,
         min_ac,
         idx_sample,
@@ -603,6 +605,7 @@ def all_steps(
     variant_file2: Optional[str] = typer.Option(
         None, help="File with variants to include in step 2, one per line"
     ),
+    chrom: Optional[str] = typer.Option(None, help="Chromosome"),
     h2_prior: str = typer.Option(
         DEFAULT_H2_PRIORS, help="SNP heritability priors, comma-separated"
     ),
@@ -688,6 +691,7 @@ def all_steps(
         phenotypes,
         trait_type,
         test_type,
+        chrom,
         block_size2,
         min_ac,
         idx_sample,
