@@ -20,6 +20,12 @@ dependencies = [
   "typer>=0.20.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/frankp-0/agricola"
+Documentation = "https://agricola.readthedocs.io"
+Repository = "https://github.com/frankp-0/agricola"
+Issues = "https://github.com/frankp-0/agricola/issues"
+
 [build-system]
 requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"

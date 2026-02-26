@@ -6,7 +6,7 @@ site_description = "Local ancestry GWAS with GPU acceleration"
 
 site_author = "Franklin Ockerman"
 
-#site_url = "https://www.example.com/"
+site_url = "https://agricola.readthedocs.io"
 
 copyright = """
 Copyright &copy; 2026 Franklin Ockerman
