@@ -152,6 +152,7 @@ the following schema:
 | N | int | Sample size |
 | AF_{anc} | double | Ancestry-specific allele frequency |
 | LAprop_{anc} | double | Proportion of haplotypes from ancestry anc |
+| log10p_lrt | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for Wald test) |
 
 ---
 
