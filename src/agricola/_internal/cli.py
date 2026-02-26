@@ -283,11 +283,22 @@ def get_version() -> str:
 ### ─────────────────────────────────────────────────────────────
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
     verbose: bool = typer.Option(False, "--verbose"),
     quiet: bool = typer.Option(False, "--quiet"),
+    version_flag: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show the agricola version and exit",
+        is_eager=True,
+    ),
 ) -> None:
+    if version_flag:
+        typer.echo(f"agricola {get_version()}")
+        raise typer.Exit()
+
     setup_logging(verbose, quiet)
 
 
