@@ -90,7 +90,7 @@ def _qt_score_lanc(
     U = G.T @ r_L
     GtG = Gl.T @ Gl
     GtG_inv = inv(GtG + alpha * jnp.identity(K))
-    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U)
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U) / mse_null
     beta_het = U * jnp.diagonal(GtG_inv)[:, None]
     df_het = matrix_rank(GtG)
 
@@ -126,7 +126,7 @@ def _qt_score_nolanc(
     U = G.T @ Y
     GtG = G.T @ G
     GtG_inv = inv(GtG + alpha * jnp.identity(K))
-    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U)
+    chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U) / mse_null
     beta_het = U * jnp.diagonal(GtG_inv)[:, None]
     df_het = matrix_rank(GtG)
 
