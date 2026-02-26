@@ -43,6 +43,36 @@ from ._internal.step2_stats import (
 )
 from ._internal.inputs import validate_step2_inputs
 
+
+### ─────────────────────────────────────────────────────────────
+### Helpers
+### ─────────────────────────────────────────────────────────────
+
+
+@jit
+def adjust_G(G, M, N_eff):
+    G = (
+        G[:, :, :, None]
+        - jnp.sum(G[:, :, :, None] * M[:, None, None, :], axis=0) / N_eff
+    )
+    G = G * M[:, None, None, :]
+    return G
+
+
+@jit
+def prep_block(G, L, M, min_ac):
+    N_eff = jnp.sum(M, axis=0)
+    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    lac = (L[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    af_lanc = ac / lac
+    prop_lanc = jnp.sum(L[:, :, :, None], axis=0) / N_eff[None, None, :] / 2
+    L = L[:, :, 1:]
+    G = adjust_G(G, M, N_eff)
+    L = adjust_G(L, M, N_eff)
+    ac_variant_mask = ac.sum(axis=1) >= min_ac
+    return G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask
+
+
 ### ─────────────────────────────────────────────────────────────
 ### Orchestration
 ### ─────────────────────────────────────────────────────────────
@@ -78,28 +108,13 @@ def _step2_block(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
     """
-
-    @jit
-    def adjust_G(G, M, N_eff):
-        G = (
-            G[:, :, :, None]
-            - jnp.sum(G[:, :, :, None] * M[:, None, None, :], axis=0) / N_eff
-        )
-        G = G * M[:, None, None, :]
-        return G
-
-    N_eff = jnp.sum(M, axis=0)
     G, L = get_geno_lanc_deconv(dataset, block)
     if idx_sample is not None:
         G = G[idx_sample]
         L = L[idx_sample]
-    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-    lac = (L[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-    af_lanc = ac / lac
-    prop_lanc = jnp.sum(L[:, :, :, None], axis=0) / N_eff[None, None, :] / 2
-    L = L[:, :, 1:]
-    G = adjust_G(G, M, N_eff)
-    L = adjust_G(L, M, N_eff)
+
+    G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask = prep_block(G, L, M, min_ac)
+    valid_idx = np.asarray(ac_variant_mask)
 
     func_map = {
         (TraitType.QT, TestType.SCORE, True, False): (
@@ -152,10 +167,6 @@ def _step2_block(
         ),
     }
 
-    ## Filter variants with low ac
-    ac_variant_mask = ac.sum(axis=1) >= min_ac
-    valid_idx = np.array(ac_variant_mask)
-
     test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc, impute)]
 
     log10p_lrt: np.ndarray | None = None
@@ -174,7 +185,7 @@ def _step2_block(
     beta_hom = jnp.reshape(beta_hom, (B, P))
     beta_het = jnp.reshape(beta_het, (B, K, P))
     if df_het.ndim < 2:
-        df_het = np.broadcast_to(df_het[:, None], (B, P))
+        df_het = jnp.broadcast_to(df_het[:, None], (B, P))
     df_het = jnp.reshape(df_het, (B, P))
     chisq_het = jnp.reshape(chisq_het, (B, P))
 
