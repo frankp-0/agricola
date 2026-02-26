@@ -308,9 +308,9 @@ def _bt_wald_lanc(
     df_hom = matrix_rank(XtX)
 
     ## LRT
-    l_het = Y.T @ etag - jnp.log(1 + jnp.exp(etag))
-    l_hom = Y.T @ etah - jnp.log(1 + jnp.exp(etah))
-    chisq_lrt = 2 * (l_het - l_hom)
+    l_het = Y * etag - jnp.log(1 + jnp.exp(etag))
+    l_hom = Y * etah - jnp.log(1 + jnp.exp(etah))
+    chisq_lrt = 2 * jnp.sum(l_het - l_hom)
     df_lrt = df_het - df_hom
 
     return chisq_hom, betah[0], chisq_het, betag[:K], df_het, chisq_lrt, df_lrt
@@ -349,9 +349,9 @@ def _bt_wald_nolanc(
     df_hom = matrix_rank(HtH)
 
     ## LRT
-    l_het = Y.T @ etag - jnp.log(1 + jnp.exp(etag))
-    l_hom = Y.T @ etah - jnp.log(1 + jnp.exp(etah))
-    chisq_lrt = 2 * (l_het - l_hom)
+    l_het = Y * etag - jnp.log(1 + jnp.exp(etag))
+    l_hom = Y * etah - jnp.log(1 + jnp.exp(etah))
+    chisq_lrt = 2 * jnp.sum(l_het - l_hom)
     df_lrt = df_het - df_hom
 
     return chisq_hom, betah, chisq_het, betag, df_het, chisq_lrt, df_lrt
