@@ -216,12 +216,9 @@ the following notation serve as a reference:
 | \(X\) | (N,C) | The covariates |
 | \(Y\) | (N,) | The phenotype. For quantitative traits, \(Y\) has been orthogonalized with respect to \(X\) and standardized to have mean zero and unit variance. |
 | \(\hat{Y}_c\) | (N,) | The LOCO prediction (linear scale) from step 1 |
-| \(G\) | (N,K) | The ancestry-deconvoluted genotypes at a given locus. This is the number of haplotypes from ancestry \(k\) with the alternate allele. |
-| \(\tilde{G}\) | (N,K) | The ancestry-deconvoluted genotypes, orthogonalized by \(X\). |
-| \(H\) | (N,) | The genotypes at a given locus. This is the total number of haplotypes with the alternate allele. |
-| \(\tilde{H}\) | (N,) | The genotypes, orthogonalized by \(X\) |
-| \(L\) | (N,K-1) | The local ancestry at a given locus. \(L_k\) is the number of haplotypes from ancestry \(k\). One ancestry is omitted since it can be determined from the other $K-1$. |
-| \(\tilde{L}\) | (N,K-1) | The local ancestry, orthogonalized by \(X\) |
+| \(G, \tilde{G}\) | (N,K) | The ancestry-deconvoluted genotypes at a given locus. This is the number of haplotypes from ancestry \(k\) with the alternate allele. \(\tilde{G}\) is \(G\) orthogonalized by \(X\) |
+| \(H, \tilde{H}\) | (N,) | The genotypes at a given locus. This is the total number of haplotypes with the alternate allele. \(\tilde{H}\)  is \(H\) orthogonalized by \(X\). |
+| \(L, \tilde{L}\) | (N,K-1) | The local ancestry at a given locus. \(L_k\) is the number of haplotypes from ancestry \(k\). One ancestry is omitted since it can be determined from the other $K-1$. \(\tilde{L}\)  is \(L\) orthogonalized by \(X\). |
 
 
 #### Tests (Quantitative Traits)
