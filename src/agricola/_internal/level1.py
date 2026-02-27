@@ -236,8 +236,8 @@ def level1(
     Y: ArrayLike,
     X: Optional[ArrayLike],
     phenotypes: list[str],
-    train_mask: Optional[ArrayLike],
-    test_mask: Optional[ArrayLike],
+    train_mask: ArrayLike,
+    test_mask: ArrayLike,
     h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
@@ -248,8 +248,8 @@ def level1(
         level0_files: A dict where keys are chromosomes and values are paths with level 0 predictions
         Y: A (N, P) ArrayLike of phenotypes
         X: An optional (N, C) ArrayLike of covariates (no intercept)
-        train_mask: An optional (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
-        test_mask: An optional (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
+        train_mask: An (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
+        test_mask: An (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D ArrayLike of prior values for snp heritability
         trait_type: Either "qt" or "bt"
         loocv: A boolean indicating whether to perform LOOCV instead of standard

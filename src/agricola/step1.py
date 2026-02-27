@@ -65,6 +65,8 @@ def step1(
         datasets,
         Y,
         X,
+        train_mask,
+        test_mask,
         h2_prior,
         B,
         idx_sample,
