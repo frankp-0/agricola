@@ -293,7 +293,7 @@ def _bt_wald_lanc(
     XtX = Xw.T @ Xw
     XtXw_inv = inv(XtX + alpha * jnp.identity(2 * K - 1))
     chisq_het = betag[:K].T @ inv(XtXw_inv[:K, :K]) @ betag[:K]
-    df_het = matrix_rank(XtX)
+    df_het = matrix_rank(XtX[:K, :K])
 
     ## Wald test for genotypes
     Xh = jnp.concatenate([H[:, None], L], axis=1)
@@ -305,7 +305,7 @@ def _bt_wald_lanc(
     XtX = Xw.T @ Xw
     XtXw_inv = inv(XtX + alpha * jnp.identity(K))
     chisq_hom = betah[0] ** 2 / XtXw_inv[0, 0]
-    df_hom = matrix_rank(XtX)
+    df_hom = matrix_rank(XtX[0, 0])
 
     ## LRT
     l_het = Y * etag - jnp.log(1 + jnp.exp(etag))
