@@ -50,25 +50,18 @@ from ._internal.inputs import validate_step2_inputs
 
 
 @jit
-def adjust_G(G, M, N_eff):
-    G = (
-        G[:, :, :, None]
-        - jnp.sum(G[:, :, :, None] * M[:, None, None, :], axis=0) / N_eff
-    )
-    G = G * M[:, None, None, :]
-    return G
-
-
-@jit
 def prep_block(G, L, M, min_ac):
     N_eff = jnp.sum(M, axis=0)
-    ac = (G[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
-    lac = (L[:, :, :, None] * M[:, None, None, :]).sum(axis=0)
+    GM = G[:, :, :, None] * M[:, None, None, :]
+    LM = L[:, :, :, None] * M[:, None, None, :]
+    ac = GM.sum(axis=0)
+    lac = LM.sum(axis=0)
     af_lanc = ac / lac
-    prop_lanc = jnp.sum(L[:, :, :, None], axis=0) / N_eff[None, None, :] / 2
+    prop_lanc = lac / N_eff[None, None, :] / 2
     L = L[:, :, 1:]
-    G = adjust_G(G, M, N_eff)
-    L = adjust_G(L, M, N_eff)
+    LM = LM[:, :, 1:, :]
+    G = G[:, :, :, None] - GM.sum(axis=0) / N_eff
+    L = L[:, :, :, None] - LM.sum(axis=0) / N_eff
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     return G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask
 
