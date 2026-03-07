@@ -83,7 +83,7 @@ def load_samples(plinks: list[str], samples_file: Optional[str]):
 
     if samples_file is not None:
         with open(samples_file, "r") as f:
-            samples_keep = f.readlines()
+            samples_keep = [line.strip() for line in f.readlines()]
         samples = [sample for sample in samples_psam if sample in samples_keep]
     else:
         samples = samples_psam
