@@ -76,7 +76,7 @@ def level0(
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
-    B: int = 2000,
+    B: int = 1000,
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,

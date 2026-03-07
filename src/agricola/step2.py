@@ -248,7 +248,7 @@ def _step2_dataset(
     test_type: TestType,
     desc: str,
     chrom: Optional[str],
-    B: int = 2000,
+    B: int = 500,
     min_ac: int = 1,
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,

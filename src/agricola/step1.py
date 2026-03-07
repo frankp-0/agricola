@@ -29,7 +29,7 @@ def step1(
     h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
-    B: int = 2000,
+    B: int = 1000,
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,

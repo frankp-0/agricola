@@ -370,7 +370,7 @@ def step1(
     h2_prior: str = typer.Option(
         DEFAULT_H2_PRIORS, help="SNP heritability priors, comma-separated"
     ),
-    block_size: int = typer.Option(2000, help="Number of variants per block"),
+    block_size: int = typer.Option(1000, help="Number of variants per block"),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option(
         "qt", help="Trait type: quantitative (qt) or binary (bt)"
@@ -672,11 +672,9 @@ def all_steps(
         DEFAULT_H2_PRIORS, help="SNP heritability priors, comma-separated"
     ),
     block_size1: int = typer.Option(
-        2000, help="Number of variants per block in step 1"
+        1000, help="Number of variants per block in step 1"
     ),
-    block_size2: int = typer.Option(
-        1000, help="Number of variants per block in step 2"
-    ),
+    block_size2: int = typer.Option(500, help="Number of variants per block in step 2"),
     min_ac: int = typer.Option(1, help="Minimum allele count"),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option(
