@@ -329,9 +329,10 @@ def _step2_dataset(
             Q = jnp.linalg.qr(X.transpose(2, 0, 1), mode="reduced")[0].transpose(
                 1, 2, 0
             )
+            Yc = Y  # chromosome-specific Y
             if trait_type == TraitType.QT:
-                Y = Y - step1_predictions[chrom]
-                Y = Y - jnp.sum(Y * M, axis=0) / jnp.sum(M, axis=0)
+                Yc = Yc - step1_predictions[chrom]
+                Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
                 mu = expit(step1_predictions[chrom])
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -340,12 +341,12 @@ def _step2_dataset(
                 O = jnp.asarray(step1_predictions[chrom])
                 extra_args["O"] = O
 
-            Y = Y * M
+            Yc = Yc * M
 
             for block in blocks:
                 result_dfs = _step2_block(
                     dataset,
-                    Y,
+                    Yc,
                     M,
                     Q,
                     trait_type,
