@@ -55,7 +55,9 @@ def step1(
     Returns:
         A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions
     """
+    rm_dir0 = False
     if level0_dir is None:
+        rm_dir0 = True
         tmp = tempfile.TemporaryDirectory()
         level0_dir = tmp.name
 
@@ -87,9 +89,10 @@ def step1(
     )
 
     ## Cleanup
-    for file in level0_files.values():
-        os.remove(file)
-    if os.path.isdir(level0_dir) and not os.listdir(level0_dir):
-        os.rmdir(level0_dir)
+    if rm_dir0:
+        for file in level0_files.values():
+            os.remove(file)
+        if os.path.isdir(level0_dir) and not os.listdir(level0_dir):
+            os.rmdir(level0_dir)
 
     return step1_predictions

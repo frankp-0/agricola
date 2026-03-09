@@ -336,6 +336,10 @@ def step1(
             "This option OR --lanc-file must be provided (not both). "
         ),
     ),
+    level0_dir: Optional[str] = typer.Option(
+        None,
+        help=("Directory to save level 0 files to"),
+    ),
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
     ),
@@ -424,6 +428,7 @@ def step1(
         block_size,
         idx_sample,
         variants,
+        level0_dir,
     )
 
     ## Write predictions
@@ -621,6 +626,10 @@ def all_steps(
             "This option OR --lanc-file must be provided (not both). "
         ),
     ),
+    level0_dir: Optional[str] = typer.Option(
+        None,
+        help=("Directory to save level 0 files to"),
+    ),
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
     ),
@@ -756,6 +765,7 @@ def all_steps(
         block_size1,
         idx_sample,
         variants1,
+        level0_dir,
     )
 
     step2(
