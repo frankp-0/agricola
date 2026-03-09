@@ -170,19 +170,13 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 | `--lanc-list` | TEXT | optional | File containing .lanc file paths, one per line |
 | `--ancestries` | TEXT | optional | Ancestry names, comma-separated and ordered as in .lanc files |
 | `--pheno-file` | TEXT | required | Phenotype file |
-| `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option
-can be repeated to specify multiple files or omitted to use all phenotypes |
-| `--pheno-list` | TEXT | optional | File containing phenotypes to include in
-the analysis, one per line. This option can be omitted to use all phenotypes |
+| `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option can be repeated to specify multiple files or omitted to use all phenotypes |
+| `--pheno-list` | TEXT | optional | File containing phenotypes to include in the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--covar-file` | TEXT | optional | Covariates file |
-| `--covar` | TEXT | optional | Covariate to include in the analysis. This option
-can be repeated to specify multiple files or omitted to use all covariates |
-| `--covar-list` | TEXT | optional | File containing covariates to include in
-the analysis, one per line. This option can be omitted to use all phenotypes |
-| `--catcovar` | TEXT | optional | Categorical covariate to include in the analysis. This option
-can be repeated to specify multiple files or omitted to use all covariates |
-| `--catcovar-list` | TEXT | optional | File containing categorical covariates to include in
-the analysis, one per line. This option can be omitted to use all phenotypes |
+| `--covar` | TEXT | optional | Covariate to include in the analysis. This option can be repeated to specify multiple files or omitted to use all covariates |
+| `--covar-list` | TEXT | optional | File containing covariates to include in the analysis, one per line. This option can be omitted to use all phenotypes |
+| `--catcovar` | TEXT | optional | Categorical covariate to include in the analysis. This option can be repeated to specify multiple files or omitted to use all covariates |
+| `--catcovar-list` | TEXT | optional | File containing categorical covariates to include in the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 
@@ -217,6 +211,7 @@ These are the non-global options for `step1`:
 | Option      | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--output` | TEXT | required | Step 1 predictions will be serialized and written to prefix.pkl |
+| `--level0-dir` | TEXT | optional | Directory where level 0 predictions are saved (use temp dir if not provided) |
 | `--variant-file` | TEXT | optional| File with variants to include, one per line |
 | `--h2-prior` | TEXT | optional | SNP heritability priors, comma-separated [default: 0.01,0.255,0.5,0.745,0.99] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 2000] |
@@ -233,6 +228,7 @@ These are the non-global options for `step2`:
 | --- | --- | --- | --- |
 | `--output` | TEXT | optional | Output prefix, one per plink_prefix |
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
+| `--level0-dir` | TEXT | optional | Directory where level 0 predictions are saved (use temp dir if not provided) |
 | `--variant-file` | TEXT | optional| File with variants to include, one per line |
 | `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
