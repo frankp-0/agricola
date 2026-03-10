@@ -15,7 +15,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
 from numpy.typing import NDArray
-from numpy.lib.format import open_memmap
 from tqdm import tqdm
 from typing import Optional
 from pandas import DataFrame, Index
@@ -31,6 +30,11 @@ from .inputs import validate_level1_inputs
 ### ─────────────────────────────────────────────────────────────
 ### Computation
 ### ─────────────────────────────────────────────────────────────
+
+
+_fit_ridge = jax.jit(ridge)
+_fit_logistic_ridge = jax.jit(logistic_ridge)
+_fit_logistic_ridge_loo = jax.jit(logistic_ridge_loo)
 
 
 def _ridge_cv_qt(
@@ -64,7 +68,6 @@ def _ridge_cv_qt(
     alphas = B * (1 - h2_prior) / h2_prior
 
     ## Would love to vmap this but it uses way too much memory
-    _fit_ridge = jax.jit(ridge)
     eta = np.zeros(shape=(N, A, C))
     for fold in range(K):
         for a in range(A):
@@ -132,7 +135,6 @@ def _ridge_cv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    _fit_logistic_ridge = jax.jit(logistic_ridge)
     eta = np.zeros(shape=(N, A, C))
     for fold in range(K):
         for a in range(A):
@@ -192,7 +194,6 @@ def _ridge_loocv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    _fit_logistic_ridge_loo = jax.jit(logistic_ridge_loo)
     eta = np.zeros(shape=(N, A, C))
     for a in range(A):
         beta = _fit_logistic_ridge_loo(Z, Y, offset, alphas[a]).T
