@@ -259,7 +259,7 @@ def _step2_dataset(
     Args:
         dataset: A LancData object
         Y: A (N, P) jax array of outcomes
-        step1_predictions: A dict of (N,P) numpy arrays containing LOCO predictions
+        step1_predictions: A dict of (N,P) pandas DataFrames containing LOCO predictions
         X: A (N, C) jax array of covariates
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain

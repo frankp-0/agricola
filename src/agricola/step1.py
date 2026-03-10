@@ -54,7 +54,7 @@ def step1(
         level0_dir: The directory where level 0 predictions are written
 
     Returns:
-        A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions
+        A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
     """
     rm_dir0 = False
     if level0_dir is None:

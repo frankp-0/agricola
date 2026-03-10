@@ -128,8 +128,8 @@ sample3	sample3	161	0.81
 #### Step 1 Intermediate
 
 Whole-genome leave-one-chromosome-out (LOCO) predictions from step 1 are saved
-to the file `{prefix}.pkl`. This is file consists of a serialized dictionary,
-where keys are chromosomes and values are $(N, P)$ NumPy arrays with
+to the file `{prefix}.pkl`. This file consists of a serialized dictionary,
+where keys are chromosomes and values are $(N, P)$ pandas DataFrames with
 predictions for each sample and phenotype.
 
 #### Step 2 Results

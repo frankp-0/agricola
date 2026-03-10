@@ -259,7 +259,7 @@ def level1(
             cross validation. Ignored for trait_type="qt".
 
     Returns:
-        A dict where keys are chromosomes and values are (N, P) numpy arrays of level 1 predictions
+        A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
     """
     ## Validate inputs
     Y, X, train_mask, test_mask, h2_prior, trait = validate_level1_inputs(
