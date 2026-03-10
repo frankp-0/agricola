@@ -41,6 +41,7 @@ def step1(
             per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
+        phenotypes: A list of phenotype names, ordered as the columns of Y
         train_mask: A (N, K) jax array indicating training set status for each set k in 1, ..., K
         test_mask: A (N, K) jax array indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
