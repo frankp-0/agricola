@@ -67,6 +67,7 @@ def step1(
         datasets,
         Y,
         X,
+        phenotypes,
         train_mask,
         test_mask,
         h2_prior,
@@ -90,8 +91,9 @@ def step1(
 
     ## Cleanup
     if rm_dir0:
-        for file in level0_files.values():
-            os.remove(file)
+        for files in level0_files.values():
+            for file in files.values():
+                os.remove(file)
         if os.path.isdir(level0_dir) and not os.listdir(level0_dir):
             os.rmdir(level0_dir)
 

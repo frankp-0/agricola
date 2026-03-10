@@ -73,6 +73,7 @@ def level0(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
+    phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
@@ -80,7 +81,7 @@ def level0(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
-) -> dict[str, str]:
+) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
     Args:
@@ -107,7 +108,7 @@ def level0(
     Q, _ = jnp.linalg.qr(X, mode="reduced")
     Y = stdize(Y - (Q @ (Q.T @ Y)))
 
-    N, P = Y.shape
+    N, _ = Y.shape
     K = len(h2_prior)
 
     ## Perform level 0 for each dataset
@@ -125,7 +126,7 @@ def level0(
         for ds in datasets:
             M += ds.pvar.get_variant_ct()
 
-    level0_files = {}
+    level0_files_chrom = {}
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
         desc = f"Getting level 0 predictions for file: {pgen_path}"
@@ -160,10 +161,15 @@ def level0(
 
             n_blocks = len(blocks)
 
-            fname = os.path.join(level0_dir, f"{chrom}.npy")
-            Z = np.lib.format.open_memmap(
-                fname, mode="w+", dtype=np.float32, shape=(N, P, n_blocks * K)
-            )
+            fnames = [
+                os.path.join(level0_dir, f"{pheno}_{chrom}.npy") for pheno in phenotypes
+            ]
+            Zs = [
+                np.lib.format.open_memmap(
+                    fnames[i], mode="w+", dtype=np.float32, shape=(N, n_blocks * K)
+                )
+                for i in range(len(phenotypes))
+            ]
 
             col0 = 0
             with tqdm(total=n_blocks, desc=f"{desc} chr{chrom}", unit="block") as pbar:
@@ -171,13 +177,15 @@ def level0(
                     Z_block = _level0_block(
                         ds, Y, Q, train_mask, test_mask, idx_sample, block, h2_prior, M
                     )
-
-                    Z[:, :, col0 : col0 + K] = Z_block
+                    for p in range(len(phenotypes)):
+                        Zs[p][:, col0 : col0 + K] = Z_block[:, p, :]
                     col0 += K
                     pbar.update(1)
 
-            Z.flush()
-
-            level0_files[chrom] = fname
+            level0_files_chrom[chrom] = fnames
+    level0_files = {
+        k: {dk: dv[i] for dk, dv in level0_files_chrom.items()}
+        for i, k in enumerate(phenotypes)
+    }
 
     return level0_files

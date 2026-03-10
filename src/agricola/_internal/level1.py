@@ -232,7 +232,7 @@ def _ridge_loocv_bt(
 
 
 def level1(
-    level0_files: dict[str, str],
+    level0_files: dict[str, dict[str, str]],
     Y: ArrayLike,
     X: Optional[ArrayLike],
     phenotypes: list[str],
@@ -263,21 +263,22 @@ def level1(
         Y, X, phenotypes, train_mask, test_mask, h2_prior, trait_type
     )
     N, P = Y.shape
-    C = len(level0_files)
+    C = len(level0_files[phenotypes[0]])
 
     ## Standardize Y if QT
     if trait == TraitType.QT:
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
 
-    Zs = [open_memmap(v, "r+") for v in level0_files.values()]
-    n_blocks = [z.shape[2] for z in Zs]
     loco_arr = np.zeros(shape=(N, P, C))
     with tqdm(
         total=Y.shape[1], desc="Getting level 1 predictions", unit="phenotypes"
     ) as pbar:
         for p in range(P):
-            Z = jnp.concatenate([z[:, p, :] for z in Zs], axis=1)
+            pheno: str = phenotypes[p]
+            Zs = [open_memmap(v, "r+") for v in level0_files[pheno].values()]
+            n_blocks = [z.shape[1] for z in Zs]
+            Z = jnp.concatenate(Zs, axis=1)
 
             if trait == TraitType.BT:
                 beta_covar = logistic_ridge(X, Y[:, p], jnp.zeros(N), jnp.ones(N), 0)
@@ -299,7 +300,7 @@ def level1(
             pbar.update(1)
 
     level1_loco = {}
-    for i, chrom in enumerate(level0_files.keys()):
+    for i, chrom in enumerate(level0_files[phenotypes[0]].keys()):
         level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))
 
     return level1_loco

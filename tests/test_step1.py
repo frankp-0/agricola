@@ -35,15 +35,23 @@ def valid_inputs_0(P=3, K=5, C=1, H=4):
     train_mask = jnp.ones((N, K))
     test_mask = jnp.ones((N, K))
     h2_prior = jnp.linspace(0.1, 0.9, H)
-    return Y, X, train_mask, test_mask, h2_prior
+    phenotypes = [str(i) for i in range(Y.shape[1])]
+    return Y, X, phenotypes, train_mask, test_mask, h2_prior
 
 
-def valid_inputs_1(P=3, K=5, C=1, H=4):
+def valid_inputs_1(P=3, C=1, H=4):
     """Utility for constructing minimal valid inputs."""
     pref = "tests/data/level0/"
-    level0_files = {"20": f"{pref}20.npy", "21": f"{pref}21.npy", "22": f"{pref}22.npy"}
-    Y, X, train_mask, test_mask, h2_prior = valid_inputs_0(P, C, H)
-    phenotypes = [str(i) for i in range(Y.shape[1])]
+    level0_dicts = [
+        {
+            "20": f"{pref}{i}_20.npy",
+            "21": f"{pref}{i}_21.npy",
+            "22": f"{pref}{i}_22.npy",
+        }
+        for i in range(3)
+    ]
+    level0_files = dict(zip([str(i) for i in range(3)], level0_dicts))
+    Y, X, phenotypes, train_mask, test_mask, h2_prior = valid_inputs_0(P, C, H)
     h2_prior = jnp.linspace(0.1, 0.9, H)
     return level0_files, Y, X, phenotypes, train_mask, test_mask, h2_prior
 
@@ -55,55 +63,63 @@ def valid_inputs_1(P=3, K=5, C=1, H=4):
 
 def test_step0_dataset_elements_type_error():
     """Check that bad datasets throws error"""
-    Y, X, train_mask, test_mask, h2 = valid_inputs_0()
+    Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     with pytest.raises(TypeError, match="must be LancData"):
-        level0([object()], Y, X, train_mask, test_mask, h2)  # pyright: ignore
+        level0([object()], Y, X, phenotypes, train_mask, test_mask, h2)  # pyright: ignore
 
 
 def test_level0_Y_dim_error(
     toy_data,
 ):
     """Check that 1D Y throws error"""
-    _, X, train_mask, test_mask, h2 = valid_inputs_0()
+    _, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     with pytest.raises(ValueError, match="Y must be 2D"):
-        level0(toy_data, jnp.zeros(5), X, train_mask, test_mask, h2)
+        level0(toy_data, jnp.zeros(5), X, phenotypes, train_mask, test_mask, h2)
 
 
 def test_level0_X_dim_error(
     toy_data,
 ):
     """Check that 1D X throws error"""
-    Y, _, train_mask, test_mask, h2 = valid_inputs_0()
+    Y, _, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     with pytest.raises(ValueError, match="X must be 2D"):
-        level0(toy_data, Y, jnp.zeros((10,)), train_mask, test_mask, h2)
+        level0(toy_data, Y, jnp.zeros((10,)), phenotypes, train_mask, test_mask, h2)
 
 
 def test_level0_X_matches_N_error(
     toy_data,
 ):
     """Check that N mis-match with X throws error"""
-    Y, _, train_mask, test_mask, h2 = valid_inputs_0()
+    Y, _, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     wrong_X = jnp.zeros((5, 2))
     with pytest.raises(ValueError, match="must match Y.shape"):
-        level0(toy_data, Y, wrong_X, train_mask, test_mask, h2)
+        level0(toy_data, Y, wrong_X, phenotypes, train_mask, test_mask, h2)
 
 
 def test_level0_h2_prior_dim_error(
     toy_data,
 ):
     """Check that h2_prior with wrong dimension throws error"""
-    Y, X, train_mask, test_mask, _ = valid_inputs_0()
+    Y, X, phenotypes, train_mask, test_mask, _ = valid_inputs_0()
     with pytest.raises(ValueError, match="h2_prior must be 1D"):
-        level0(toy_data, Y, X, train_mask, test_mask, jnp.ones((3, 2)))
+        level0(toy_data, Y, X, phenotypes, train_mask, test_mask, jnp.ones((3, 2)))
 
 
 def test_level0_h2_prior_domain_error(
     toy_data,
 ):
     """Check that h2_prior outside (0,1) throws error"""
-    Y, X, train_mask, test_mask, _ = valid_inputs_0()
+    Y, X, phenotypes, train_mask, test_mask, _ = valid_inputs_0()
     with pytest.raises(ValueError, match="in the open interval"):
-        level0(toy_data, Y, X, train_mask, test_mask, jnp.array([0.5, 0.0, 0.7]))
+        level0(
+            toy_data,
+            Y,
+            X,
+            phenotypes,
+            train_mask,
+            test_mask,
+            jnp.array([0.5, 0.0, 0.7]),
+        )
 
 
 @pytest.mark.parametrize("B", [0, -5, 3.14, "foo"])
@@ -112,26 +128,35 @@ def test_level0_B_error(
     toy_data,
 ):
     """Check that bad B throws error"""
-    Y, X, train_mask, test_mask, h2 = valid_inputs_0()
+    Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     with pytest.raises(ValueError, match="B must be a positive integer"):
-        level0(toy_data, Y, X, train_mask, test_mask, h2, B=B)
+        level0(toy_data, Y, X, phenotypes, train_mask, test_mask, h2, B=B)
 
 
 def test_level0_variants_type_error(
     toy_data,
 ):
     """Check that bad variants type throws error"""
-    Y, X, train_mask, test_mask, h2 = valid_inputs_0()
+    Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     with pytest.raises(TypeError, match="variants must be a list of strings"):
-        level0(toy_data, Y, X, train_mask, test_mask, h2, variants=[1, 2, 3])  # pyright: ignore
+        level0(
+            toy_data,
+            Y,
+            X,
+            phenotypes,
+            train_mask,
+            test_mask,
+            h2,
+            variants=[1, 2, 3],  # pyright: ignore
+        )
 
 
 def test_level0_validation_happy_path(
     toy_data,
 ):
     """Check that valid data throws no type errors"""
-    Y, X, train_mask, test_mask, h2 = valid_inputs_0()
-    level0(toy_data, Y, X, train_mask, test_mask, h2, B=100)
+    Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
+    level0(toy_data, Y, X, phenotypes, train_mask, test_mask, h2, B=100)
 
 
 ### ─────────────────────────────────────────────────────────────
