@@ -246,9 +246,11 @@ def level1(
     """Perform level 1 ridge regressions
 
     Args:
-        level0_files: A dict where keys are chromosomes and values are paths with level 0 predictions
+        level0_files: A two-level dict. The outer keys are phenotypes, the inner keys are chromosomes,
+            and the values are paths to .npy files containing (N, n_blocks) level 0 predictions.
         Y: A (N, P) ArrayLike of phenotypes
         X: An optional (N, C) ArrayLike of covariates (no intercept)
+        phenotypes: A list of phenotype names, ordered as the columns of Y
         train_mask: An (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
         test_mask: An (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D ArrayLike of prior values for snp heritability

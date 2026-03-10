@@ -42,9 +42,12 @@ def _level0_block(
         dataset: A  LancData object
         Y: A (N, P) jax array of (residualized, standardized) phenotypes
         Q: A (N, C) jax array with the Q matrix in the QR decomposition of the covariates
+        train_mask: An (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
+        test_mask: An (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
         block: A (B,) ndarray with indices of variants in the block
         h2_prior: A 1D jax array of prior values for snp heritability
+        M: The total number of variants used in step 1
 
     Returns:
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
@@ -89,6 +92,7 @@ def level0(
             per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)
+        phenotypes: A list of phenotype names, ordered as the columns of Y
         train_mask: An (N, K) ArrayLike indicating training set status for each set k in 1, ..., K
         test_mask: An (N, K) ArrayLike indicating test set status for each set k in 1, ..., K
         h2_prior: A 1D jax array of prior values for snp heritability
@@ -98,8 +102,8 @@ def level0(
         level0_dir: The directory where level 0 predictions are written
 
     Returns:
-        level0_files: A dict where keys are chromosomes and values are files
-            containing level 0 predictions
+        level0_files: A two-level dict. The outer keys are phenotypes, the inner keys are chromosomes,
+            and the values are paths to .npy files containing (N, n_blocks) level 0 predictions.
     """
     (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_level0_inputs(
         datasets, Y, X, train_mask, test_mask, h2_prior, B, idx_sample, variants
