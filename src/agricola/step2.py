@@ -199,13 +199,13 @@ def _step2_block(
     ## Get column names for results
     ancs = dataset.ancestries
     colnames: list[str] = [
-        "log10p_het",
-        *["beta_" + anc for anc in ancs],
-        "log10p_hom",
-        "beta_hom",
+        "LOG10P_HET",
+        *["BETA_" + anc for anc in ancs],
+        "LOG10P_HOM",
+        "BETA_HOM",
         "N",
         *["AF_" + anc for anc in ancs],
-        *["LAprop_" + anc for anc in ancs],
+        *["LA_PROP_" + anc for anc in ancs],
     ]
 
     if log10p_lrt is not None:
