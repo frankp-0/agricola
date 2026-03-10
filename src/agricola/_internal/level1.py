@@ -276,7 +276,7 @@ def level1(
     ) as pbar:
         for p in range(P):
             pheno: str = phenotypes[p]
-            Zs = [open_memmap(v, "r+") for v in level0_files[pheno].values()]
+            Zs = [np.load(v) for v in level0_files[pheno].values()]
             n_blocks = [z.shape[1] for z in Zs]
             Z = jnp.concatenate(Zs, axis=1)
 
