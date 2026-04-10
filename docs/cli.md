@@ -98,7 +98,7 @@ command to combine the .lanc files.
 
 ```bash
 # merge multiple .lanc files
-lanctools merge --file chr1.lanc,chr2.lanc,chr3.lanc --outfile chr1_3.lanc
+lanctools merge --input chr1.lanc --input chr2.lanc --input chr3.lanc --output chr1_3.lanc
 ```
 
 #### Phenotypes and Covariates
