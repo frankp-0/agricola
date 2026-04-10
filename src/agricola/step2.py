@@ -210,7 +210,7 @@ def _step2_block(
 
     if log10p_lrt is not None:
         result_components.append(log10p_lrt[:, None, :])
-        colnames.append("log10p_lrt")
+        colnames.append("LOG10P_LRT")
 
     result_arr = np.concatenate(result_components, axis=1)
 
