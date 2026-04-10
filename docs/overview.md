@@ -116,7 +116,7 @@ In level 0 of step 1, the genome is divided into blocks of consecutive SNPs
 and ridge regression is used to generate per-block predictions.
 
 First, a subset of $M$ (e.g. 500,000) variants is chosen to capture common
-variation. Supposing block-size $B$ and sample size $N$, **agricola** reads
+variation. Supposing block size $B$ and sample size $N$, **agricola** reads
 variants into $J=\lceil M/B \rceil$ blocks. For a given $N\times J$ block of
 genotypes $G_B$ and $N\times 1$ phenotype $Y$, a series of ridge regressions is
 performed for pre-specified penalties $\lambda_1, \lambda_2, \cdots, \lambda_A$:

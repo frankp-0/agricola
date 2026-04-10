@@ -141,18 +141,18 @@ the following schema:
 
 | Field | Type | Description |
 | --- | --- | --- |
-| chrom | string | Chromosome |
-| pos | int | Genomic position |
-| ref | string | Reference allele |
-| alt | string |  Alternate allele |
-| id | string | Variant ID |
-| log10p_het | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
-| beta_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
-| log10p_hom | double | P-value for $\beta=0$ under homogeneous model (all ancestry effects equal) |
+| CHR | string | Chromosome |
+| BP | int | Genomic position |
+| REF | string | Reference allele |
+| ALT | string |  Alternate allele |
+| ID | string | Variant ID |
+| LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
+| BETA_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
+| LOG10P_HOM | double | P-value for $\beta=0$ under homogeneous model (all ancestry effects equal) |
 | N | int | Sample size |
 | AF_{anc} | double | Ancestry-specific allele frequency |
-| LAprop_{anc} | double | Proportion of haplotypes from ancestry anc |
-| log10p_lrt | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for Wald test) |
+| LA_PROP_{anc} | double | Proportion of haplotypes from ancestry anc |
+| LOG10P_LRT | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for Wald test) |
 
 ---
 
