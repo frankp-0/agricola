@@ -25,7 +25,7 @@ local ancestry adjustment—and combines it with:
 
 - **Accelerated linear algebra** via [JAX](https://docs.jax.dev)
 - **CUDA GPU, TPU, or CPU support** for flexible compute environments
-- **Efficient local ancestry queries** using [lanctools](https://lanctools.readthedocs.io/)
+- **Efficient local ancestry queries** using [lanctools](https://frankp-0.github.io/lanctools/)
 - **Multi-phenotype** modeling
 - **Adjustment for sample relatedness**
 

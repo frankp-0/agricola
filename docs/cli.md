@@ -84,7 +84,7 @@ Please see the admix-kit documentation for further details.
 To make working with this format easier, we introduce the **lanctools**
 Python package and CLI tool. **lanctools** can convert RFMix msp.tsv
 files or FLARE vcf.gz files into .lanc format. We provide an example below.
-Please see the [lanctools documentation](https://lanctools.readthedocs.io) for further details.
+Please see the [lanctools documentation](https://frankp-0.github.io/lanctools/) for further details.
 
 ```bash
 # convert FLARE to .lanc format
