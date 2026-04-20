@@ -35,9 +35,8 @@ def ols_block(
     betal = XtXl_inv12.T @ XtY + XtXl_inv22 @ LtY
     res = Y - X @ betax - L @ betal
     sse = jnp.sum(res**2, axis=0)
-    stat = jnp.einsum("kp,kl,lp", betax, inv(XtXl_inv11), betax) / (
-        sse / (N_eff - X.shape[1] - L.shape[1])
-    )
+    mse = sse / (N_eff - X.shape[1] - L.shape[1])
+    stat = jnp.einsum("kp,kl,lp->p", betax, inv(XtXl_inv11), betax) / mse
     df = matrix_rank(XtX)
     return stat, betax, df, sse
 
@@ -51,7 +50,8 @@ def ols(
     betax = XtX_inv @ XtY
     res = Y - X @ betax
     sse = res.T @ res
-    stat = betax.T @ XtX @ betax / (sse / (N_eff - X.shape[1]))
+    mse = sse / (N_eff - X.shape[1])
+    stat = jnp.einsum("kp,kl,lp->p", betax, XtX, betax) / mse
     df = matrix_rank(XtX)
     return stat, betax, df, sse
 
