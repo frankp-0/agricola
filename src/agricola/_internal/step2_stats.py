@@ -49,7 +49,7 @@ def ols(
     XtX_inv = inv(XtX + alpha * jnp.identity(X.shape[1]))
     betax = XtX_inv @ XtY
     res = Y - X @ betax
-    sse = res.T @ res
+    sse = jnp.sum(res**2, axis=0)
     mse = sse / (N_eff - X.shape[1])
     stat = jnp.einsum("kp,kl,lp->p", betax, XtX, betax) / mse
     df = matrix_rank(XtX)
