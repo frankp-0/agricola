@@ -170,6 +170,8 @@ def _step2_block(
             *arg_fn()
         )
         chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
+        if df_lrt.ndim == 1:
+            df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
         chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
