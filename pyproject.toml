@@ -22,7 +22,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/frankp-0/agricola"
-Documentation = "https://agricola.readthedocs.io"
+Documentation = "https://frankp-0.github.io/agricola/"
 Repository = "https://github.com/frankp-0/agricola"
 Issues = "https://github.com/frankp-0/agricola/issues"
 

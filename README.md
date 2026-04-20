@@ -6,7 +6,7 @@ and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **agricola**
 provides a scalable, local-ancestry–aware framework that handles relatedness, population
 structure, and ancestry effect heterogeneity.
 
-Full documentation can be found [here](https://agricola.readthedocs.io/en/latest/)
+Full documentation can be found [here](https://frankp-0.github.io/agricola)
 
 ---
 
