@@ -19,15 +19,15 @@ improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
-Tools like Tractor, Tractor-Mix, and SAIGE-Tractor address this gap. **agricola** follows the same
-conceptual approach—performing single-variant association tests with explicit
-local ancestry adjustment—and combines it with:
+Tools like Tractor, Tractor-Mix, and SAIGE-Tractor address this gap by performing
+single-variant association tests with explicit local ancestry adjustment.
+**agricola** follows the same conceptual approach but uses whole genome
+regression to correct for sample relatedness. Other features include:
 
 - **Accelerated linear algebra** via [JAX](https://docs.jax.dev)
 - **CUDA GPU, TPU, or CPU support** for flexible compute environments
-- **Efficient local ancestry queries** using [lanctools](https://frankp-0.github.io/lanctools/)
-- **Multi-phenotype** modeling
-- **Adjustment for sample relatedness**
+- **Fast local ancestry queries** using [lanctools](https://frankp-0.github.io/lanctools/)
+- **Efficient multi-phenotype** modeling
 
 ---
 

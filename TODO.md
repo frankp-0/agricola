@@ -1,4 +1,5 @@
 # agricola
 
 ## To Do
-- [ ] Add ancestry-specific p-values
+
+- Try L-BFGS instead of IRLS for level 1 logistic regression
