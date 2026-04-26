@@ -85,21 +85,9 @@ def _ridge_cv_qt(
     ## Get best CV alpha
     eta_all = np.sum(eta, axis=2)
     cv_errors = np.sum((np.asarray(Y)[:, None] - eta_all) ** 2, axis=0)
-    alpha_best = alphas[np.argmin(cv_errors)]
+    idx_best = np.argmin(cv_errors)
+    eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    ## Refit model
-    beta = _fit_ridge(Z, Y, jnp.ones(shape=(N,)), alpha_best.reshape((1)))[:, 0]
-    beta_mask = np.zeros(shape=(B, C))
-    col0 = 0
-    for c in range(C):
-        n_block = n_blocks[c]
-        beta_mask[np.arange(col0, col0 + n_block), c] = 1
-        col0 = col0 + n_block
-    eta_chroms = Z @ (beta[:, None] * beta_mask)
-
-    ## Get loco prediction
-    eta_all = np.sum(eta_chroms, axis=1)
-    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
@@ -153,21 +141,9 @@ def _ridge_cv_bt(
     eta_all = np.sum(eta, axis=2) + offset[:, None]
     l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
-    alpha_best = alphas[np.argmax(l_alphas)]
+    idx_best = np.argmax(l_alphas)
+    eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    ## Refit model
-    beta = _fit_logistic_ridge(Z, Y, offset, jnp.ones(shape=(N,)), alpha_best)
-    beta_mask = np.zeros(shape=(B, C))
-    col0 = 0
-    for c in range(C):
-        n_block = n_blocks[c]
-        beta_mask[np.arange(col0, col0 + n_block), c] = 1
-        col0 = col0 + n_block
-    eta_chroms = Z @ (beta[:, None] * beta_mask)
-
-    ## Get loco prediction
-    eta_all = np.sum(eta_chroms, axis=1) + offset
-    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
@@ -209,21 +185,9 @@ def _ridge_loocv_bt(
     eta_all = np.sum(eta, axis=2) + offset[:, None]
     l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
-    alpha_best = alphas[np.argmax(l_alphas)]
+    idx_best = np.argmax(l_alphas)
+    eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    ## Refit model
-    beta = logistic_ridge(Z, Y, offset, jnp.ones(shape=(N,)), alpha_best)
-    beta_mask = np.zeros(shape=(B, C))
-    col0 = 0
-    for c in range(C):
-        n_block = n_blocks[c]
-        beta_mask[np.arange(col0, col0 + n_block), c] = 1
-        col0 = col0 + n_block
-    eta_chroms = Z @ (beta[:, None] * beta_mask)
-
-    ## Get loco prediction
-    eta_all = np.sum(eta_chroms, axis=1) + offset
-    eta_loco = eta_all[:, None] - eta_chroms
     return eta_loco
 
 
