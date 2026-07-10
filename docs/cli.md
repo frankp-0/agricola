@@ -16,6 +16,7 @@ agricola step2 --help
 ```
 
 ### Examples
+
 A typical `agricola` run may look like:
 
 ```bash
@@ -65,7 +66,7 @@ agricola step2 \
 files, each corresponding to a separate chromosome.
 
 !!! info
-    
+
     Extension to other formats such as bgen or vcf is possible but
     is not currently a priority. **agricola** requires phasing information,
     so unphased formats such as .bed are not possible.
@@ -111,16 +112,16 @@ is provided, it must begin with a `#` character and must include "IID" as a
 column name. Two valid examples are given below
 
 ```
-#IID	height	crp_irnt
-sample1	165	-1.23
-sample2	175	-2.04
-sample3	161	0.81
+#IID height crp_irnt
+sample1 165 -1.23
+sample2 175 -2.04
+sample3 161 0.81
 ```
 
 ```
-sample1	sample1	165	-1.23
-sample2	sample2	175	-2.04
-sample3	sample3	161	0.81
+sample1 sample1 165 -1.23
+sample2 sample2 175 -2.04
+sample3 sample3 161 0.81
 ```
 
 ### Outputs
@@ -138,13 +139,12 @@ Summary statistics from step 2 of **agricola** are saved in [Apache Parquet](htt
 format, one output file per input plink file and phenotype. These files have
 the following schema:
 
-
 | Field | Type | Description |
 | --- | --- | --- |
 | CHR | string | Chromosome |
 | BP | int | Genomic position |
 | REF | string | Reference allele |
-| ALT | string |  Alternate allele |
+| ALT | string | Alternate allele |
 | ID | string | Variant ID |
 | LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
 | BETA_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
@@ -157,12 +157,12 @@ the following schema:
 ---
 
 ## Options
+
 ### Global Options
 
 These options are common to the `step1`, `step2`, and `all-steps` commands.
 
-
-| Option      | Argument | Type | Description |
+| Option | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--plink` | TEXT | optional | Plink2 file prefix. This option can be repeated to specify multiple files |
 | `--plink-list` | TEXT | optional | File containing plink2 prefixes, one per line |
@@ -170,24 +170,23 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 | `--lanc-list` | TEXT | optional | File containing .lanc file paths, one per line |
 | `--ancestries` | TEXT | optional | Ancestry names, comma-separated and ordered as in .lanc files |
 | `--pheno-file` | TEXT | required | Phenotype file |
-| `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option can be repeated to specify multiple files or omitted to use all phenotypes |
+| `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option can be repeated to specify multiple phenotypes or omitted to use all phenotypes |
 | `--pheno-list` | TEXT | optional | File containing phenotypes to include in the analysis, one per line. This option can be omitted to use all phenotypes |
 | `--covar-file` | TEXT | optional | Covariates file |
-| `--covar` | TEXT | optional | Covariate to include in the analysis. This option can be repeated to specify multiple files or omitted to use all covariates |
+| `--covar` | TEXT | optional | Covariate to include in the analysis. This option can be repeated to specify multiple covariates or omitted to use all covariates |
 | `--covar-list` | TEXT | optional | File containing covariates to include in the analysis, one per line. This option can be omitted to use all phenotypes |
-| `--catcovar` | TEXT | optional | Categorical covariate to include in the analysis. This option can be repeated to specify multiple files or omitted to use all covariates |
-| `--catcovar-list` | TEXT | optional | File containing categorical covariates to include in the analysis, one per line. This option can be omitted to use all phenotypes |
+| `--catcovar` | TEXT | optional | Categorical covariate to include in the analysis. This option can be repeated to specify multiple categorical covariates |
+| `--catcovar-list` | TEXT | optional | File containing categorical covariates to include in the analysis, one per line. |
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 
-
 !!! info
-    
+
     `--plink` and `--lanc` can be repeated to specify multiple files.
     E.g., `--plink tests/data/chr20 --plink tests/data/chr21 --plink tests/data/chr22`
 
 !!! warning
-    
+
     Plink2 and .lanc files must match, meaning you must provide the same number
     of plink2/.lanc files in the same order.
 
@@ -207,29 +206,26 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 
 These are the non-global options for `step1`:
 
-
-| Option      | Argument | Type | Description |
+| Option | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--output` | TEXT | required | Step 1 predictions will be serialized and written to prefix.pkl |
 | `--level0-dir` | TEXT | optional | Directory where level 0 predictions are saved (use temp dir if not provided) |
-| `--variant-file` | TEXT | optional| File with variants to include, one per line |
+| `--variant-file` | TEXT | optional | File with variants to include, one per line |
 | `--h2-prior` | TEXT | optional | SNP heritability priors, comma-separated [default: 0.01,0.255,0.5,0.745,0.99] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 2000] |
 | `--seed` | INTEGER | optional | Random seed [default: 100] |
-| `--loocv` |   | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
-
+| `--loocv` | | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
 
 ### Step 2 Options
 
 These are the non-global options for `step2`:
 
-
-| Option      | Argument | Type | Description |
+| Option | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--output` | TEXT | optional | Output prefix, one per plink_prefix |
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
 | `--level0-dir` | TEXT | optional | Directory where level 0 predictions are saved (use temp dir if not provided) |
-| `--variant-file` | TEXT | optional| File with variants to include, one per line |
+| `--variant-file` | TEXT | optional | File with variants to include, one per line |
 | `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
 | `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
@@ -237,13 +233,12 @@ These are the non-global options for `step2`:
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 
-
 !!! info
-    
+
     `--out-prefix` can be repeated to specify multiple files, like `--plink-prefix` and `--lanc-file`.
 
 !!! warning
-    
+
     Either `--out-prefix` or `--output-list` must be provided, but not both.
 
 !!! info
@@ -252,18 +247,16 @@ These are the non-global options for `step2`:
     missing values, computational performance can be (often greatly) improved
     by using `--impute`, which mean-imputes all missing phenotype values.
 
-
 ### All Steps Options
 
 These are the non-global options for `all-steps`
 
-
-| Option      | Argument | Type | Description |
+| Option | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--output` | TEXT | optional | Output prefix, one per plink_prefix |
 | `--output-list` | TEXT | optional | File containg output file prefixes, one per line and plink2 prefix |
-| `--variant-file1` | TEXT | optional| File with variants to include for step 0/1, one per line |
-| `--variant-file2` | TEXT | optional| File with variants to include for step 2, one per line |
+| `--variant-file1` | TEXT | optional | File with variants to include for step 0/1, one per line |
+| `--variant-file2` | TEXT | optional | File with variants to include for step 2, one per line |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
 | `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
@@ -271,15 +264,14 @@ These are the non-global options for `all-steps`
 | `--block-size2` | INTEGER | optional | Number of variants per block in step 2 [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 | `--seed` | INTEGER | optional | Random seed [default: 100] |
-| `--loocv` |   | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
-
+| `--loocv` | | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
 
 !!! info
-    
+
     `--output` can be repeated to specify multiple files, like `--plink` and `--lanc`.
 
 !!! warning
-    
+
     Either `--output` or `--out-list` must be provided, but not both.
 
 !!! info
