@@ -20,6 +20,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
+from jax import vmap
 from lanctools import LancData
 from ._internal.utils import (
     stdize,
@@ -42,7 +43,7 @@ from ._internal.step2_stats import (
     bt_wald_nolanc,
 )
 from ._internal.inputs import validate_step2_inputs
-
+from ._internal.models import logistic_ridge
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
@@ -446,6 +447,12 @@ def step2(
     else:
         if impute:
             raise ValueError("impute must be False for binary traits")
+        beta_covar = vmap(logistic_ridge, in_axes=(None, 1, None, None, None))(
+            X, Y, jnp.zeros(Y.shape[0]), jnp.ones(Y.shape[0]), 0
+        )
+        offset_covar = X @ beta_covar.T
+        for k in step1_predictions_np.keys():
+            step1_predictions_np[k] = step1_predictions_np[k] + offset_covar
 
     ## Adjust covariates for per-phenotype missingness
     X = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(

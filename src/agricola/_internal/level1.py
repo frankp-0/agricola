@@ -138,8 +138,8 @@ def _ridge_cv_bt(
             eta[:, a, :] += eta_chroms
 
     ## Get best CV alpha
-    eta_all = np.sum(eta, axis=2) + offset[:, None]
-    l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
+    eta_all = np.sum(eta, axis=2)
+    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
@@ -182,8 +182,8 @@ def _ridge_loocv_bt(
             col0 = col0 + n_block
 
     # Get best CV alpha
-    eta_all = np.sum(eta, axis=2) + offset[:, None]
-    l_i_alphas = Y[:, None] * eta_all - np.log(1 + jnp.exp(eta_all))
+    eta_all = np.sum(eta, axis=2)
+    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
