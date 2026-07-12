@@ -8,15 +8,40 @@ This module contains functions for calculating the tests statistics used in agri
 """
 
 from jax import jit, vmap
+import jax.lax as lax
 import jax.numpy as jnp
 from jax.numpy.linalg import inv, matrix_rank
 from jaxtyping import Array
 from jax.scipy.special import expit
-from .models import logistic_ridge
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
 ### ─────────────────────────────────────────────────────────────
+
+
+def _logistic(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    max_iter: int = 10,
+) -> Array:
+    beta0 = jnp.zeros(X.shape[1])
+
+    def body_fun(i, beta):
+        eta = X @ beta + offset
+        mu = expit(eta)
+        r = (y - mu) * train_mask
+        w = mu * (1 - mu) * train_mask
+        XW = X * w[:, None]
+        XT_r = X.T @ r
+        delta = jnp.linalg.solve(X.T @ XW, XT_r)
+        beta_new = beta + delta
+        return jnp.nan_to_num(beta_new)
+
+    beta = lax.fori_loop(0, max_iter, body_fun, beta0)
+
+    return beta
 
 
 def ols_block(
@@ -206,7 +231,7 @@ def _bt_score_lanc(
     H = H - Q @ (Q.T @ H)
 
     ## Fit null model L + offset
-    beta_L = logistic_ridge(L, Y, O, M, alpha, 10)
+    beta_L = _logistic(L, Y, O, M)
     mu = expit(L @ beta_L + O)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
@@ -285,7 +310,7 @@ def _bt_wald_lanc(
 
     ## Wald test for anc-deconvoluted genotypes
     Xg = jnp.concatenate([G, L], axis=1)
-    betag = logistic_ridge(Xg, Y, O, M, alpha, 10)
+    betag = _logistic(Xg, Y, O, M)
     etag = Xg @ betag + O
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -297,7 +322,7 @@ def _bt_wald_lanc(
 
     ## Wald test for genotypes
     Xh = jnp.concatenate([H[:, None], L], axis=1)
-    betah = logistic_ridge(Xh, Y, O, M, alpha, 10)
+    betah = _logistic(Xh, Y, O, M)
     etah = Xh @ betah + O
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -329,7 +354,7 @@ def _bt_wald_nolanc(
     H = H - Q @ (Q.T @ H)
 
     ## Wald test for anc-deconvoluted genotypes
-    betag = logistic_ridge(G, Y, O, M, alpha, 10)
+    betag = _logistic(G, Y, O, M)
     etag = G @ betag + O
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -339,7 +364,7 @@ def _bt_wald_nolanc(
     df_het = matrix_rank(GtG)
 
     ## Wald test for genotypes
-    betah = logistic_ridge(H[:, None], Y, O, M, alpha, 10)[0]
+    betah = _logistic(H[:, None], Y, O, M)[0]
     etah = H * betah + O
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
