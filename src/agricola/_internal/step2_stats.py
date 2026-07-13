@@ -333,8 +333,8 @@ def _bt_wald_lanc(
     df_hom = matrix_rank(XtX[0, 0])
 
     ## LRT
-    l_het = Y * etag - jnp.log(1 + jnp.exp(etag))
-    l_hom = Y * etah - jnp.log(1 + jnp.exp(etah))
+    l_het = (Y * etag - jnp.log(1 + jnp.exp(etag))) * M
+    l_hom = (Y * etah - jnp.log(1 + jnp.exp(etah))) * M
     chisq_lrt = 2 * jnp.sum(l_het - l_hom)
     df_lrt = df_het - df_hom
 
