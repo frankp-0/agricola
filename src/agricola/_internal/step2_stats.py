@@ -289,7 +289,7 @@ def _bt_score_lanc(
     H = _qr_resid(H, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    QL, _ = qr(L, mode="reduced")
+    QL, _ = qr(L * M[:, None], mode="reduced")
     G, Gl, G_mask = _project_and_mask_collinear(G * M[:, None], QL)
     H, Hl, H_mask = _project_and_mask_collinear(H * M, QL)
 
@@ -455,9 +455,8 @@ def _bt_wald_nolanc(
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
     Hw = H * W_sqrt[:, None] * M[:, None]
-    HtH = H.T @ Hw
-    HtHw_inv = _masked_inv(HtH, H_mask)
-    chisq_hom = beta_hom[0] ** 2 / HtHw_inv[0, 0]
+    HtH = Hw.T @ Hw
+    chisq_hom = beta_hom**2 * HtH
     df_hom = jnp.sum(H_mask)
 
     ## LRT
