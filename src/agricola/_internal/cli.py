@@ -5,10 +5,13 @@
 """The command line interface for agricola."""
 
 from __future__ import annotations
+import os
 import pickle
 import typer
 from typing import Optional, TYPE_CHECKING
 from importlib.metadata import version, PackageNotFoundError
+import logging
+import sys
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -18,6 +21,9 @@ if TYPE_CHECKING:
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="agricola CLI")
+logger = logging.getLogger("agricola")
+logging.getLogger("jax").setLevel(logging.WARNING)
+logging.getLogger("numba").setLevel(logging.WARNING)
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
@@ -243,11 +249,15 @@ def _load_lanc_data(
     else:
         lancs = lanc_file
 
+    logger.info("Loading local ancestry data")
+    datasets = [
+        LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
+        for i in range(len(plinks))
+    ]
+    logger.info("Local ancestry data loaded\n")
+
     return (
-        [
-            LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
-            for i in range(len(plinks))
-        ],
+        datasets,
         plinks,
         lancs,
     )
@@ -260,6 +270,39 @@ def _get_version() -> str:
         return "unknown"
 
 
+def _setup_logging(log_file: Optional[str]) -> None:
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    logger.handlers.clear()
+
+    formatter = logging.Formatter(
+        "[%(asctime)s - %(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Optionally log to file at the selected level
+    if log_file:
+        if os.path.exists(log_file):
+            os.remove(log_file)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+
+def _get_options_msg(options: dict[str, str]) -> str:
+    option_msg = ["Command options:"]
+    for key, value in options.items():
+        option_msg.append(f"  {key} = {value}")
+    option_msg = "\n".join(option_msg)
+    option_msg = option_msg + "\n"
+    return option_msg
+
+
 ### ─────────────────────────────────────────────────────────────
 ### App
 ### ─────────────────────────────────────────────────────────────
@@ -267,6 +310,10 @@ def _get_version() -> str:
 
 @app.callback(invoke_without_command=True)
 def main(
+    log: Optional[str] = typer.Option(
+        None,
+        help=("Log file"),
+    ),
     version_flag: bool = typer.Option(
         False,
         "--version",
@@ -275,6 +322,8 @@ def main(
         is_eager=True,
     ),
 ) -> None:
+    _setup_logging(log)
+
     if version_flag:
         typer.echo(f"agricola {_get_version()}")
         raise typer.Exit()
@@ -361,6 +410,8 @@ def step1(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
 ) -> None:
+    logger.info(_get_options_msg(locals()))
+
     import jax.numpy as jnp
     import jax
     from .utils import get_cv_mask
@@ -387,6 +438,7 @@ def step1(
         samples,
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
+    logger.info("Datsets loaded")
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)
@@ -503,6 +555,8 @@ def step2(
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
 ) -> None:
+    logger.info(_get_options_msg(locals()))
+
     from ..step2 import step2
     import numpy as np
 
@@ -656,6 +710,8 @@ def all_steps(
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
 ) -> None:
+    logger.info(_get_options_msg(locals()))
+
     import jax.numpy as jnp
     import jax
     import numpy as np

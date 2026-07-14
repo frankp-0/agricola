@@ -8,7 +8,7 @@ This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
 """
 
-from pathlib import Path, PurePath
+from pathlib import Path
 import shutil
 import jax.numpy as jnp
 from jax import jit
@@ -21,6 +21,7 @@ from typing import Optional
 from jax.scipy.special import expit
 from jax import vmap
 from lanctools import LancData
+import logging
 from ._internal.utils import (
     stdize,
     get_geno_lanc_deconv,
@@ -43,6 +44,9 @@ from ._internal.step2_stats import (
 )
 from ._internal.inputs import validate_step2_inputs
 from ._internal.models import logistic_ridge
+
+
+logger = logging.getLogger(__name__)
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
@@ -94,7 +98,8 @@ class ParquetRotatingWriter:
 
         df.to_parquet(path, engine="pyarrow", compression="snappy", index=False)
 
-        print(f"Wrote {path}: {len(df):,} rows")
+        flush_msg = f"Wrote {path}: {len(df):,} rows"
+        logger.info(flush_msg)
 
         self.file_idx += 1
         self.buffer.clear()
@@ -294,7 +299,6 @@ def _step2_dataset(
     phenotypes: list[str],
     trait_type: TraitType,
     test_type: TestType,
-    desc: str,
     chrom: Optional[str],
     B: int = 500,
     min_ac: int = 1,
@@ -314,7 +318,6 @@ def _step2_dataset(
         out_prefix: Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
-        desc: A string with the description to print for the progress bar
         B: The block size (max number of variants to read at once)
         min_ac: the minimum allele count threshold
         variants: An optional list of variant IDs to retain
@@ -353,7 +356,7 @@ def _step2_dataset(
     )
 
     ## Perform step 2 for each chromosome and block
-    with tqdm(total=n_blocks, desc=desc, unit="block") as pbar:
+    with tqdm(total=n_blocks, unit="block") as pbar:
         for chrom in chroms:
             ## Get indices for this chromosome
             idx_chrom = np.array(
@@ -493,9 +496,9 @@ def step2(
     )
     X = X * M[:, None, :]
 
-    for i, dataset in enumerate(datasets):
+    for dataset in datasets:
         pgen_path = dataset.plink_prefix + ".pgen"
-        desc = f"Getting step 2 results for file: {pgen_path}"
+        logger.info(f"Testing associations for file: {pgen_path}")
         _step2_dataset(
             dataset,
             writer,
@@ -507,7 +510,6 @@ def step2(
             phenotypes,
             trait_type_enum,
             test_type_enum,
-            desc,
             chrom,
             B,
             min_ac,
@@ -515,4 +517,5 @@ def step2(
             adjust_lanc,
             impute,
         )
+        logger.info(f"Finished testing associations for file: {pgen_path}\n")
     writer.close()

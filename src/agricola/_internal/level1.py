@@ -10,6 +10,7 @@ using ridge or logistic ridge regression with cross-validation. The entry-point
 for this module is the `level1` function.
 """
 
+import logging
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
@@ -26,6 +27,7 @@ from .models import (
 )
 from .inputs import validate_level1_inputs
 
+logger = logging.getLogger()
 
 ### ─────────────────────────────────────────────────────────────
 ### Computation
@@ -238,9 +240,8 @@ def level1(
         Y = stdize(Y - (Q @ (Q.T @ Y)))
 
     loco_arr = np.zeros(shape=(N, P, C))
-    with tqdm(
-        total=Y.shape[1], desc="Getting level 1 predictions", unit="phenotypes"
-    ) as pbar:
+    logger.info("Getting level 1 predictions")
+    with tqdm(total=Y.shape[1], unit="phenotypes") as pbar:
         for p in range(P):
             pheno: str = phenotypes[p]
             Zs = [np.load(v) for v in level0_files[pheno].values()]
@@ -266,6 +267,7 @@ def level1(
             loco_arr[:, p, :] = loco_p
             pbar.update(1)
 
+    logger.info("Finished etting level 1 predictions\n")
     level1_loco = {}
     for i, chrom in enumerate(level0_files[phenotypes[0]].keys()):
         level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))

@@ -10,6 +10,7 @@ for each trait across a sequence of heritability priors. The entry-point for thi
 module is the `level0` function.
 """
 
+import logging
 import os
 import tempfile
 import jax
@@ -23,6 +24,8 @@ from .utils import stdize
 from .models import ridge
 from .inputs import validate_level0_inputs
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
 
 
 def _level0_block(
@@ -133,7 +136,7 @@ def level0(
     level0_files_chrom = {}
     for ds in datasets:
         pgen_path = ds.plink_prefix + ".pgen"
-        desc = f"Getting level 0 predictions for file: {pgen_path}"
+        logger.info(f"Getting level 0 predictions for file: {pgen_path}")
         if variants is None:
             idx_variant = np.arange(ds.pvar.get_variant_ct(), dtype=np.uint32)
         else:
@@ -176,7 +179,7 @@ def level0(
             ]
 
             col0 = 0
-            with tqdm(total=n_blocks, desc=f"{desc} chr{chrom}", unit="block") as pbar:
+            with tqdm(total=n_blocks, desc=f"chr{chrom}", unit="block") as pbar:
                 for block in blocks:
                     Z_block = _level0_block(
                         ds, Y, Q, train_mask, test_mask, idx_sample, block, h2_prior, M
@@ -187,6 +190,7 @@ def level0(
                     pbar.update(1)
 
             level0_files_chrom[chrom] = fnames
+        logger.info(f"Finished getting level 0 predictions for file: {pgen_path}\n")
     level0_files = {
         k: {dk: dv[i] for dk, dv in level0_files_chrom.items()}
         for i, k in enumerate(phenotypes)
