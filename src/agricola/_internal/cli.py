@@ -478,21 +478,15 @@ def step2(
     step1_prefix: str = typer.Option(
         ..., help="Step 1 predictions are deserialized from prefix.pkl"
     ),
-    output: Optional[list[str]] = typer.Option(
+    outdir: str = typer.Option(
         None,
         help=(
-            "Output prefix, one per plink_prefix. "
-            "This option can be repeated. "
-            "This option OR --out-list must be provided (not both). "
-            "Example --out-prefix result_chr1 --out=prefix result_chr2"
+            "Output directory. If --no-overwrite, this directory must not exist. Chunked parquet files are written to e.g. outdir/part-0001.parquet"
         ),
     ),
-    output_list: Optional[str] = typer.Option(
-        None,
-        help=(
-            "File containing output file prefixes, one per line and one per plink prefix. "
-            "This option OR --out-file must be provided (not both). "
-        ),
+    overwrite: bool = typer.Option(
+        False,
+        help="Whether to overwrite outdir. If true, any existing folders and files in outdir will be deleted.",
     ),
     pheno_file: str = typer.Option(..., help="Phenotype file"),
     pheno: Optional[list[str]] = typer.Option(
@@ -542,18 +536,6 @@ def step2(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
 
-    if output and output_list:
-        raise typer.BadParameter("Specify either --output OR --output-list, not both")
-
-    outs: list[str]
-    if output is None:
-        if output_list is None:
-            raise typer.BadParameter("Specify one of --output or --output-list")
-        with open(output_list) as f:
-            outs = [line.strip() for line in f if line.strip()]
-    else:
-        outs = output
-
     variants = load_variants(variant_file)
     samples, samples_psam = load_samples(plinks, samples_file)
 
@@ -580,7 +562,7 @@ def step2(
         Y,
         X,
         predictions,
-        outs,
+        outdir,
         phenotypes,
         trait_type,
         test_type,
@@ -591,6 +573,7 @@ def step2(
         variants,
         adjust_lanc,
         impute,
+        overwrite,
     )
 
 
@@ -655,21 +638,15 @@ def all_steps(
     catcovar_list: Optional[str] = typer.Option(
         None, help="File containing categorical covariates to include in analysis"
     ),
-    output: Optional[list[str]] = typer.Option(
+    outdir: str = typer.Option(
         None,
         help=(
-            "Output prefix, one per plink_prefix. "
-            "This option can be repeated. "
-            "This option OR --out-list must be provided (not both). "
-            "Example --out-prefix result_chr1 --out=prefix result_chr2"
+            "Output directory. If --no-overwrite, this directory must not exist. Chunked parquet files are written to e.g. outdir/part-0001.parquet"
         ),
     ),
-    output_list: Optional[str] = typer.Option(
-        None,
-        help=(
-            "File containing output file prefixes, one per line and one per plink prefix. "
-            "This option OR --out-file must be provided (not both). "
-        ),
+    overwrite: bool = typer.Option(
+        False,
+        help="Whether to overwrite outdir. If true, any existing folders and files in outdir will be deleted.",
     ),
     samples_file: Optional[str] = typer.Option(None, help="Samples file"),
     variant_file1: Optional[str] = typer.Option(
@@ -723,18 +700,6 @@ def all_steps(
     variants2 = load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
 
-    if output and output_list:
-        raise typer.BadParameter("Specify either --out-prefix OR --out-list, not both")
-
-    outs: list[str]
-    if output is None:
-        if output_list is None:
-            raise typer.BadParameter("Specify one of --out-prefix or --out-list")
-        with open(output_list) as f:
-            outs = [line.strip() for line in f if line.strip()]
-    else:
-        outs = output
-
     samples, samples_psam = load_samples(plinks, samples_file)
     Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file,
@@ -775,7 +740,7 @@ def all_steps(
         Y,
         X,
         predictions,
-        outs,
+        outdir,
         phenotypes,
         trait_type,
         test_type,
@@ -786,6 +751,7 @@ def all_steps(
         variants2,
         adjust_lanc,
         impute,
+        overwrite,
     )
 
 

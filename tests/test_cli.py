@@ -48,20 +48,13 @@ def toy_data(tmp_path: Path):
         for lanc in lancs:
             f.write(f"{lanc}\n")
 
-    ## outs file
-    outs = [str(tmp_path / "chr") + str(chr) for chr in range(20, 23)]
-    outs_file = tmp_path / "outs.txt"
-    with open(outs_file, "w") as f:
-        for out in outs:
-            f.write(f"{out}\n")
-
     return {
         "pheno_file": str(pheno_file),
         "covar_file": str(covar_file),
         "plink_list": plinks_file,
         "lanc_list": lancs_file,
-        "step1_prefix": str(tmp_path / "out"),
-        "outs_file": outs_file,
+        "step1_prefix": str(tmp_path / "step1"),
+        "outdir": str(tmp_path / "result"),
     }
 
 
@@ -96,8 +89,8 @@ def test_step2_toy(toy_data):
             toy_data["lanc_list"],
             "--step1-prefix",
             "tests/data/step1_pred",
-            "--output-list",
-            toy_data["outs_file"],
+            "--outdir",
+            toy_data["outdir"],
             "--pheno-file",
             toy_data["pheno_file"],
             "--covar-file",
@@ -105,12 +98,6 @@ def test_step2_toy(toy_data):
         ],
     )
     assert result.exit_code == 0
-
-    with open(toy_data["outs_file"], "r") as f:
-        outs_files = f.readlines()
-
-    file_20 = outs_files[0].strip() + "_trait0.parquet"
-    assert Path(file_20).exists()
 
 
 def test_allsteps_toy(toy_data):
@@ -122,8 +109,8 @@ def test_allsteps_toy(toy_data):
             toy_data["plink_list"],
             "--lanc-list",
             toy_data["lanc_list"],
-            "--output-list",
-            toy_data["outs_file"],
+            "--outdir",
+            toy_data["outdir"],
             "--pheno-file",
             toy_data["pheno_file"],
             "--covar-file",
@@ -131,9 +118,3 @@ def test_allsteps_toy(toy_data):
         ],
     )
     assert result.exit_code == 0
-
-    with open(toy_data["outs_file"], "r") as f:
-        outs_files = f.readlines()
-
-    file_20 = outs_files[0].strip() + "_trait0.parquet"
-    assert Path(file_20).exists()

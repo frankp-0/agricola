@@ -8,6 +8,8 @@ This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
 """
 
+from pathlib import Path, PurePath
+import shutil
 import jax.numpy as jnp
 from jax import jit
 from jaxtyping import Array, ArrayLike
@@ -15,9 +17,6 @@ import numpy as np
 from scipy.stats import chi2
 import pandas as pd
 from tqdm import tqdm
-from pathlib import Path
-import pyarrow.parquet as pq
-import pyarrow as pa
 from typing import Optional
 from jax.scipy.special import expit
 from jax import vmap
@@ -67,6 +66,44 @@ def prep_block(G, L, M, min_ac):
     return G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask
 
 
+class ParquetRotatingWriter:
+    def __init__(self, output_dir, max_size_mb=1000):
+        self.output_dir = output_dir
+        self.max_size_bytes = max_size_mb * 1024 * 1024
+        self.buffer = []
+        self.buffer_size = 0
+        self.file_idx = 0
+
+        # TODO: document that output dir cannot exist
+        Path.mkdir(output_dir, parents=True, exist_ok=False)
+
+    def write(self, df):
+        self.buffer.append(df)
+        self.buffer_size += df.memory_usage(deep=True).sum()
+
+        if self.buffer_size >= self.max_size_bytes:
+            self.flush()
+
+    def flush(self):
+        if not self.buffer:
+            return
+
+        df = pd.concat(self.buffer, ignore_index=True)
+
+        path = self.output_dir / f"part-{self.file_idx:05d}.parquet"
+
+        df.to_parquet(path, engine="pyarrow", compression="snappy", index=False)
+
+        print(f"Wrote {path}: {len(df):,} rows")
+
+        self.file_idx += 1
+        self.buffer.clear()
+        self.buffer_size = 0
+
+    def close(self):
+        self.flush()
+
+
 ### ─────────────────────────────────────────────────────────────
 ### Orchestration
 ### ─────────────────────────────────────────────────────────────
@@ -77,6 +114,7 @@ def _step2_block(
     Y: Array,
     M: Array,
     Q: Array,
+    phenotypes: list[str],
     trait_type: TraitType,
     test_type: TestType,
     block: np.ndarray,
@@ -85,7 +123,7 @@ def _step2_block(
     extra_args: dict,
     adjust_lanc: bool,
     impute: bool,
-) -> list[pd.DataFrame]:
+) -> pd.DataFrame:
     """Run step 2 for a single block of variants
 
     Args:
@@ -220,32 +258,39 @@ def _step2_block(
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
 
-    ## Format results into list of dataframes
+    ## Create single DataFrame
     p = Y.shape[1]
-    result_dfs = [
-        pd.concat(
-            [
-                block_info[valid_idx[:, i]].reset_index(drop=True),
-                pd.DataFrame(
-                    data=result_arr[valid_idx[:, i], :, i], columns=pd.Index(colnames)
-                ),
-            ],
-            axis=1,
-        )
-        for i in range(p)
-    ]
+    result_df = pd.concat(
+        [
+            pd.concat(
+                [
+                    block_info[valid_idx[:, i]].reset_index(drop=True),
+                    pd.DataFrame(
+                        data=result_arr[valid_idx[:, i], :, i],
+                        columns=pd.Index(colnames),
+                    ),
+                    pd.DataFrame(
+                        {"phenotype": [phenotypes[i]] * np.sum(valid_idx[:, i])}
+                    ),
+                ],
+                axis=1,
+            )
+            for i in range(p)
+        ],
+        axis=0,
+    )
 
-    return result_dfs
+    return result_df
 
 
 def _step2_dataset(
     dataset: LancData,
+    writer: ParquetRotatingWriter,
     Y: Array,
     M: Array,
     step1_predictions: dict[str, np.ndarray],
     X: Array,
     idx_sample: Optional[Array],
-    out_prefix: str,
     phenotypes: list[str],
     trait_type: TraitType,
     test_type: TestType,
@@ -307,14 +352,6 @@ def _step2_dataset(
         (len([c for c in chromosomes if c == chrom]) + B - 1) // B for chrom in chroms
     )
 
-    ## Initialize output
-    out_paths = [Path(f"{out_prefix}_{pheno}.parquet") for pheno in phenotypes]
-    for p in out_paths:
-        p.parent.mkdir(parents=True, exist_ok=True)
-
-    writers: list[Optional[pq.ParquetWriter]] = [None] * len(phenotypes)
-    schemas = [None] * len(phenotypes)
-
     ## Perform step 2 for each chromosome and block
     with tqdm(total=n_blocks, desc=desc, unit="block") as pbar:
         for chrom in chroms:
@@ -347,11 +384,12 @@ def _step2_dataset(
             Yc = Yc * M
 
             for block in blocks:
-                result_dfs = _step2_block(
+                result_df = _step2_block(
                     dataset,
                     Yc,
                     M,
                     Q,
+                    phenotypes,
                     trait_type,
                     test_type,
                     block,
@@ -362,20 +400,7 @@ def _step2_dataset(
                     impute,
                 )
 
-                for i, df in enumerate(result_dfs):
-                    table = pa.Table.from_pandas(df, preserve_index=False)
-
-                    writer = writers[i]
-
-                    if writer is None:
-                        writer = pq.ParquetWriter(out_paths[i], table.schema)
-                        writers[i] = writer
-                        schemas[i] = table.schema
-                    else:
-                        table = pa.Table.from_pandas(
-                            df, schema=schemas[i], preserve_index=False
-                        )
-                    writer.write_table(table)
+                writer.write(result_df)
                 pbar.update(1)
 
 
@@ -384,7 +409,7 @@ def step2(
     Y: ArrayLike,
     X: Optional[ArrayLike],
     step1_predictions: dict[str, pd.DataFrame],
-    out_prefixes: list[str],
+    outdir: str | Path,
     phenotypes: list[str],
     trait_type: str = "qt",
     test_type: str = "score",
@@ -395,6 +420,7 @@ def step2(
     variants: Optional[list[str]] = None,
     adjust_lanc: bool = True,
     impute: bool = False,
+    overwrite: bool = True,
 ) -> None:
     """Perform agricola step 2
 
@@ -416,7 +442,15 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available
             for qt traits. If all phenotypes are non-missing, this is ignored.
+        overwrite: Whether to overwrite the outdir if it already exists
     """
+    ## Create writer
+    outdir_path = Path(outdir)
+    if outdir_path.exists():
+        shutil.rmtree(outdir_path)
+
+    writer = ParquetRotatingWriter(output_dir=outdir_path)
+
     if impute:
         M = jnp.ones(shape=jnp.asarray(Y).shape)
     else:
@@ -429,7 +463,6 @@ def step2(
             X,
             phenotypes,
             step1_predictions,
-            out_prefixes,
             B,
             idx_sample,
             variants,
@@ -465,12 +498,12 @@ def step2(
         desc = f"Getting step 2 results for file: {pgen_path}"
         _step2_dataset(
             dataset,
+            writer,
             Y,
             M,
             step1_predictions_np,
             X,
             idx_sample,
-            out_prefixes[i],
             phenotypes,
             trait_type_enum,
             test_type_enum,
@@ -482,3 +515,4 @@ def step2(
             adjust_lanc,
             impute,
         )
+    writer.close()

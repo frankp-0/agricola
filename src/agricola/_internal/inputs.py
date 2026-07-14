@@ -177,7 +177,6 @@ def validate_step2_inputs(
     X: Optional[ArrayLike],
     phenotypes: list[str],
     step1_predictions: dict[str, pd.DataFrame],
-    out_prefixes: list[str],
     B: int,
     idx_sample: Optional[ArrayLike],
     variants: Optional[list[str]],
@@ -248,9 +247,6 @@ def validate_step2_inputs(
                     f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
                 )
         step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
-
-    if not len(out_prefixes) == len(datasets):
-        raise ValueError("out_prefixes and datasets must have same number of elements")
 
     if N_pred != N:
         raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
