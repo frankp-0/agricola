@@ -5,11 +5,9 @@
 """The command line interface for agricola."""
 
 from __future__ import annotations
-import logging
 import pickle
 import typer
 from typing import Optional, TYPE_CHECKING
-import os
 from importlib.metadata import version, PackageNotFoundError
 
 if TYPE_CHECKING:
@@ -20,29 +18,21 @@ if TYPE_CHECKING:
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="agricola CLI")
-logger = logging.getLogger("agricola")
-logging.getLogger("jax").setLevel(logging.WARNING)
-
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
 ### ─────────────────────────────────────────────────────────────
 
 
-def _configure_jax_logging() -> None:
-    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-    os.environ.setdefault("ABSL_LOGGING_MIN_LEVEL", "3")
-
-
-def list_from_csv(arg: Optional[str]) -> Optional[list[str]]:
+def _list_from_csv(arg: Optional[str]) -> Optional[list[str]]:
     return None if arg is None else [x.strip() for x in arg.split(",")]
 
 
-def load_variants(path: Optional[str]) -> Optional[list[str]]:
+def _load_variants(path: Optional[str]) -> Optional[list[str]]:
     return None if path is None else open(path).read().splitlines()
 
 
-def read_psam(path) -> DataFrame:
+def _read_psam(path) -> DataFrame:
     import pandas as pd
 
     with open(path) as f:
@@ -77,8 +67,8 @@ def read_psam(path) -> DataFrame:
     return df
 
 
-def load_samples(plinks: list[str], samples_file: Optional[str]):
-    df_psam = read_psam(plinks[0] + ".psam")
+def _load_samples(plinks: list[str], samples_file: Optional[str]):
+    df_psam = _read_psam(plinks[0] + ".psam")
     samples_psam = df_psam["IID"].astype(str).to_list()
 
     if samples_file is not None:
@@ -90,7 +80,7 @@ def load_samples(plinks: list[str], samples_file: Optional[str]):
     return samples, samples_psam
 
 
-def read_pheno_covar(path) -> DataFrame:
+def _read_pheno_covar(path) -> DataFrame:
     import pandas as pd
 
     with open(path) as f:
@@ -125,7 +115,7 @@ def read_pheno_covar(path) -> DataFrame:
     return df
 
 
-def load_pheno_and_covars(
+def _load_pheno_and_covars(
     pheno_file: str,
     covar_file: Optional[str],
     pheno: Optional[list[str]],
@@ -139,7 +129,7 @@ def load_pheno_and_covars(
     import pandas as pd
     import jax.numpy as jnp
 
-    df_pheno = read_pheno_covar(pheno_file)
+    df_pheno = _read_pheno_covar(pheno_file)
     samples_pheno = df_pheno["IID"].astype(str).to_list()
 
     samples: list[str] = [sample for sample in samples_sub if sample in samples_pheno]
@@ -174,7 +164,7 @@ def load_pheno_and_covars(
         catcovariates = None
 
     if covar_file:
-        df_covar = read_pheno_covar(covar_file).dropna()
+        df_covar = _read_pheno_covar(covar_file).dropna()
         samples_covar = df_covar["IID"].astype(str).to_list()
         samples = [sample for sample in samples if sample in samples_covar]
         df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
@@ -221,7 +211,7 @@ def load_pheno_and_covars(
     )
 
 
-def load_lanc_data(
+def _load_lanc_data(
     plink_prefix: Optional[list[str]],
     plink_list: Optional[str],
     lanc_file: Optional[list[str]],
@@ -263,17 +253,7 @@ def load_lanc_data(
     )
 
 
-def setup_logging(verbose: bool, quiet: bool) -> None:
-    if quiet:
-        level = logging.ERROR
-    elif verbose:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
-    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
-
-
-def get_version() -> str:
+def _get_version() -> str:
     try:
         return version("agricola")
     except PackageNotFoundError:
@@ -287,8 +267,6 @@ def get_version() -> str:
 
 @app.callback(invoke_without_command=True)
 def main(
-    verbose: bool = typer.Option(False, "--verbose"),
-    quiet: bool = typer.Option(False, "--quiet"),
     version_flag: bool = typer.Option(
         False,
         "--version",
@@ -298,10 +276,8 @@ def main(
     ),
 ) -> None:
     if version_flag:
-        typer.echo(f"agricola {get_version()}")
+        typer.echo(f"agricola {_get_version()}")
         raise typer.Exit()
-
-    setup_logging(verbose, quiet)
 
 
 @app.command()
@@ -392,14 +368,14 @@ def step1(
     import numpy as np
 
     ## Load data
-    ancestries_list = list_from_csv(ancestries)
-    datasets, plinks, _ = load_lanc_data(
+    ancestries_list = _list_from_csv(ancestries)
+    datasets, plinks, _ = _load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
-    variants = load_variants(variant_file)
+    variants = _load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
-    samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, phenotypes, samples = load_pheno_and_covars(
+    samples, samples_psam = _load_samples(plinks, samples_file)
+    Y, X, phenotypes, samples = _load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,
@@ -531,15 +507,15 @@ def step2(
     import numpy as np
 
     ## Load data
-    ancestries_list = list_from_csv(ancestries)
-    datasets, plinks, _ = load_lanc_data(
+    ancestries_list = _list_from_csv(ancestries)
+    datasets, plinks, _ = _load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
 
-    variants = load_variants(variant_file)
-    samples, samples_psam = load_samples(plinks, samples_file)
+    variants = _load_variants(variant_file)
+    samples, samples_psam = _load_samples(plinks, samples_file)
 
-    Y, X, phenotypes, samples = load_pheno_and_covars(
+    Y, X, phenotypes, samples = _load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,
@@ -692,16 +668,16 @@ def all_steps(
         raise typer.BadParameter("Binary traits must use --no-impute")
 
     ## Load data
-    ancestries_list = list_from_csv(ancestries)
-    datasets, plinks, _ = load_lanc_data(
+    ancestries_list = _list_from_csv(ancestries)
+    datasets, plinks, _ = _load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
-    variants1 = load_variants(variant_file1)
-    variants2 = load_variants(variant_file2)
+    variants1 = _load_variants(variant_file1)
+    variants2 = _load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
 
-    samples, samples_psam = load_samples(plinks, samples_file)
-    Y, X, phenotypes, samples = load_pheno_and_covars(
+    samples, samples_psam = _load_samples(plinks, samples_file)
+    Y, X, phenotypes, samples = _load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,
@@ -756,11 +732,9 @@ def all_steps(
 
 
 def main_entry() -> None:
-    _configure_jax_logging()
     try:
         app()
     except Exception as exc:
-        logger.debug("Unhandled exception", exc_info=True)
         typer.secho(f"Error: {exc}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 

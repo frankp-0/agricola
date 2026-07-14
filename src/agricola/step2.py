@@ -50,7 +50,7 @@ from ._internal.models import logistic_ridge
 
 
 @jit
-def prep_block(G, L, M, min_ac):
+def _prep_block(G, L, M, min_ac):
     N_eff = jnp.sum(M, axis=0)
     GM = G[:, :, :, None] * M[:, None, None, :]
     LM = L[:, :, :, None] * M[:, None, None, :]
@@ -145,7 +145,7 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
-    G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask = prep_block(G, L, M, min_ac)
+    G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask = _prep_block(G, L, M, min_ac)
     valid_idx = np.asarray(ac_variant_mask)
 
     func_map = {
