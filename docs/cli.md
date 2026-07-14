@@ -61,9 +61,10 @@ agricola step2 \
 #### Genotype
 
 **agricola** accepts genotype files in plink2 .pgen format (with corresponding
-.pvar and .psam). Please see the [plink2 documentation](https://www.cog-genomics.org/plink/2.0/) for futher details.
-**agricola** accepts either 1) a single pgen file with multiple chromosomes, or 2) a set of plink2
-files, each corresponding to a separate chromosome.
+.pvar and .psam). Please see the [plink2 documentation][plink2_docs] for futher
+details. **agricola** accepts either 1) a single pgen file with multiple
+chromosomes, or 2) a set of plink2 files, each corresponding to a separate
+chromosome.
 
 !!! info
 
@@ -74,7 +75,12 @@ files, each corresponding to a separate chromosome.
 !!! warning
 
     It is assumed that all pgen/pvar files are sorted by chromosome and position.
-    
+
+!!! warning
+
+    Agricola relies on a leave-one-chromosome-out scheme for whole genome
+    predictionn. In step 1, multiple chromosomes (ideally all autosomes) must be
+    provided.
 
 #### Local Ancestry
 
@@ -85,7 +91,7 @@ Please see the admix-kit documentation for further details.
 To make working with this format easier, we introduce the **lanctools**
 Python package and CLI tool. **lanctools** can convert RFMix msp.tsv
 files or FLARE vcf.gz files into .lanc format. We provide an example below.
-Please see the [lanctools documentation](https://frankp-0.github.io/lanctools/) for further details.
+Please see the [lanctools documentation][flare_docs] for further details.
 
 ```bash
 # convert FLARE to .lanc format
@@ -279,3 +285,6 @@ These are the non-global options for `all-steps`
     `--no-impute` must be used for binary traits. If any quantitative traits have
     missing values, computational performance can be (often greatly) improved
     by using `--impute`, which mean-imputes all missing phenotype values.
+
+[plink2_docs]: https://www.cog-genomics.org/plink/2.0/
+[flare_docs]: https://frankp-0.github.io/lanctools/
