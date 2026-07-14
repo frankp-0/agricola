@@ -446,7 +446,7 @@ def step2(
     """
     ## Create writer
     outdir_path = Path(outdir)
-    if outdir_path.exists():
+    if overwrite and outdir_path.exists():
         shutil.rmtree(outdir_path)
 
     writer = ParquetRotatingWriter(output_dir=outdir_path)
