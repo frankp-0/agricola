@@ -2,7 +2,7 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
-## v0.9.0 - 2026-07-15
+## v0.10.0 - 2026-07-15
 
 ### Added
 
