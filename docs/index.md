@@ -1,7 +1,3 @@
----
-icon: lucide/wheat
----
-
 # agricola
 
 **agricola** is a command-line tool and Python package for conducting **genome-wide
@@ -14,7 +10,7 @@ structure, and ancestry effect heterogeneity.
 
 ## Why agricola?
 
-Admixed individuals have unique LD patterns that can improve signal localization and 
+Admixed individuals have unique LD patterns that can improve signal localization and
 improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.

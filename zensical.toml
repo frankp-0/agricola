@@ -27,8 +27,13 @@ Copyright &copy; 2026 Franklin Ockerman
 nav = [
   { "Home" = "index.md" },
   { "Overview" = "overview.md" },
-  { "Command-Line Interface" = "cli.md" },
+  { "Command-Line Interface" = [
+    "cli/cli.md",
+    "cli/formats.md",
+    "cli/options.md",
+  ] },
   { "Python Package" = "package.md" },
+  { "Changelog" = "changelog.md" },
 ]
 
 # With the "extra_css" option you can add your own CSS styling to customize
@@ -168,7 +173,7 @@ features = [
   # When instant navigation is enabled, clicks on all internal links will be
   # intercepted and dispatched via XHR without fully reloading the page.
   # https://zensical.org/docs/setup/navigation/#instant-navigation
-  "navigation.instant",
+  # "navigation.instant",
 
   # With instant prefetching, your site will start to fetch a page once the
   # user hovers over a link. This will reduce the perceived loading time
@@ -199,12 +204,12 @@ features = [
   # When tabs are enabled, top-level sections are rendered in a menu layer
   # below the header for viewports above 1220px, but remain as-is on mobile.
   # https://zensical.org/docs/setup/navigation/#navigation-tabs
-  #"navigation.tabs",
+  "navigation.tabs",
 
   # When sticky tabs are enabled, navigation tabs will lock below the header
   # and always remain visible when scrolling down.
   # https://zensical.org/docs/setup/navigation/#sticky-navigation-tabs
-  #"navigation.tabs.sticky",
+  "navigation.tabs.sticky",
 
   # A back-to-top button can be shown when the user, after scrolling down,
   # starts to scroll up again.
@@ -276,17 +281,17 @@ toggle.name = "Switch to light mode"
 # - https://zensical.org/docs/setup/logo-and-icons
 # - https://zensical.org/docs/authoring/icons-emojis/#search
 # ----------------------------------------------------------------------------
-#[project.theme.icon]
-#logo = "lucide/smile"
-#repo = "lucide/smile"
+[project.theme.icon]
+logo = "lucide/wheat"
+repo = "lucide/wheat"
 
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.
 # ----------------------------------------------------------------------------
-#[[project.extra.social]]
-#icon = "fontawesome/brands/github"
-#link = "https://github.com/user/repo"
-#
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/frankp-0/agricola"
+
 
 [project.plugins.mkdocstrings.handlers.python]
 inventories = ["https://docs.python.org/3/objects.inv"]

@@ -43,7 +43,7 @@ def validate_level0_inputs(
 
     ## X
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -52,7 +52,7 @@ def validate_level0_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
@@ -131,7 +131,7 @@ def validate_level1_inputs(
 
     ## X
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -140,7 +140,7 @@ def validate_level1_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
@@ -177,7 +177,6 @@ def validate_step2_inputs(
     X: Optional[ArrayLike],
     phenotypes: list[str],
     step1_predictions: dict[str, pd.DataFrame],
-    out_prefixes: list[str],
     B: int,
     idx_sample: Optional[ArrayLike],
     variants: Optional[list[str]],
@@ -201,7 +200,7 @@ def validate_step2_inputs(
         )
 
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -210,7 +209,7 @@ def validate_step2_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
@@ -248,9 +247,6 @@ def validate_step2_inputs(
                     f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
                 )
         step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
-
-    if not len(out_prefixes) == len(datasets):
-        raise ValueError("out_prefixes and datasets must have same number of elements")
 
     if N_pred != N:
         raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")

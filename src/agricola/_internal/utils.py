@@ -104,8 +104,8 @@ def get_geno_lanc_deconv(
     geno = jnp.asarray(dataset.get_geno(indices))
     lanc = jnp.asarray(dataset.get_lanc(indices))
     ancestries = jnp.arange(len(dataset.ancestries))
-    left_haps_mask = (lanc[:, :, 0:1] == ancestries[None, None, :]).astype(np.int32)
-    right_haps_mask = (lanc[:, :, 1:2] == ancestries[None, None, :]).astype(np.int32)
+    left_haps_mask = lanc[:, :, 0:1] == ancestries[None, None, :]
+    right_haps_mask = lanc[:, :, 1:2] == ancestries[None, None, :]
     geno_masked = left_haps_mask * geno[:, :, 0:1] + right_haps_mask * geno[:, :, 1:2]
     lanc_masked = left_haps_mask + right_haps_mask
     return geno_masked, lanc_masked
@@ -126,7 +126,7 @@ def get_geno_deconv(dataset: LancData, indices: NDArray[np.uint32]) -> Array:
     geno = jnp.asarray(dataset.get_geno(indices))
     lanc = jnp.asarray(dataset.get_lanc(indices))
     ancestries = jnp.arange(len(dataset.ancestries))
-    left_haps_mask = (lanc[:, :, 0:1] == ancestries[None, None, :]).astype(np.int32)
-    right_haps_mask = (lanc[:, :, 1:2] == ancestries[None, None, :]).astype(np.int32)
+    left_haps_mask = lanc[:, :, 0:1] == ancestries[None, None, :]
+    right_haps_mask = lanc[:, :, 1:2] == ancestries[None, None, :]
     geno_masked = left_haps_mask * geno[:, :, 0:1] + right_haps_mask * geno[:, :, 1:2]
     return geno_masked
