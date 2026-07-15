@@ -84,7 +84,7 @@ def _masked_solve(A: Array, mask: Array, x: Array) -> Array:
 
 def _qt_score_lanc(
     G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     K = G.shape[1]
@@ -109,8 +109,10 @@ def _qt_score_lanc(
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ r_L
     GltGl_inv = _masked_inv(Gl.T @ Gl, G_mask)
+    GltGl_inv_diag = jnp.diagonal(GltGl_inv)
+    chisq_anc = U**2 * GltGl_inv_diag[:, None] / mse_null
     chisq_het = jnp.einsum("kp,kl,lp->p", U, GltGl_inv, U) / mse_null
-    beta_het = U * jnp.diagonal(GltGl_inv)[:, None]
+    beta_het = U * GltGl_inv_diag[:, None]
     df_het = jnp.sum(G_mask)
 
     ## Score test for genotypes (homogeneous test)
@@ -122,13 +124,16 @@ def _qt_score_lanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask[:, None])
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask[:, None])
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc
 
 
 def _qt_score_nolanc(
     G: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     ## Genotypes
@@ -149,8 +154,10 @@ def _qt_score_nolanc(
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ Y
     GtG_inv = _masked_inv(G.T @ G, G_mask)
+    GtG_inv_diag = jnp.diagonal(GtG_inv)
+    chisq_anc = U**2 * GtG_inv_diag[:, None] / mse_null
     chisq_het = jnp.einsum("kp,kl,lp->p", U, GtG_inv, U) / mse_null
-    beta_het = U * jnp.diagonal(GtG_inv)[:, None]
+    beta_het = U * GtG_inv_diag[:, None]
     df_het = jnp.sum(G_mask)
 
     ## Score test for genotypes (homogeneous test)
@@ -162,13 +169,16 @@ def _qt_score_nolanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask[:, None])
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask[:, None])
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc
 
 
 def _qt_wald_lanc(
     G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array, Array]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     K = G.shape[1]
@@ -198,6 +208,7 @@ def _qt_wald_lanc(
     r_G = r_L - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - (2 * K - 1))
+    chisq_anc = Gtr**2 * jnp.diagonal(GltGl_inv)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GltGl_inv, Gtr) / mse_het
     df_het = jnp.sum(G_mask)
 
@@ -217,13 +228,26 @@ def _qt_wald_lanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask[:, None])
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask[:, None])
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
+    chisq_lrt = _masked_nan(chisq_lrt, df_lrt != 0)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return (
+        chisq_hom,
+        beta_hom,
+        chisq_het,
+        beta_het,
+        df_het,
+        chisq_anc,
+        chisq_lrt,
+        df_lrt,
+    )
 
 
 def _qt_wald_nolanc(
     G: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array, Array]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     K = G.shape[1]
@@ -249,6 +273,7 @@ def _qt_wald_nolanc(
     r_G = Y - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - K)
+    chisq_anc = Gtr**2 * jnp.diagonal(GtG_inv)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GtG_inv, Gtr) / mse_het
     df_het = jnp.sum(G_mask)
 
@@ -268,8 +293,21 @@ def _qt_wald_nolanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask[:, None])
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask[:, None])
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
+    chisq_lrt = _masked_nan(chisq_lrt, df_lrt != 0)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return (
+        chisq_hom,
+        beta_hom,
+        chisq_het,
+        beta_het,
+        df_het,
+        chisq_anc,
+        chisq_lrt,
+        df_lrt,
+    )
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -279,7 +317,7 @@ def _qt_wald_nolanc(
 
 def _bt_score_lanc(
     G: Array, L: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array]:
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
@@ -305,6 +343,7 @@ def _bt_score_lanc(
     Glw = Gl * M[:, None] * W_L_sqrt[:, None]
     GltGl = Glw.T @ Glw
     GltGl_inv = _masked_inv(GltGl, G_mask)
+    chisq_anc = U**2 * jnp.diagonal(GltGl_inv)
     chisq_het = U.T @ GltGl_inv @ U
     beta_het = U * jnp.diagonal(GltGl_inv)
     df_het = jnp.sum(G_mask)
@@ -319,13 +358,16 @@ def _bt_score_lanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask)
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask)
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc
 
 
 def _bt_score_nolanc(
     G: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array]:
     ## Genotypes
     H = jnp.sum(G, axis=1)
 
@@ -347,6 +389,7 @@ def _bt_score_nolanc(
     Gw = G * M[:, None] * W_sqrt[:, None]
     GtG = Gw.T @ Gw
     GtG_inv = _masked_inv(GtG, G_mask)
+    chisq_anc = U**2 * jnp.diagonal(GtG_inv)
     chisq_het = U.T @ GtG_inv @ U
     beta_het = U * jnp.diagonal(GtG_inv)
     df_het = jnp.sum(G_mask)
@@ -361,13 +404,16 @@ def _bt_score_nolanc(
     ## set low variation dimensions to nan
     beta_het = _masked_nan(beta_het, G_mask)
     beta_hom = _masked_nan(beta_hom, H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask)
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het
+    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc
 
 
 def _bt_wald_lanc(
     G: Array, L: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array, Array]:
     K = G.shape[1]
 
     ## Genotypes
@@ -394,6 +440,7 @@ def _bt_wald_lanc(
     Xw = Xg * W_sqrt[:, None] * M[:, None]
     XtX = Xw.T @ Xw
     XtXw_inv = _masked_inv(XtX, Xg_mask)
+    chisq_anc = beta_het[:K] ** 2 / jnp.diagonal(XtXw_inv[:K, :K])
     chisq_het = beta_het[:K].T @ solve(XtXw_inv[:K, :K], beta_het[:K])
     df_het = jnp.sum(G_mask)
 
@@ -417,15 +464,28 @@ def _bt_wald_lanc(
     df_lrt = df_het - df_hom
 
     ## set low variation dimensions to nan
-    beta_het = _masked_nan(beta_het, Xg_mask)
-    beta_hom = _masked_nan(beta_hom, Xh_mask)
+    beta_het = _masked_nan(beta_het[:K], G_mask)
+    beta_hom = _masked_nan(beta_hom[0], H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask)
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
+    chisq_lrt = _masked_nan(chisq_lrt, df_lrt != 0)
 
-    return chisq_hom, beta_hom[0], chisq_het, beta_het[:K], df_het, chisq_lrt, df_lrt
+    return (
+        chisq_hom,
+        beta_hom,
+        chisq_het,
+        beta_het,
+        df_het,
+        chisq_anc,
+        chisq_lrt,
+        df_lrt,
+    )
 
 
 def _bt_wald_nolanc(
     G: Array, Y: Array, Q: Array, O: Array, M: Array, N_eff: Array
-) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+) -> tuple[Array, Array, Array, Array, Array, Array, Array, Array]:
     K = G.shape[1]
 
     ## Genotypes
@@ -445,6 +505,7 @@ def _bt_wald_nolanc(
     Gw = G * W_sqrt[:, None] * M[:, None]
     GtG = Gw.T @ Gw
     GtGw_inv = _masked_inv(GtG, G_mask)
+    chisq_anc = beta_het[:K] ** 2 / jnp.diagonal(GtGw_inv[:K, :K])
     chisq_het = beta_het[:K].T @ solve(GtGw_inv[:K, :K], beta_het[:K])
     df_het = jnp.sum(G_mask)
 
@@ -466,10 +527,23 @@ def _bt_wald_nolanc(
     df_lrt = df_het - df_hom
 
     ## set low variation dimensions to nan
-    beta_het = _masked_nan(beta_het, G_mask)
-    beta_hom = _masked_nan(beta_hom, H_mask)
+    beta_het = _masked_nan(beta_het[:K], G_mask)
+    beta_hom = _masked_nan(beta_hom[0], H_mask)
+    chisq_anc = _masked_nan(chisq_anc, G_mask)
+    chisq_het = _masked_nan(chisq_het, jnp.sum(G_mask) != 0)
+    chisq_hom = _masked_nan(chisq_hom, H_mask)
+    chisq_lrt = _masked_nan(chisq_lrt, df_lrt != 0)
 
-    return chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt
+    return (
+        chisq_hom,
+        beta_hom,
+        chisq_het,
+        beta_het,
+        df_het,
+        chisq_anc,
+        chisq_lrt,
+        df_lrt,
+    )
 
 
 ### ─────────────────────────────────────────────────────────────

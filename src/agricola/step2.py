@@ -133,6 +133,7 @@ def _step2_block(
     Args:
         dataset: A LancData object
         Y: A (N, P) jax array of outcomes
+        M: A (N, P) mask for missing values in the phenotypes/covariates
         Q: A (N, C) jax array. The orthogonal matrix Q in the QR decomposition of
             the covariates. For trait_type="bt", this is weighted by estimated
             variance in the covariate-only model.
@@ -209,24 +210,35 @@ def _step2_block(
 
     _, B, K, P = G.shape
     if test_type == TestType.WALD:
-        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_lrt, df_lrt = test_func(
-            *arg_fn()
-        )
+        (
+            chisq_hom,
+            beta_hom,
+            chisq_het,
+            beta_het,
+            df_het,
+            chisq_anc,
+            chisq_lrt,
+            df_lrt,
+        ) = test_func(*arg_fn())
         chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
         if df_lrt.ndim == 1:
             df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
-        chisq_hom, beta_hom, chisq_het, beta_het, df_het = test_func(*arg_fn())
+        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc = test_func(
+            *arg_fn()
+        )
 
     chisq_hom = jnp.reshape(chisq_hom, (B, P))
     beta_hom = jnp.reshape(beta_hom, (B, P))
     beta_het = jnp.reshape(beta_het, (B, K, P))
+    chisq_anc = jnp.reshape(chisq_anc, (B, K, P))
     if df_het.ndim < 2:
         df_het = jnp.broadcast_to(df_het[:, None], (B, P))
     df_het = jnp.reshape(df_het, (B, P))
     chisq_het = jnp.reshape(chisq_het, (B, P))
 
+    log10p_anc = chi2.logsf(chisq_anc, 1) / np.log(10)
     log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
@@ -234,6 +246,7 @@ def _step2_block(
     result_components = [
         log10p_het[:, None, :],
         beta_het,
+        log10p_anc,
         log10p_hom[:, None, :],
         beta_hom[:, None, :],
         np.broadcast_to(N_eff, (B, 1, P)),
@@ -246,6 +259,7 @@ def _step2_block(
     colnames: list[str] = [
         "LOG10P_HET",
         *["BETA_" + anc for anc in ancs],
+        *["LOG10P_" + anc for anc in ancs],
         "LOG10P_HOM",
         "BETA_HOM",
         "N",
@@ -309,14 +323,16 @@ def _step2_dataset(
 
     Args:
         dataset: A LancData object
+        writer: A Parquet writer
         Y: A (N, P) jax array of outcomes
+        M: A (N, P) mask for missing values in the phenotypes/covariates
         step1_predictions: A dict of (N,P) pandas DataFrames containing LOCO predictions
         X: A (N, C) jax array of covariates
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
-        out_prefix: Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
-        trait_type: either "qt" or "bt"
+        trait_type: either qt or bt
+        test_type: either score or wald
         B: The block size (max number of variants to read at once)
         min_ac: the minimum allele count threshold
         variants: An optional list of variant IDs to retain
@@ -432,7 +448,7 @@ def step2(
         Y: A (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
         step1_predictions: A dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays
-        out_prefixes: A list of prefixes for each dataset. Outputs will be written to {output_prefix}_{phenotype}.parquet
+        outdir: Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
         test_type: Either "score" or "wald"
