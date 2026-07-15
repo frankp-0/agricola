@@ -454,7 +454,7 @@ def step1(
         samples,
     )
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
-    logger.info("Datsets loaded")
+    logger.info("Datasets loaded")
 
     ## Get train/test split
     key = jax.random.PRNGKey(seed)
