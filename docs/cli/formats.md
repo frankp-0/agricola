@@ -73,3 +73,38 @@ sample1 sample1 165 -1.23
 sample2 sample2 175 -2.04
 sample3 sample3 161 0.81
 ```
+
+## Outputs
+
+### Step 1 Intermediate
+
+Whole-genome leave-one-chromosome-out (LOCO) predictions from step 1 are saved
+to the file `{prefix}.pkl`. This file consists of a serialized dictionary,
+where keys are chromosomes and values are $(N, P)$ pandas DataFrames with
+predictions for each sample and phenotype.
+
+### Step 2 Results
+
+Summary statistics from step 2 of **agricola** are saved into an [Apache Parquet](https://parquet.apache.org/)
+file directory. The `--outdir` directory will contain a series of
+parquet files, named as outdir/part-0001.parquet, outdir/part-0002.parquet, etc.
+Each parquet file contains results for all phenotypes for a subset of variants.
+The parquet files have the following schema:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| CHR | string | Chromosome |
+| BP | int | Genomic position |
+| REF | string | Reference allele |
+| ALT | string | Alternate allele |
+| ID | string | Variant ID |
+| N | int | Sample size |
+| AF_{anc} | double | Ancestry-specific allele frequency |
+| LA_PROP_{anc} | double | Proportion of haplotypes from ancestry anc |
+| BETA_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
+| BETA_HOM | double | Effect estimate for $\beta$ | under homogeneous model (all ancestry-specific effects equal)
+| LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
+| LOG10P_HOM | double | P-value for $\beta=0$ under homogeneous model (all ancestry-specific effects equal) |
+| LOG10P_{anc} | double | P-value for test $\beta_{\text{anc}} = 0$ |
+| LOG10P_LRT | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for Wald test) |
+| phenotype | string | phenotype name |

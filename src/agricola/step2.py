@@ -244,27 +244,27 @@ def _step2_block(
 
     ## Create array with results
     result_components = [
-        log10p_het[:, None, :],
-        beta_het,
-        log10p_anc,
-        log10p_hom[:, None, :],
-        beta_hom[:, None, :],
         np.broadcast_to(N_eff, (B, 1, P)),
         af_lanc,
         prop_lanc,
+        beta_het,
+        beta_hom[:, None, :],
+        log10p_het[:, None, :],
+        log10p_hom[:, None, :],
+        log10p_anc,
     ]
 
     ## Get column names for results
     ancs = dataset.ancestries
     colnames: list[str] = [
-        "LOG10P_HET",
-        *["BETA_" + anc for anc in ancs],
-        *["LOG10P_" + anc for anc in ancs],
-        "LOG10P_HOM",
-        "BETA_HOM",
         "N",
         *["AF_" + anc for anc in ancs],
         *["LA_PROP_" + anc for anc in ancs],
+        *["BETA_" + anc for anc in ancs],
+        "BETA_HOM",
+        "LOG10P_HET",
+        "LOG10P_HOM",
+        *["LOG10P_" + anc for anc in ancs],
     ]
 
     if log10p_lrt is not None:
