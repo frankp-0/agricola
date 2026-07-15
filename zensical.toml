@@ -27,7 +27,11 @@ Copyright &copy; 2026 Franklin Ockerman
 nav = [
   { "Home" = "index.md" },
   { "Overview" = "overview.md" },
-  { "Command-Line Interface" = "cli.md" },
+  { "Command-Line Interface" = [
+    "cli/cli.md",
+    "cli/formats.md",
+    "cli/options.md",
+  ] },
   { "Python Package" = "package.md" },
 ]
 
@@ -199,12 +203,12 @@ features = [
   # When tabs are enabled, top-level sections are rendered in a menu layer
   # below the header for viewports above 1220px, but remain as-is on mobile.
   # https://zensical.org/docs/setup/navigation/#navigation-tabs
-  #"navigation.tabs",
+  "navigation.tabs",
 
   # When sticky tabs are enabled, navigation tabs will lock below the header
   # and always remain visible when scrolling down.
   # https://zensical.org/docs/setup/navigation/#sticky-navigation-tabs
-  #"navigation.tabs.sticky",
+  "navigation.tabs.sticky",
 
   # A back-to-top button can be shown when the user, after scrolling down,
   # starts to scroll up again.
