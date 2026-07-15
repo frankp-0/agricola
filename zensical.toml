@@ -281,9 +281,9 @@ toggle.name = "Switch to light mode"
 # - https://zensical.org/docs/setup/logo-and-icons
 # - https://zensical.org/docs/authoring/icons-emojis/#search
 # ----------------------------------------------------------------------------
-#[project.theme.icon]
-#logo = "lucide/smile"
-#repo = "lucide/smile"
+[project.theme.icon]
+logo = "lucide/wheat"
+repo = "lucide/wheat"
 
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.

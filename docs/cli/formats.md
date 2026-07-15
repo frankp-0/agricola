@@ -102,7 +102,7 @@ The parquet files have the following schema:
 | AF_{anc} | double | Ancestry-specific allele frequency |
 | LA_PROP_{anc} | double | Proportion of haplotypes from ancestry anc |
 | BETA_{anc} | double | Effect estimate for $\beta_{\text{anc}}$ |
-| BETA_HOM | double | Effect estimate for $\beta$ | under homogeneous model (all ancestry-specific effects equal)
+| BETA_HOM | double | Effect estimate for $\beta$ under homogeneous model (all ancestry-specific effects equal)
 | LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
 | LOG10P_HOM | double | P-value for $\beta=0$ under homogeneous model (all ancestry-specific effects equal) |
 | LOG10P_{anc} | double | P-value for test $\beta_{\text{anc}} = 0$ |
