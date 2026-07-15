@@ -11,7 +11,6 @@ structure, and ancestry effect heterogeneity.
 ## Documentation
 
 Full documentation, including examples, methods description, and details can be found here: [https://frankp-0.github.io/agricola](https://frankp-0.github.io/agricola)
----
 
 ## Why agricola?
 
