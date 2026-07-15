@@ -1,5 +1,7 @@
 # To Do
 
+- Make NaNs consistent in output
+- Tractor-style ancestry-specific p-values
 - Expand logger
   - welcome message
   - details on samples, variants, ancestries, phenotypes

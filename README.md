@@ -12,7 +12,7 @@ Full documentation can be found [here](https://frankp-0.github.io/agricola)
 
 ## Why agricola?
 
-Admixed individuals have unique LD patterns that can improve signal localization and 
+Admixed individuals have unique LD patterns that can improve signal localization and
 improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
@@ -29,22 +29,6 @@ local ancestry adjustment-but combines it with:
 
 ---
 
-## Installation
+## Documentation
 
-**Requirements:** Python 3.10+  
-
-Install via pip:
-
-```bash
-pip install agricola
-```
-
-For GPU or TPU support:
-
-```bash
-pip install agricola[cuda]
-```
-
-```bash
-pip install agricola[tpu]
-```
+Full documentation, including examples, methods description, and details can be found here: [https://frankp-0.github.io/agricola](https://frankp-0.github.io/agricola)

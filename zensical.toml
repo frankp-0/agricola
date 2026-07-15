@@ -33,6 +33,7 @@ nav = [
     "cli/options.md",
   ] },
   { "Python Package" = "package.md" },
+  { "Changelog" = "changelog.md" },
 ]
 
 # With the "extra_css" option you can add your own CSS styling to customize
@@ -287,10 +288,10 @@ toggle.name = "Switch to light mode"
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.
 # ----------------------------------------------------------------------------
-#[[project.extra.social]]
-#icon = "fontawesome/brands/github"
-#link = "https://github.com/user/repo"
-#
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/frankp-0/agricola"
+
 
 [project.plugins.mkdocstrings.handlers.python]
 inventories = ["https://docs.python.org/3/objects.inv"]
