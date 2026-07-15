@@ -270,16 +270,18 @@ def _get_version() -> str:
         return "unknown"
 
 
-def _setup_logging(log_file: Optional[str]) -> None:
+def _setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
 
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+        format = "%(asctime)s %(levelname)-8s %(name)s:%(lineno)d %(message)s"
+    else:
+        logger.setLevel(logging.INFO)
+        format = "%(levelname)s: %(message)s"
+
+    formatter = logging.Formatter(format)
     logger.handlers.clear()
-
-    formatter = logging.Formatter(
-        "[%(asctime)s - %(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
@@ -310,10 +312,6 @@ def _get_options_msg(options: dict[str, str]) -> str:
 
 @app.callback(invoke_without_command=True)
 def main(
-    log: Optional[str] = typer.Option(
-        None,
-        help=("Log file"),
-    ),
     version_flag: bool = typer.Option(
         False,
         "--version",
@@ -322,8 +320,6 @@ def main(
         is_eager=True,
     ),
 ) -> None:
-    _setup_logging(log)
-
     if version_flag:
         typer.echo(f"agricola {_get_version()}")
         raise typer.Exit()
@@ -416,7 +412,18 @@ def step1(
             "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
         ),
     ),
+    log: Optional[str] = typer.Option(
+        None,
+        help=("Log file"),
+    ),
+    verbose: bool = typer.Option(
+        False,
+        help=("Log file"),
+    ),
 ) -> None:
+    _setup_logging(log, verbose)
+    logger.debug(_get_options_msg(locals()))
+
     import jax
 
     if double_precision:
@@ -426,8 +433,6 @@ def step1(
     from ._internal.utils import get_cv_mask
     from .step1 import step1
     import numpy as np
-
-    logger.info(_get_options_msg(locals()))
 
     ## Load data
     ancestries_list = _list_from_csv(ancestries)
@@ -572,7 +577,18 @@ def step2(
             "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
         ),
     ),
+    log: Optional[str] = typer.Option(
+        None,
+        help=("Log file"),
+    ),
+    verbose: bool = typer.Option(
+        False,
+        help=("Log file"),
+    ),
 ) -> None:
+    _setup_logging(log, verbose)
+    logger.debug(_get_options_msg(locals()))
+
     import jax
 
     if double_precision:
@@ -580,8 +596,6 @@ def step2(
 
     from .step2 import step2
     import numpy as np
-
-    logger.info(_get_options_msg(locals()))
 
     ## Load data
     ancestries_list = _list_from_csv(ancestries)
@@ -739,13 +753,22 @@ def all_steps(
             "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
         ),
     ),
+    log: Optional[str] = typer.Option(
+        None,
+        help=("Log file"),
+    ),
+    verbose: bool = typer.Option(
+        False,
+        help=("Log file"),
+    ),
 ) -> None:
+    _setup_logging(log, verbose)
+    logger.debug(_get_options_msg(locals()))
+
     import jax
 
     if double_precision:
         jax.config.update("jax_enable_x64", True)
-
-    logger.info(_get_options_msg(locals()))
 
     import jax.numpy as jnp
     import numpy as np
