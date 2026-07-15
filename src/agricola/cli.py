@@ -414,8 +414,8 @@ def step1(
 
     import jax.numpy as jnp
     import jax
-    from .utils import get_cv_mask
-    from ..step1 import step1
+    from ._internal.utils import get_cv_mask
+    from .step1 import step1
     import numpy as np
 
     ## Load data
@@ -557,7 +557,7 @@ def step2(
 ) -> None:
     logger.info(_get_options_msg(locals()))
 
-    from ..step2 import step2
+    from .step2 import step2
     import numpy as np
 
     ## Load data
@@ -715,9 +715,9 @@ def all_steps(
     import jax.numpy as jnp
     import jax
     import numpy as np
-    from .utils import get_cv_mask
-    from ..step1 import step1
-    from ..step2 import step2
+    from ._internal.utils import get_cv_mask
+    from .step1 import step1
+    from .step2 import step2
 
     ## Catch bad impute early
     if trait_type == "bt" and impute:

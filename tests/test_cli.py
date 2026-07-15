@@ -6,7 +6,7 @@ import pytest
 import pandas as pd
 from pathlib import Path
 from typer.testing import CliRunner
-from agricola._internal.cli import app
+from agricola.cli import app
 import jax
 
 runner = CliRunner()

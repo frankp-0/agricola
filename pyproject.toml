@@ -45,7 +45,7 @@ where = ["src"]
 [tool.uv.sources]
 
 [project.scripts]
-agricola = "agricola._internal.cli:main_entry"
+agricola = "agricola.cli:main_entry"
 
 [project.optional-dependencies]
 cuda = ["jax[cuda]>=0.6.2"]
