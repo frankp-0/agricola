@@ -11,7 +11,6 @@ steps . The entry-point for this module is the `step1` function.
 import os
 import tempfile
 from jaxtyping import ArrayLike
-from numpy.typing import NDArray
 from typing import Optional
 from pandas import DataFrame
 from ._internal.level0 import level0

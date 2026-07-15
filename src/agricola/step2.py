@@ -78,7 +78,6 @@ class ParquetRotatingWriter:
         self.buffer_size = 0
         self.file_idx = 0
 
-        # TODO: document that output dir cannot exist
         Path.mkdir(output_dir, parents=True, exist_ok=False)
 
     def write(self, df):
@@ -457,7 +456,7 @@ def step2(
     if impute:
         M = jnp.ones(shape=jnp.asarray(Y).shape)
     else:
-        M = (~jnp.isnan(jnp.asarray(Y))).astype(jnp.float32)
+        M = (~jnp.isnan(jnp.asarray(Y))).astype(float)
 
     Y, X, step1_predictions_np, idx_sample, test_type_enum, trait_type_enum = (
         validate_step2_inputs(

@@ -173,7 +173,7 @@ def level0(
             ]
             Zs = [
                 np.lib.format.open_memmap(
-                    fnames[i], mode="w+", dtype=np.float32, shape=(N, n_blocks * K)
+                    fnames[i], mode="w+", dtype=float, shape=(N, n_blocks * K)
                 )
                 for i in range(len(phenotypes))
             ]

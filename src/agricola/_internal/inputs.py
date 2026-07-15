@@ -43,7 +43,7 @@ def validate_level0_inputs(
 
     ## X
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -52,7 +52,7 @@ def validate_level0_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
@@ -131,7 +131,7 @@ def validate_level1_inputs(
 
     ## X
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -140,7 +140,7 @@ def validate_level1_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 
@@ -200,7 +200,7 @@ def validate_step2_inputs(
         )
 
     if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=np.float32)
+        X = jnp.ones((Y.shape[0], 1), dtype=float)
     else:
         X = jnp.asarray(X)
         if X.ndim != 2:
@@ -209,7 +209,7 @@ def validate_step2_inputs(
             raise ValueError(
                 f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
             )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=np.float32), X], axis=1)
+        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
 

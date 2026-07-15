@@ -409,14 +409,25 @@ def step1(
     loocv: bool = typer.Option(
         False, help="Use leave-one-out cross-validation (only for rare binary traits)"
     ),
+    double_precision: bool = typer.Option(
+        False,
+        help=(
+            "Force double precision (default single precision) in JAX. "
+            "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
+        ),
+    ),
 ) -> None:
-    logger.info(_get_options_msg(locals()))
+    import jax
+
+    if double_precision:
+        jax.config.update("jax_enable_x64", True)
 
     import jax.numpy as jnp
-    import jax
     from ._internal.utils import get_cv_mask
     from .step1 import step1
     import numpy as np
+
+    logger.info(_get_options_msg(locals()))
 
     ## Load data
     ancestries_list = _list_from_csv(ancestries)
@@ -554,11 +565,23 @@ def step2(
         False,
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
+    double_precision: bool = typer.Option(
+        False,
+        help=(
+            "Force double precision (default single precision) in JAX. "
+            "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
+        ),
+    ),
 ) -> None:
-    logger.info(_get_options_msg(locals()))
+    import jax
+
+    if double_precision:
+        jax.config.update("jax_enable_x64", True)
 
     from .step2 import step2
     import numpy as np
+
+    logger.info(_get_options_msg(locals()))
 
     ## Load data
     ancestries_list = _list_from_csv(ancestries)
@@ -709,11 +732,22 @@ def all_steps(
         False,
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
+    double_precision: bool = typer.Option(
+        False,
+        help=(
+            "Force double precision (default single precision) in JAX. "
+            "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
+        ),
+    ),
 ) -> None:
+    import jax
+
+    if double_precision:
+        jax.config.update("jax_enable_x64", True)
+
     logger.info(_get_options_msg(locals()))
 
     import jax.numpy as jnp
-    import jax
     import numpy as np
     from ._internal.utils import get_cv_mask
     from .step1 import step1
