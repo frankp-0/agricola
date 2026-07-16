@@ -761,6 +761,13 @@ def all_steps(
             "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
         ),
     ),
+    prune_blocks: bool = typer.Option(
+        False,
+        help=(
+            "Whether to sample variants in a dataset in level 0 so that n_variants (mod B) = 0. "
+            "This will improve speed with JIT compilations."
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
@@ -830,6 +837,7 @@ def all_steps(
         idx_sample,
         variants1,
         level0_dir,
+        prune_blocks,
     )
 
     step2(
