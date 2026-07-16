@@ -32,6 +32,7 @@ def step1(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
+    prune_blocks=False,
 ) -> dict[str, DataFrame]:
     """Perform agricola step 1
 
@@ -51,6 +52,8 @@ def step1(
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
         level0_dir: The directory where level 0 predictions are written
+        prune_blocks: Whether to sample variants in a dataset in level 0 so that
+            n_variants (mod B) = 0. This will improve speed with JIT compilations
 
     Returns:
         A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
@@ -75,6 +78,7 @@ def step1(
         idx_sample,
         variants,
         level0_dir,
+        prune_blocks,
     )
 
     step1_predictions = level1(

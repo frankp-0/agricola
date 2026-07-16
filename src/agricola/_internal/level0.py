@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
 import numpy as np
+from numpy.random import choice
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
@@ -104,6 +105,7 @@ def level0(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
+    prune_blocks: Optional[bool] = False,
 ) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
@@ -120,7 +122,8 @@ def level0(
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
         variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
         level0_dir: The directory where level 0 predictions are written
-
+        prune_blocks: Whether to sample variants in a dataset so that n_variants
+            (mod B) = 0. This will improve speed with JIT compilations
     Returns:
         level0_files: A two-level dict. The outer keys are phenotypes, the inner keys are chromosomes,
             and the values are paths to .npy files containing (N, n_blocks) level 0 predictions.
@@ -142,18 +145,11 @@ def level0(
 
     os.makedirs(level0_dir, exist_ok=True)
 
-    ## get M
-    if variants is not None:
-        M = len(variants)
-    else:
-        M = 0
-        for ds in datasets:
-            M += ds.pvar.get_variant_ct()
-
     level0_files_chrom = {}
-    for ds in datasets:
-        pgen_path = ds.plink_prefix + ".pgen"
-        logger.info(f"Getting level 0 predictions for file: {pgen_path}")
+
+    M = 0
+    idx_variant_ds = {}
+    for i, ds in enumerate(datasets):
         if variants is None:
             idx_variant = np.arange(ds.pvar.get_variant_ct(), dtype=np.uint32)
         else:
@@ -165,8 +161,20 @@ def level0(
             idx_variant = np.array(
                 [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
             )
-        idx_variant = np.sort(idx_variant)
+        if prune_blocks:
+            M_ds = len(idx_variant)
+            M_ds = M_ds - (M_ds % B)
+            idx_variant = choice(idx_variant, M_ds, replace=False)
 
+        idx_variant = np.sort(idx_variant)
+        idx_variant_ds[i] = idx_variant
+        M += idx_variant.shape[0]
+
+    for i, ds in enumerate(datasets):
+        pgen_path = ds.plink_prefix + ".pgen"
+        logger.info(f"Getting level 0 predictions for file: {pgen_path}")
+
+        idx_variant = idx_variant_ds[i]
         chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
         chr_seen = set()
         chroms = [
