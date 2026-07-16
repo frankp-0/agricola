@@ -413,7 +413,7 @@ def step1(
         ),
     ),
     prune_blocks: bool = typer.Option(
-        False,
+        True,
         help=(
             "Whether to sample variants in a dataset in level 0 so that n_variants (mod B) = 0. "
             "This will improve speed with JIT compilations."
@@ -762,7 +762,7 @@ def all_steps(
         ),
     ),
     prune_blocks: bool = typer.Option(
-        False,
+        True,
         help=(
             "Whether to sample variants in a dataset in level 0 so that n_variants (mod B) = 0. "
             "This will improve speed with JIT compilations."

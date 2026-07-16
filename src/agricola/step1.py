@@ -32,7 +32,7 @@ def step1(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
-    prune_blocks=False,
+    prune_blocks: bool = True,
 ) -> dict[str, DataFrame]:
     """Perform agricola step 1
 

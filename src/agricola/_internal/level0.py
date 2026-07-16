@@ -105,7 +105,7 @@ def level0(
     idx_sample: Optional[ArrayLike] = None,
     variants: Optional[list[str]] = None,
     level0_dir: Optional[str] = None,
-    prune_blocks: Optional[bool] = False,
+    prune_blocks: Optional[bool] = True,
 ) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
