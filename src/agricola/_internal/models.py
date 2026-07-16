@@ -77,8 +77,8 @@ def _logistic_ridge_step(
     w = mu * (1 - mu) * train_mask
     XW = X * w[:, None]
     XT_r = X.T @ r
-    H = (X.T @ XW) + (alpha * jnp.eye(X.shape[1]))
-    delta = jnp.linalg.solve(H, XT_r)
+    L = cho_factor((X.T @ XW) + (alpha * jnp.eye(X.shape[1])))
+    delta = cho_solve(L, XT_r)
     beta_new = beta + delta
     return beta_new
 
@@ -106,6 +106,7 @@ def logistic_ridge(
     Returns:
         beta: (V,) jax array of coefficients
     """
+
     beta0 = jnp.zeros(X.shape[1])
 
     def body_fun(i, beta):
