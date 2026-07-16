@@ -268,7 +268,7 @@ def level1(
             loco_arr[:, p, :] = loco_p
             pbar.update(1)
 
-    logger.info("Finished etting level 1 predictions\n")
+    logger.info("Finished getting level 1 predictions\n")
     level1_loco = {}
     for i, chrom in enumerate(level0_files[phenotypes[0]].keys()):
         level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))
