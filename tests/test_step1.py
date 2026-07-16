@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-import os
+from pathlib import Path
 import pytest
 import numpy as np
 import jax.numpy as jnp
@@ -151,12 +151,28 @@ def test_level0_variants_type_error(
         )
 
 
-def test_level0_validation_happy_path(
-    toy_data,
-):
-    """Check that valid data throws no type errors"""
+def test_level0_validation(toy_data, tmp_path: Path):
+    """Check valid results"""
     Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
-    level0(toy_data, Y, X, phenotypes, train_mask, test_mask, h2, B=100)
+    level0_files = level0(
+        toy_data,
+        Y,
+        X,
+        phenotypes,
+        train_mask,
+        test_mask,
+        h2,
+        B=100,
+        level0_dir=str(tmp_path),
+    )
+    for pheno in ["0", "1", "2"]:
+        for chrom in ["20", "21", "22"]:
+            expected = np.load(f"tests/data/level0/{pheno}_{chrom}.npy")
+            actual = np.load(level0_files[pheno][chrom])
+            np.testing.assert_array_equal(
+                actual,
+                expected,
+            )
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -248,19 +264,46 @@ def test_level1_h2_prior_domain_error():
         )
 
 
-def test_level1_qt_valid_input():
-    """Check that valid data throws no type errors"""
+def test_level1_qt_validation():
+    """Check valid level 1 qt"""
     level0_files, Y, X, phenos, train, test, h2 = valid_inputs_1()
-    level1(level0_files, Y, X, phenos, train, test, h2, "qt")
+    result = level1(level0_files, Y, X, phenos, train, test, h2, "qt")
+    for pheno in ["0", "1", "2"]:
+        for chrom in ["20", "21", "22"]:
+            actual = result[chrom][pheno]
+            expected = np.load("tests/data/level1/qt_level1.npz")[f"{chrom}_{pheno}"]
+            np.testing.assert_array_equal(
+                actual,
+                expected,
+            )
 
 
 def test_level1_bt_valid_input():
-    """Check that valid data throws no type errors"""
+    """Check valid level 1 bt"""
     ## cross-validation
     level0_files, Y, X, phenos, train, test, h2 = valid_inputs_1()
     Y = jnp.round(expit(Y))
-    level1(level0_files, Y, X, phenos, train, test, h2, "bt", False)
+    result = level1(level0_files, Y, X, phenos, train, test, h2, "bt", False)
+
+    for pheno in ["0", "1", "2"]:
+        for chrom in ["20", "21", "22"]:
+            actual = result[chrom][pheno]
+            expected = np.load("tests/data/level1/bt_level1.npz")[f"{chrom}_{pheno}"]
+            np.testing.assert_array_equal(
+                actual,
+                expected,
+            )
 
     ## loco
-    level0_files, Y, X, phenos, train, test, h2 = valid_inputs_1()
-    level1(level0_files, Y, X, phenos, train, test, h2, "bt", True)
+    result = level1(level0_files, Y, X, phenos, train, test, h2, "bt", True)
+
+    for pheno in ["0", "1", "2"]:
+        for chrom in ["20", "21", "22"]:
+            actual = result[chrom][pheno]
+            expected = np.load("tests/data/level1/bt_loco_level1.npz")[
+                f"{chrom}_{pheno}"
+            ]
+            np.testing.assert_array_equal(
+                actual,
+                expected,
+            )
