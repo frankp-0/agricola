@@ -164,6 +164,8 @@ def level0(
         if prune_blocks:
             M_ds = len(idx_variant)
             M_ds = M_ds - (M_ds % B)
+            if not M_ds:
+                M_ds = len(idx_variant)
             idx_variant = choice(idx_variant, M_ds, replace=False)
 
         idx_variant = np.sort(idx_variant)
