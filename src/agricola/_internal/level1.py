@@ -60,9 +60,7 @@ def _ridge_cv_qt(
     Returns:
         eta_loco: An (N, C) numpy array of LOCO level 1 predictions
     """
-    ## Assign dimensions
     N, B = Z.shape
-    K = train_mask.shape[1]
     A = len(h2_prior)
     C = len(n_blocks)
 
@@ -71,18 +69,21 @@ def _ridge_cv_qt(
 
     ## Would love to vmap this but it uses way too much memory
     eta = np.zeros(shape=(N, A, C))
-    for fold in range(K):
-        for a in range(A):
-            beta = _fit_ridge(Z, Y, train_mask[:, fold], alphas[a].reshape((1)))[:, 0]
-            beta_mask = np.zeros(shape=(B, C))
-            col0 = 0
-            for c in range(C):
-                n_block = n_blocks[c]
-                beta_mask[np.arange(col0, col0 + n_block), c] = 1
-                col0 = col0 + n_block
+    beta = _fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
 
-            eta_chroms = Z @ (beta[:, None] * beta_mask) * test_mask[:, fold, None]
-            eta[:, a, :] += eta_chroms
+    eta = (
+        jnp.einsum(
+            "nb,akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :]
+        )
+        * test_mask[:, None, None, :]
+    )
+    eta = jnp.sum(eta, axis=3)
 
     ## Get best CV alpha
     eta_all = np.sum(eta, axis=2)

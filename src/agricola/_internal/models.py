@@ -15,6 +15,7 @@ import jax.numpy as jnp
 import jax.lax as lax
 from jax.scipy.special import expit
 from jaxtyping import Array
+from jax.scipy.linalg import cho_factor, cho_solve
 
 ### ─────────────────────────────────────────────────────────────
 ### Quantitative Traits
@@ -33,27 +34,25 @@ def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     Args:
         X: (N, V) jax array of predictors
         Y: (N, P) or (N,) jax array of outcome(s)
-        train_mask: (N, 1) jax array indicating training set status (0/1)
+        train_mask: (N, 5) jax array indicating training set status (0/1)
         alphas: A 1d jax array of ridge penalty weights
 
     Returns:
-        beta: A (V, P, len(alphas)) jax array of predictions (with non-test samples masked out)
+        beta: A (len(alphas), 5, V, P) jax array of coefficients
     """
     _, b = X.shape
+    _, p = Y.shape
+    _, k = train_mask.shape
+    a = alphas.shape[0]
 
-    ## Perform ridge regression
-    Xm = X * train_mask[:, None]
-    XTX = Xm.T @ Xm
-    XTY = Xm.T @ Y
+    Xm = X[:, :, None] * train_mask[:, None, :]
+    XTY = jnp.einsum("nbk,np->kbp", Xm, Y)[None, :, :, :] + jnp.zeros((a, k, b, p))
     I_ = jnp.eye(b, dtype=XTY.dtype)
-
-    def ridge_fit(alpha):
-        A = XTX + alpha * I_
-        beta = jnp.linalg.solve(A, XTY)
-        return beta
-
-    beta = jax.vmap(ridge_fit)(alphas)
-    beta = jnp.moveaxis(beta, 0, -1)
+    XTXs = jnp.einsum("nbk,nck->kbc", Xm, Xm)[None, :, :, :] + (
+        alphas[:, None, None, None] * I_[None, None, :, :]
+    )
+    Ls = cho_factor(XTXs)
+    beta = cho_solve(Ls, XTY)
 
     return beta
 

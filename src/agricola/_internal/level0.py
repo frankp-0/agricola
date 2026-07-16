@@ -27,6 +27,28 @@ from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
+### ─────────────────────────────────────────────────────────────
+### Helpers
+### ─────────────────────────────────────────────────────────────
+
+
+def _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior):
+    ## Standardize genotype block and residualize by covariates
+    G = G[:, :, 0] + G[:, :, 1]
+    G = stdize(G - (Q @ (Q.T @ G)))
+
+    ## Calculate penalties based on prior heritability
+    alphas = M * (1 - h2_prior) / h2_prior
+
+    ridge_beta = ridge(G, Y, train_mask, alphas)
+
+    ridge_Z = jnp.einsum("nb,akbp->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
+    Z_block = stdize(jnp.sum(ridge_Z, axis=1))
+    return Z_block
+
+
+_level0_ridge_jit = jax.jit(_level0_ridge)
+
 
 def _level0_block(
     dataset: LancData,
@@ -38,6 +60,7 @@ def _level0_block(
     block: NDArray,
     h2_prior: Array,
     M: int,
+    B: int,
 ) -> NDArray:
     """Get level 0 predictions for a single block
 
@@ -55,23 +78,17 @@ def _level0_block(
     Returns:
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
-    ## Standardize genotype block and residualize by covariates
     G = jnp.asarray(dataset.get_geno(block))
+
     if idx_sample is not None:
         G = G[idx_sample]
-    G = G[:, :, 0] + G[:, :, 1]
-    G = stdize(G - (Q @ (Q.T @ G)))
 
-    ## Calculate penalties based on prior heritability
-    alphas = M * (1 - h2_prior) / h2_prior
+    if block.shape[0] == B:
+        Z_block = _level0_ridge_jit(G, Y, Q, train_mask, test_mask, M, h2_prior)
+    else:
+        Z_block = _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior)
 
-    ## Perform ridge regression
-    ridge_beta = jax.vmap(ridge, in_axes=(None, None, 1, None))(
-        G, Y, train_mask, alphas
-    )
-    ridge_Z = jnp.einsum("nb,kbpa->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
-    Z_block = jnp.sum(ridge_Z, axis=1)
-    Z_block = np.asarray(stdize(Z_block))
+    Z_block = np.asarray(Z_block)
     return Z_block
 
 
@@ -171,23 +188,29 @@ def level0(
             fnames = [
                 os.path.join(level0_dir, f"{pheno}_{chrom}.npy") for pheno in phenotypes
             ]
-            Zs = [
-                np.lib.format.open_memmap(
-                    fnames[i], mode="w+", dtype=float, shape=(N, n_blocks * K)
-                )
-                for i in range(len(phenotypes))
-            ]
+            Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=float)
 
             col0 = 0
             with tqdm(total=n_blocks, desc=f"chr{chrom}", unit="block") as pbar:
                 for block in blocks:
                     Z_block = _level0_block(
-                        ds, Y, Q, train_mask, test_mask, idx_sample, block, h2_prior, M
+                        ds,
+                        Y,
+                        Q,
+                        train_mask,
+                        test_mask,
+                        idx_sample,
+                        block,
+                        h2_prior,
+                        M,
+                        B,
                     )
-                    for p in range(len(phenotypes)):
-                        Zs[p][:, col0 : col0 + K] = Z_block[:, p, :]
+                    Zs[:, :, col0 : col0 + K] = Z_block
                     col0 += K
                     pbar.update(1)
+
+            for p in range(len(phenotypes)):
+                np.save(fnames[p], Zs[:, p, :])
 
             level0_files_chrom[chrom] = fnames
         logger.info(f"Finished getting level 0 predictions for file: {pgen_path}\n")
