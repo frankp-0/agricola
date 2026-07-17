@@ -15,6 +15,8 @@ from jax import jit
 from jaxtyping import Array, ArrayLike
 import numpy as np
 from scipy.stats import chi2
+import pyarrow as pa
+import pyarrow.dataset as ds
 import pandas as pd
 from tqdm import tqdm
 from typing import Optional
@@ -71,38 +73,49 @@ def _prep_block(G, L, M, min_ac):
 
 
 class ParquetRotatingWriter:
-    def __init__(self, output_dir, max_size_mb=1000):
+    def __init__(
+        self,
+        output_dir: Path,
+        partition_phenotype: bool = True,
+        max_rows: int = 5000000,
+    ):
         self.output_dir = output_dir
-        self.max_size_bytes = max_size_mb * 1024 * 1024
+        self.max_rows = max_rows
         self.buffer = []
-        self.buffer_size = 0
-        self.file_idx = 0
+        self.buffer_rows = 0
+        self.partition_phenotype = partition_phenotype
+        self.idx = 0
 
         Path.mkdir(output_dir, parents=True, exist_ok=False)
 
-    def write(self, df):
-        self.buffer.append(df)
-        self.buffer_size += df.memory_usage(deep=True).sum()
+    def write(self, table):
+        self.buffer.append(table)
+        self.buffer_rows += table.num_rows
 
-        if self.buffer_size >= self.max_size_bytes:
+        if self.buffer_rows >= self.max_rows:
             self.flush()
 
     def flush(self):
         if not self.buffer:
             return
 
-        df = pd.concat(self.buffer, ignore_index=True)
+        partitioning = None
+        if self.partition_phenotype:
+            partitioning = ["phenotype"]
+        ds.write_dataset(
+            data=self.buffer,
+            base_dir=self.output_dir,
+            format="parquet",
+            basename_template=f"part-{{i}}_{self.idx:06d}.parquet",
+            partitioning=partitioning,
+            max_partitions=5000,
+            max_open_files=5000,
+            existing_data_behavior="overwrite_or_ignore",
+        )
 
-        path = self.output_dir / f"part-{self.file_idx:05d}.parquet"
-
-        df.to_parquet(path, engine="pyarrow", compression="snappy", index=False)
-
-        flush_msg = f"Wrote {path}: {len(df):,} rows"
-        logger.info(flush_msg)
-
-        self.file_idx += 1
         self.buffer.clear()
-        self.buffer_size = 0
+        self.buffer_rows = 0
+        self.idx += 1
 
     def close(self):
         self.flush()
@@ -127,7 +140,7 @@ def _step2_block(
     extra_args: dict,
     adjust_lanc: bool,
     impute: bool,
-) -> pd.DataFrame:
+) -> pa.Table:
     """Run step 2 for a single block of variants
 
     Args:
@@ -278,27 +291,28 @@ def _step2_block(
 
     ## Create single DataFrame
     p = Y.shape[1]
-    result_df = pd.concat(
-        [
-            pd.concat(
-                [
-                    block_info[valid_idx[:, i]].reset_index(drop=True),
-                    pd.DataFrame(
-                        data=result_arr[valid_idx[:, i], :, i],
-                        columns=pd.Index(colnames),
-                    ),
-                    pd.DataFrame(
-                        {"phenotype": [phenotypes[i]] * np.sum(valid_idx[:, i])}
-                    ),
-                ],
-                axis=1,
-            )
-            for i in range(p)
-        ],
-        axis=0,
-    )
+    tables = []
 
-    return result_df
+    for i in range(p):
+        idx = valid_idx[:, i]
+
+        block_table = pa.Table.from_pandas(
+            block_info[idx].reset_index(drop=True),
+            preserve_index=False,
+        )
+
+        columns = {name: block_table[name] for name in block_table.column_names}
+
+        for j, name in enumerate(colnames):
+            columns[name] = pa.array(result_arr[idx, j, i])
+
+        columns["phenotype"] = pa.array([phenotypes[i]] * idx.sum())
+
+        tables.append(pa.table(columns))
+
+    result_table = pa.concat_tables(tables)
+
+    return result_table
 
 
 def _step2_dataset(
@@ -402,7 +416,7 @@ def _step2_dataset(
             Yc = Yc * M
 
             for block in blocks:
-                result_df = _step2_block(
+                result_table = _step2_block(
                     dataset,
                     Yc,
                     M,
@@ -418,7 +432,7 @@ def _step2_dataset(
                     impute,
                 )
 
-                writer.write(result_df)
+                writer.write(result_table)
                 pbar.update(1)
 
 
@@ -439,6 +453,8 @@ def step2(
     adjust_lanc: bool = True,
     impute: bool = False,
     overwrite: bool = True,
+    partition_phenotype: bool = True,
+    max_rows: Optional[int] = None,
 ) -> None:
     """Perform agricola step 2
 
@@ -461,13 +477,21 @@ def step2(
         impute: Whether to impute the phenotype. Much faster, but only available
             for qt traits. If all phenotypes are non-missing, this is ignored.
         overwrite: Whether to overwrite the outdir if it already exists
+        partition_phenotype: Whether to partition output parquet files by phenotype
+        max_rows: Max number of rows/variants per phenotype to keep in memory
+            before writing an output file. Defaults to 5000000 / len(phenotypes)
     """
     ## Create writer
     outdir_path = Path(outdir)
     if overwrite and outdir_path.exists():
         shutil.rmtree(outdir_path)
 
-    writer = ParquetRotatingWriter(output_dir=outdir_path)
+    if max_rows:
+        max_rows_total = max_rows * len(phenotypes)
+    else:
+        max_rows_total = 5000000
+
+    writer = ParquetRotatingWriter(outdir_path, partition_phenotype, max_rows_total)
 
     if impute:
         M = jnp.ones(shape=jnp.asarray(Y).shape)

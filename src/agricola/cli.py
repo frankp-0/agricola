@@ -423,10 +423,7 @@ def step1(
         None,
         help=("Log file"),
     ),
-    verbose: bool = typer.Option(
-        False,
-        help=("Log file"),
-    ),
+    verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
     logger.debug(_get_options_msg(locals()))
@@ -532,9 +529,7 @@ def step2(
     ),
     outdir: str = typer.Option(
         None,
-        help=(
-            "Output directory. If --no-overwrite, this directory must not exist. Chunked parquet files are written to e.g. outdir/part-0001.parquet"
-        ),
+        help=("Output directory. If --no-overwrite, this directory must not exist. "),
     ),
     overwrite: bool = typer.Option(
         False,
@@ -585,14 +580,26 @@ def step2(
             "This option can be ignored if the environment variable JAX_ENABLE_X64=True is already set."
         ),
     ),
+    partition_phenotypes: bool = typer.Option(
+        True,
+        help=(
+            "Whether to partition output parquet files in step 2 by phenotype . "
+            "If True, output files are written to e.g. outdir/trait0/part-0_0.parquet "
+            "With a large number of phenotypes, this can lead to very small .parquet files unless --max-rows is increased"
+        ),
+    ),
+    max_rows: int = typer.Option(
+        None,
+        help=(
+            "Max number of rows/variants per phenotype to keep in memory before writing an output file. "
+            "If unspecified, agricola will use 5000000 / len(phenotypes)"
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
     ),
-    verbose: bool = typer.Option(
-        False,
-        help=("Log file"),
-    ),
+    verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
     logger.debug(_get_options_msg(locals()))
@@ -649,6 +656,8 @@ def step2(
         adjust_lanc,
         impute,
         overwrite,
+        partition_phenotypes,
+        max_rows,
     )
 
 
@@ -715,9 +724,7 @@ def all_steps(
     ),
     outdir: str = typer.Option(
         None,
-        help=(
-            "Output directory. If --no-overwrite, this directory must not exist. Chunked parquet files are written to e.g. outdir/part-0001.parquet"
-        ),
+        help=("Output directory. If --no-overwrite, this directory must not exist. "),
     ),
     overwrite: bool = typer.Option(
         False,
@@ -768,14 +775,26 @@ def all_steps(
             "This will improve speed with JIT compilations."
         ),
     ),
+    partition_phenotypes: bool = typer.Option(
+        True,
+        help=(
+            "Whether to partition output parquet files in step 2 by phenotype . "
+            "If True, output files are written to e.g. outdir/trait0/part-0_0.parquet "
+            "With a large number of phenotypes, this can lead to very small .parquet files unless --max-rows is increased"
+        ),
+    ),
+    max_rows: int = typer.Option(
+        None,
+        help=(
+            "Max number of rows/variants per phenotype to keep in memory before writing an output file in step 2. "
+            "If unspecified, agricola will use 5000000 / len(phenotypes)"
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
     ),
-    verbose: bool = typer.Option(
-        False,
-        help=("Log file"),
-    ),
+    verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
     logger.debug(_get_options_msg(locals()))
@@ -857,6 +876,8 @@ def all_steps(
         adjust_lanc,
         impute,
         overwrite,
+        partition_phenotypes,
+        max_rows,
     )
 
 
