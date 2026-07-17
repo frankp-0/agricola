@@ -32,7 +32,7 @@ nav = [
     "cli/formats.md",
     "cli/options.md",
   ] },
-  { "Python Package" = "package.md" },
+  { "API" = "api.md" },
   { "Changelog" = "changelog.md" },
 ]
 
