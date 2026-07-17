@@ -52,7 +52,7 @@ def _read_psam(path) -> DataFrame:
 
     if header_line is not None:
         cols = header_line.lstrip("#").strip().split()
-        df = pd.read_csv(path, sep="\\s+", comment="#", names=cols)
+        df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
 
     else:
         data_line = next(l for l in lines if not l.startswith("#")).rstrip("\n")
@@ -65,7 +65,7 @@ def _read_psam(path) -> DataFrame:
             extra = [f"PHENO{i}" for i in range(1, ncols - len(base) + 1)]
             names = base + extra
 
-        df = pd.read_csv(path, sep="\\s+", header=None, names=names)
+        df = pd.read_csv(path, sep=r"[ \t]", header=None, names=names, engine="python")
 
     if "IID" not in df.columns:
         raise ValueError("IID column not found in psam")
@@ -100,7 +100,7 @@ def _read_pheno_covar(path) -> DataFrame:
 
     if header_line is not None:
         cols = header_line.lstrip("#").strip().split()
-        df = pd.read_csv(path, sep="\\s+", comment="#", names=cols)
+        df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
         if set(df.columns).issubset(set(["FID", "IID"])):
             raise ValueError("No phenotype columns found")
     else:
@@ -113,7 +113,7 @@ def _read_pheno_covar(path) -> DataFrame:
             extra = [f"PHENO{i}" for i in range(1, ncols - 1)]
             names = ["FID", "IID"] + extra
 
-        df = pd.read_csv(path, sep="\\s+", header=None, names=names)
+        df = pd.read_csv(path, sep=r"[ \t]", header=None, names=names, engine="python")
 
     if "IID" not in df.columns:
         raise ValueError("IID column not found in psam")
