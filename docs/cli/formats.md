@@ -86,9 +86,27 @@ predictions for each sample and phenotype.
 ### Step 2 Results
 
 Summary statistics from step 2 of **agricola** are saved into an [Apache Parquet](https://parquet.apache.org/)
-file directory. The `--outdir` directory will contain a series of
-parquet files, named as outdir/part-0001.parquet, outdir/part-0002.parquet, etc.
-Each parquet file contains results for all phenotypes for a subset of variants.
+file directory specified by `--outdir`. If `--partition-phenotype` is used, the
+output will be e.g.:
+
+```
+outdir/
+├── trait0/
+│   ├── part-0_000000.parquet
+│   ├── part-0_000001.parquet
+├── trait1/
+│   ├── part-0_000000.parquet
+│   ├── part-0_000001.parquet
+```
+
+If `--no-partition-phenotype`, the above would be a flat directory:
+
+```
+outdir/
+├── part-0_000000.parquet
+├── part-0_000001.parquet
+```
+
 The parquet files have the following schema:
 
 | Field | Type | Description |
@@ -106,5 +124,5 @@ The parquet files have the following schema:
 | LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
 | LOG10P_HOM | double | P-value for $\beta=0$ under homogeneous model (all ancestry-specific effects equal) |
 | LOG10P_{anc} | double | P-value for test $\beta_{\text{anc}} = 0$ |
-| LOG10P_LRT | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for Wald test) |
-| phenotype | string | phenotype name |
+| LOG10P_LRT | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for `--test-type wald`) |
+| phenotype | string | phenotype name (only output if using `--no-partition-phenotype`) |
