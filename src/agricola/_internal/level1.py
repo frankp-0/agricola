@@ -10,6 +10,8 @@ using ridge or logistic ridge regression with cross-validation. The entry-point
 for this module is the `level1` function.
 """
 
+import time
+from datetime import timedelta
 import logging
 import jax
 import jax.numpy as jnp
@@ -242,6 +244,7 @@ def level1(
 
     loco_arr = np.zeros(shape=(N, P, C))
     logger.info("Getting level 1 predictions")
+    time_total_start = time.perf_counter()
     with tqdm(total=Y.shape[1], unit="phenotypes") as pbar:
         for p in range(P):
             pheno: str = phenotypes[p]
@@ -268,7 +271,8 @@ def level1(
             loco_arr[:, p, :] = loco_p
             pbar.update(1)
 
-    logger.info("Finished getting level 1 predictions\n")
+    time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
+    logger.info(f"Step 1 level 1 completed in: {time_total}\n")
     level1_loco = {}
     for i, chrom in enumerate(level0_files[phenotypes[0]].keys()):
         level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))

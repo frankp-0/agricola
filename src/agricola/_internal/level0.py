@@ -10,6 +10,8 @@ for each trait across a sequence of heritability priors. The entry-point for thi
 module is the `level0` function.
 """
 
+import time
+from datetime import timedelta
 import logging
 import os
 import tempfile
@@ -172,8 +174,10 @@ def level0(
         idx_variant_ds[i] = idx_variant
         M += idx_variant.shape[0]
 
+    time_total_start = time.perf_counter()
     for i, ds in enumerate(datasets):
         pgen_path = ds.plink_prefix + ".pgen"
+        time_ds_start = time.perf_counter()
         logger.info(f"Getting level 0 predictions for file: {pgen_path}")
 
         idx_variant = idx_variant_ds[i]
@@ -223,7 +227,11 @@ def level0(
                 np.save(fnames[p], Zs[:, p, :])
 
             level0_files_chrom[chrom] = fnames
-        logger.info(f"Finished getting level 0 predictions for file: {pgen_path}\n")
+        time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
+        logger.info(f"Elapsed time: {time_ds}\n")
+
+    time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
+    logger.info(f"Step 1 Level 0 predictions completed in: {time_total}\n")
     level0_files = {
         k: {dk: dv[i] for dk, dv in level0_files_chrom.items()}
         for i, k in enumerate(phenotypes)

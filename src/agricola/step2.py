@@ -8,6 +8,8 @@ This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
 """
 
+import time
+from datetime import timedelta
 from pathlib import Path
 import shutil
 import jax.numpy as jnp
@@ -535,9 +537,12 @@ def step2(
     )
     X = X * M[:, None, :]
 
+    time_total_start = time.perf_counter()
     for dataset in datasets:
         pgen_path = dataset.plink_prefix + ".pgen"
-        logger.info(f"Testing associations for file: {pgen_path}")
+        logger.info(f"Testing associations for file: {pgen_path}\n")
+
+        time_ds_start = time.perf_counter()
         _step2_dataset(
             dataset,
             writer,
@@ -556,5 +561,9 @@ def step2(
             adjust_lanc,
             impute,
         )
-        logger.info(f"Finished testing associations for file: {pgen_path}\n")
+        time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
+        logger.info(f"Elapsed time: {time_ds}\n")
+
+    time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
+    logger.info(f"Step 2 completed in: {time_total}\n")
     writer.close()
