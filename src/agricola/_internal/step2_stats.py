@@ -251,7 +251,7 @@ def _qt_wald_lanc(
     Gtr = Gl.T @ r_L
     GltGl_inv = _masked_inv(Gl.T @ Gl, G_mask)
     beta_het = GltGl_inv @ Gtr
-    r_G = r_L - G @ beta_het
+    r_G = r_L - Gl @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - (2 * K - 1))
     chisq_anc = Gtr**2 * jnp.diagonal(GltGl_inv)[:, None] / mse_het
@@ -261,7 +261,7 @@ def _qt_wald_lanc(
     Htr = Hl.T @ r_L
     HltHl = Hl.T @ Hl
     beta_hom = Htr / HltHl
-    r_H = r_L - (H @ beta_hom)
+    r_H = r_L - (Hl @ beta_hom)
     sse_hom = jnp.sum(r_H**2, axis=0)
     mse_hom = sse_hom / (N_eff - K)
     chisq_hom = (Htr**2) / HltHl / mse_hom
