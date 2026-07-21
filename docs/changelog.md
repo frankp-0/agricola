@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.13.0] - 2026-07-21
+
+[v0.13.0]: https://github.com/frankp-0/agricola/compare/v0.12.0...v0.13.0>
+
+### Added
+
+- Support for using subset of step1 samples in step2
+
 ## [v0.12.0] - 2026-07-21
 
 [v0.12.0]: https://github.com/frankp-0/agricola/compare/v0.11.0...v0.12.0>
