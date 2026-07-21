@@ -90,6 +90,7 @@ def logistic_ridge(
     train_mask: Array,
     alpha: float | Array,
     max_iter: int = 50,
+    tol: float = 1e-6,
 ) -> Array:
     """Perform logistic ridge regression using a training mask.
 
@@ -102,6 +103,7 @@ def logistic_ridge(
         train_mask: (N,) jax array indicating training set status (0/1)
         alpha: ridge penalty weight
         max_iter: max number of iterations
+        tol: convergence tolerance
 
     Returns:
         beta: (V,) jax array of coefficients
@@ -109,16 +111,28 @@ def logistic_ridge(
 
     beta0 = jnp.zeros(X.shape[1])
 
-    def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+    def cond_fun(state):
+        i, beta = state
+        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
 
-    beta = lax.fori_loop(0, max_iter, body_fun, beta0)
+    def body_fun(state):
+        i, beta = state
+        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        return i + 1, beta_new
+
+    _, beta = lax.while_loop(cond_fun, body_fun, (0, beta0))
 
     return beta
 
 
 def logistic_ridge_loo(
-    X: Array, y: Array, offset: Array, alpha: float | Array, max_iter: int = 50
+    X: Array,
+    y: Array,
+    offset: Array,
+    alpha: float | Array,
+    max_iter: int = 50,
+    tol: float = 1e-6,
 ) -> Array:
     """Perform logistic ridge regression with leave-one-out scheme
 
@@ -130,6 +144,7 @@ def logistic_ridge_loo(
         offset: (N,) jax array with offset
         alpha: ridge penalty weight
         max_iter: max number of iterations
+        tol: convergence tolerance
 
     Returns:
         beta_loo: (V,N) jax array of loo coefficients
@@ -138,10 +153,17 @@ def logistic_ridge_loo(
 
     train_mask = jnp.ones((X.shape[0]))
 
-    def body_fun(i, beta):
-        return _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+    def cond_fun(state):
+        i, beta = state
+        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
 
-    beta = lax.fori_loop(0, max_iter, body_fun, beta0)
+    def body_fun(state):
+        i, beta = state
+        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        return i + 1, beta_new
+
+    _, beta = lax.while_loop(cond_fun, body_fun, (0, beta0))
     eta = X @ beta + offset
     mu = expit(eta)
     w = mu * (1 - mu)

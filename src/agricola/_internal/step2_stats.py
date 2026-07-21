@@ -29,10 +29,12 @@ def _logistic(
     train_mask: Array,
     X_mask: Array,
     max_iter: int = 10,
+    tol: float = 1e-6,
 ) -> Array:
     beta0 = jnp.zeros(X.shape[1])
 
-    def _body_fun(_, beta):
+    def _body_fun(state):
+        i, beta = state
         eta = X @ beta + offset
         mu = expit(eta)
         r = (y - mu) * train_mask
@@ -40,10 +42,15 @@ def _logistic(
         XW = X * w[:, None]
         XT_r = X.T @ r
         delta = _masked_solve(X.T @ XW, X_mask, XT_r)
-        beta_new = beta + delta
-        return _naninf_to_0(beta_new)
+        beta_new = _naninf_to_0(beta + delta)
+        return i + 1, beta_new
 
-    beta = lax.fori_loop(0, max_iter, _body_fun, beta0)
+    def _cond_fun(state):
+        i, beta = state
+        _, beta_new = _body_fun(state)
+        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
+
+    _, beta = lax.while_loop(_cond_fun, _body_fun, (0, beta0))
 
     return beta
 
