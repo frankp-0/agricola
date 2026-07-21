@@ -10,6 +10,8 @@ import pickle
 import typer
 from typing import Optional, TYPE_CHECKING
 from importlib.metadata import version, PackageNotFoundError
+from rich.console import Console
+from rich.text import Text
 import logging
 import sys
 
@@ -24,6 +26,7 @@ app = typer.Typer(help="agricola CLI")
 logger = logging.getLogger("agricola")
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numba").setLevel(logging.WARNING)
+console = Console()
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
@@ -270,6 +273,26 @@ def _get_version() -> str:
         return "unknown"
 
 
+def _print_welcome() -> None:
+    art = r"""
+                               ░██                      ░██            
+                                                        ░██            
+ ░██████    ░████████ ░██░████ ░██ ░███████   ░███████  ░██  ░██████   
+      ░██  ░██    ░██ ░███     ░██░██    ░██ ░██    ░██ ░██       ░██  
+ ░███████  ░██    ░██ ░██      ░██░██        ░██    ░██ ░██  ░███████  
+░██   ░██  ░██   ░███ ░██      ░██░██    ░██ ░██    ░██ ░██ ░██   ░██  
+ ░█████░██  ░█████░██ ░██      ░██ ░███████   ░███████  ░██  ░█████░██ 
+                  ░██                                                  
+            ░███████                                                   
+                                                                       
+"""
+    console.print(Text(art, style="bold"))
+    console.print(
+        f"[bold]agricola[/bold] v{_get_version()}\n"
+        "[dim]Run --help to see available commands.[/dim]\n"
+    )
+
+
 def _setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
     logger = logging.getLogger()
 
@@ -323,6 +346,7 @@ def main(
     if version_flag:
         typer.echo(f"agricola {_get_version()}")
         raise typer.Exit()
+    _print_welcome()
 
 
 @app.command()

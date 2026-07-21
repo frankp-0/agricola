@@ -25,6 +25,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pgenlib" },
     { name = "pyarrow" },
+    { name = "rich" },
     { name = "tqdm" },
     { name = "typer" },
 ]
@@ -62,6 +63,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pgenlib", specifier = ">=0.93.0" },
     { name = "pyarrow", specifier = ">=21.0.0" },
+    { name = "rich", specifier = ">=14.2.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.20.0" },
 ]
