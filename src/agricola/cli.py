@@ -489,7 +489,7 @@ def step1(
     train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
     ## Run step 1
-    predictions = step1(
+    step1_predictions = step1(
         datasets,
         Y,
         X,
@@ -506,9 +506,12 @@ def step1(
         prune_blocks,
     )
 
+    for i, chrom in enumerate(step1_predictions):
+        step1_predictions[chrom].index = samples
+
     ## Write predictions
     with open(output + ".pkl", "wb") as f:
-        pickle.dump(predictions, f)
+        pickle.dump(step1_predictions, f)
 
 
 @app.command()
@@ -660,14 +663,17 @@ def step2(
 
     ## Load step1 predictions
     with open(step1_prefix + ".pkl", "rb") as file:
-        predictions = pickle.load(file)
+        step1_predictions = pickle.load(file)
+
+    for i, chrom in enumerate(step1_predictions):
+        step1_predictions[chrom] = step1_predictions[chrom].loc[samples]
 
     ## Run step 2
     step2(
         datasets,
         Y,
         X,
-        predictions,
+        step1_predictions,
         outdir,
         phenotypes,
         trait_type,
@@ -866,7 +872,7 @@ def all_steps(
     train_mask, test_mask = get_cv_mask(len(Y), 5, key)
 
     ## Run step 1
-    predictions = step1(
+    step1_predictions = step1(
         datasets,
         Y,
         X,
@@ -887,7 +893,7 @@ def all_steps(
         datasets,
         Y,
         X,
-        predictions,
+        step1_predictions,
         outdir,
         phenotypes,
         trait_type,
