@@ -2,6 +2,20 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.12.0] - 2026-07-21
+
+[v0.12.0]: https://github.com/frankp-0/agricola/compare/v0.11.0...v0.12.0>
+
+### Added
+
+- Welcome message
+- Lower memory, slightly improved speed for imputed traits in step 2
+
+### Fixed
+
+- Bug in calculating residuals for _qt_lanc_wald
+- Use convergence instead of fixed iterations for logistic regression
+
 ## [v0.11.0] - 2026-07-17
 
 [v0.11.0]: https://github.com/frankp-0/agricola/compare/v0.10.0...v0.11.0>
