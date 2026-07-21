@@ -165,8 +165,14 @@ def _step2_block(
         G = G[idx_sample]
         L = L[idx_sample]
 
+    if impute:
+        M = M[:, 0][:, None]
     G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask = _prep_block(G, L, M, min_ac)
-    valid_idx = np.asarray(ac_variant_mask)
+
+    _, B, K, _ = G.shape
+    _, P = Y.shape
+    N_eff = jnp.broadcast_to(N_eff, (Y.shape[1]))
+    valid_idx = np.broadcast_to(np.asarray(ac_variant_mask), (B, P))
 
     func_map = {
         (TraitType.QT, TestType.SCORE, True, False): (
@@ -223,7 +229,6 @@ def _step2_block(
 
     log10p_lrt: np.ndarray | None = None
 
-    _, B, K, P = G.shape
     if test_type == TestType.WALD:
         (
             chisq_hom,
@@ -260,8 +265,8 @@ def _step2_block(
     ## Create array with results
     result_components = [
         np.broadcast_to(N_eff, (B, 1, P)),
-        af_lanc,
-        prop_lanc,
+        np.broadcast_to(af_lanc, (B, K, P)),
+        np.broadcast_to(prop_lanc, (B, K, P)),
         beta_het,
         beta_hom[:, None, :],
         log10p_het[:, None, :],
