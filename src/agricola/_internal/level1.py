@@ -37,8 +37,13 @@ logger = logging.getLogger(__name__)
 
 
 _fit_ridge = jax.jit(ridge)
-_fit_logistic_ridge = jax.jit(logistic_ridge)
-_fit_logistic_ridge_loo = jax.jit(logistic_ridge_loo)
+_fit_logistic_ridge = jax.vmap(
+    jax.vmap(jax.jit(logistic_ridge), in_axes=(None, None, None, 1, None)),
+    in_axes=(None, None, None, None, 0),
+)
+_fit_logistic_ridge_loo = jax.jit(
+    jax.vmap(jax.jit(logistic_ridge_loo), in_axes=(None, None, None, 0)),
+)
 
 
 def _ridge_cv_qt(
@@ -62,15 +67,12 @@ def _ridge_cv_qt(
     Returns:
         eta_loco: An (N, C) numpy array of LOCO level 1 predictions
     """
-    N, B = Z.shape
-    A = len(h2_prior)
+    _, B = Z.shape
     C = len(n_blocks)
 
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    ## Would love to vmap this but it uses way too much memory
-    eta = np.zeros(shape=(N, A, C))
     beta = _fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
@@ -120,27 +122,26 @@ def _ridge_cv_bt(
         eta_loco: An (N, C) numpy array of LOCO level 1 predictions (linear predictor)
     """
     ## Assign dimensions
-    N, B = Z.shape
-    K = train_mask.shape[1]
-    A = len(h2_prior)
+    _, B = Z.shape
     C = len(n_blocks)
 
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    eta = np.zeros(shape=(N, A, C))
-    for fold in range(K):
-        for a in range(A):
-            beta = _fit_logistic_ridge(Z, Y, offset, train_mask[:, fold], alphas[a])
-            beta_mask = np.zeros(shape=(B, C))
-            col0 = 0
-            for c in range(C):
-                n_block = n_blocks[c]
-                beta_mask[np.arange(col0, col0 + n_block), c] = 1
-                col0 = col0 + n_block
-
-            eta_chroms = Z @ (beta[:, None] * beta_mask) * test_mask[:, fold, None]
-            eta[:, a, :] += eta_chroms
+    beta = _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)  # AKB
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
+    eta = (
+        jnp.einsum(
+            "nb, akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :]
+        )
+        * test_mask[:, None, None, :]
+    )
+    eta = jnp.sum(eta, axis=3)
 
     ## Get best CV alpha
     eta_all = np.sum(eta, axis=2)
@@ -175,18 +176,19 @@ def _ridge_loocv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    eta = np.zeros(shape=(N, A, C))
-    for a in range(A):
-        beta = _fit_logistic_ridge_loo(Z, Y, offset, alphas[a]).T
-        col0 = 0
-        for c in range(C):
-            n_block = n_blocks[c]
-            beta_mask = np.zeros(B)
-            beta_mask[np.arange(col0, col0 + n_block)] = 1
-            eta[:, a, c] += np.sum(Z * beta * beta_mask[None, :], axis=1)
-            col0 = col0 + n_block
+    beta = _fit_logistic_ridge_loo(Z, Y, offset, alphas)  # ABN
+    beta = jnp.moveaxis(beta, (0, 1, 2), (0, 2, 1))  # ANB
+    beta_mask = np.zeros(shape=(B, C))
+    col0 = 0
+    for c in range(C):
+        n_block = n_blocks[c]
+        beta_mask[np.arange(col0, col0 + n_block), c] = 1
+        col0 = col0 + n_block
+    eta = jnp.sum(
+        Z[None, :, :, None] * beta[:, :, :, None] * beta_mask[None, None, :, :], axis=2
+    )
+    eta = jnp.moveaxis(eta, (0, 1, 2), (1, 0, 2))
 
-    # Get best CV alpha
     eta_all = np.sum(eta, axis=2)
     l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - np.log(1 + jnp.exp(eta_all))
     l_alphas = np.sum(l_i_alphas, axis=0)
