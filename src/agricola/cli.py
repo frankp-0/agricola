@@ -337,7 +337,7 @@ def _report_devices(backend: Optional[str] = None):
     devices = jax.devices()
     backend_default = jax.default_backend()
 
-    if backend != backend_default:
+    if backend is not None and backend != backend_default:
         logger.warning(f"backend {backend} not available.\n")
 
     logger.info(f"Using JAX backend: {backend_default}\n")
