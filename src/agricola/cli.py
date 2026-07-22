@@ -26,6 +26,7 @@ app = typer.Typer(help="agricola CLI")
 logger = logging.getLogger("agricola")
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("numba").setLevel(logging.WARNING)
+logging.getLogger("jax._src.xla_bridge").setLevel(logging.CRITICAL)
 console = Console()
 
 ### ─────────────────────────────────────────────────────────────
@@ -328,6 +329,23 @@ def _get_options_msg(options: dict[str, str]) -> str:
     return option_msg
 
 
+def _report_devices(backend: Optional[str] = None):
+    if backend is not None:
+        os.environ.setdefault("JAX_PLATFORMS", backend)
+    import jax
+
+    devices = jax.devices()
+    backend_default = jax.default_backend()
+
+    if backend != backend_default:
+        logger.warning(f"backend {backend} not available.\n")
+
+    logger.info(f"Using JAX backend: {backend_default}\n")
+
+    for device in devices:
+        logger.info(f"Using device: {device}")
+
+
 ### ─────────────────────────────────────────────────────────────
 ### App
 ### ─────────────────────────────────────────────────────────────
@@ -443,6 +461,13 @@ def step1(
             "This will improve speed with JIT compilations."
         ),
     ),
+    backend: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Jax backend to use (e.g. --backend cpu or --backend cuda. "
+            "Jax automatically detects the correct backend, but this can be specified to e.g. use cpu instead of cuda devices. "
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
@@ -450,6 +475,7 @@ def step1(
     verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
+    _report_devices(backend)
     logger.debug(_get_options_msg(locals()))
 
     import jax
@@ -622,6 +648,13 @@ def step2(
             "If unspecified, agricola will use 5000000 / len(phenotypes)"
         ),
     ),
+    backend: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Jax backend to use (e.g. --backend cpu or --backend cuda. "
+            "Jax automatically detects the correct backend, but this can be specified to e.g. use cpu instead of cuda devices. "
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
@@ -629,6 +662,7 @@ def step2(
     verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
+    _report_devices(backend)
     logger.debug(_get_options_msg(locals()))
 
     import jax
@@ -820,6 +854,13 @@ def all_steps(
             "If unspecified, agricola will use 5000000 / len(phenotypes)"
         ),
     ),
+    backend: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Jax backend to use (e.g. --backend cpu or --backend cuda. "
+            "Jax automatically detects the correct backend, but this can be specified to e.g. use cpu instead of cuda devices. "
+        ),
+    ),
     log: Optional[str] = typer.Option(
         None,
         help=("Log file"),
@@ -827,6 +868,7 @@ def all_steps(
     verbose: bool = typer.Option(False),
 ) -> None:
     _setup_logging(log, verbose)
+    _report_devices(backend)
     logger.debug(_get_options_msg(locals()))
 
     import jax
