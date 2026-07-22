@@ -532,8 +532,8 @@ def step1(
         prune_blocks,
     )
 
-    for i, chrom in enumerate(step1_predictions):
-        step1_predictions[chrom].index = samples
+    for _, i in enumerate(step1_predictions):
+        step1_predictions[i].index = samples
 
     ## Write predictions
     with open(output + ".pkl", "wb") as f:
@@ -699,8 +699,8 @@ def step2(
     with open(step1_prefix + ".pkl", "rb") as file:
         step1_predictions = pickle.load(file)
 
-    for i, chrom in enumerate(step1_predictions):
-        step1_predictions[chrom] = step1_predictions[chrom].loc[samples]
+    for _, i in enumerate(step1_predictions):
+        step1_predictions[i] = step1_predictions[i].loc[samples]
 
     ## Run step 2
     step2(
