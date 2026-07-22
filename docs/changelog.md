@@ -2,6 +2,16 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.14.0] - 2026-07-22
+
+[v0.14.0]: https://github.com/frankp-0/agricola/compare/v0.13.0...v0.14.0>
+
+### Added
+
+- Option to specify JAX backend
+- Improved speed for level 1 logistic regression by vmapping across folds and
+blocks in level1 logistic regression
+
 ## [v0.13.0] - 2026-07-21
 
 [v0.13.0]: https://github.com/frankp-0/agricola/compare/v0.12.0...v0.13.0>
