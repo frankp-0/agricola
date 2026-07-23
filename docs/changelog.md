@@ -2,6 +2,15 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.14.1] - 2026-07-22
+
+[v0.14.1]: https://github.com/frankp-0/agricola/compare/v0.14.0...v0.14.1>
+
+### Fixed
+
+- Bug in step2 CLI only using the last chromosome
+- Do not log warning about backend when none is specified
+
 ## [v0.14.0] - 2026-07-22
 
 [v0.14.0]: https://github.com/frankp-0/agricola/compare/v0.13.0...v0.14.0>
