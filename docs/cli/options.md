@@ -22,6 +22,9 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 | `--samples-file` | TEXT | optional | Samples file |
 | `--trait-type` | TEXT | optional | Trait type: quantitative (qt) or binary (bt) [default: qt] |
 | `--double-precision` | | optional | Whether to use double instead of single precision [default: `--no-double-precision`] |
+| `--backend` | TEXT | optional | Jax backend to use (e.g. --backend cpu or --backend cuda. Jax automatically detects the correct backend, but this can be specified to e.g. use cpu instead of cuda devices. |
+| `--log` | TEXT | optional | Optional log file |
+| `--verbose` | | optional | Whether to log debugging info [default: `--no-double-precision`] |
 
 !!! info
 
@@ -74,7 +77,9 @@ These are the non-global options for `step2`:
 | `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
-| `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
+| `--min-ac` | INTEGER | optional | Minimum allele count threshold [default: 1] |
+| `--partition_phenotypes` | | optional | Whether to partition output parquet files by phenotyp. If True, output files are written to e.g. outdir/trait0/part-0_0.parquet [default: --partition-phenotypes] |
+| `--max-rows` | INTEGER | optional | Max number of rows/variants per phenotype to keep in memory before writing an output file. If unspecified, agricola will use 5000000 / len(phenotypes) |
 
 !!! info
 
@@ -100,6 +105,8 @@ These are the non-global options for `all-steps`
 | `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
 | `--seed` | INTEGER | optional | Random seed [default: 100] |
 | `--loocv` | | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
+| `--partition_phenotypes` | | optional | Whether to partition output parquet files by phenotyp. If True, output files are written to e.g. outdir/trait0/part-0_0.parquet [default: --partition-phenotypes] |
+| `--max-rows` | INTEGER | optional | Max number of rows/variants per phenotype to keep in memory before writing an output file. If unspecified, agricola will use 5000000 / len(phenotypes) |
 
 !!! info
 
