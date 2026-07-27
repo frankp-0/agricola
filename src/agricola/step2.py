@@ -410,22 +410,41 @@ def _step2_dataset(
 
             extra_args = {}
 
-            Q = jnp.linalg.qr(X.transpose(2, 0, 1), mode="reduced")[0].transpose(
-                1, 2, 0
-            )
             Yc = Y  # chromosome-specific Y
             if trait_type == TraitType.QT:
                 Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                mu = expit(step1_pred_chr)
+                Xo = jnp.concatenate(
+                    [
+                        np.broadcast_to(
+                            X[:, :, None],
+                            (X.shape[0], X.shape[1], step1_pred_chr.shape[1]),
+                        ),
+                        step1_pred_chr[:, None, :],
+                    ],
+                    axis=1,
+                )
+                beta_offset = vmap(logistic_ridge, in_axes=(2, 1, None, 1, None))(
+                    Xo, Y, jnp.zeros(Y.shape[0]), M, 0
+                )
+                offset_covar = jnp.einsum("ncp,pc->np", Xo, beta_offset)
+                mu = expit(offset_covar)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
 
-                O = jnp.asarray(step1_pred_chr)
+                O = jnp.asarray(offset_covar)
                 extra_args["O"] = O
 
             Yc = Yc * M
+            ## Adjust covariates for per-phenotype missingness
+            Xm = X[:, :, None] - jnp.sum(
+                X[:, :, None] * M[:, None, :], axis=0
+            ) / jnp.sum(M, axis=0)
+            Xm = Xm * M[:, None, :]
+            Q = jnp.linalg.qr(Xm.transpose(2, 0, 1), mode="reduced")[0].transpose(
+                1, 2, 0
+            )
 
             for block in blocks:
                 result_table = _step2_block(
@@ -534,18 +553,6 @@ def step2(
     else:
         if impute:
             raise ValueError("impute must be False for binary traits")
-        beta_covar = vmap(logistic_ridge, in_axes=(None, 1, None, None, None))(
-            X, Y, jnp.zeros(Y.shape[0]), jnp.ones(Y.shape[0]), 0
-        )
-        offset_covar = X @ beta_covar.T
-        for k in step1_predictions_np.keys():
-            step1_predictions_np[k] = step1_predictions_np[k] + offset_covar
-
-    ## Adjust covariates for per-phenotype missingness
-    X = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(
-        M, axis=0
-    )
-    X = X * M[:, None, :]
 
     time_total_start = time.perf_counter()
     for dataset in datasets:
