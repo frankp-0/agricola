@@ -394,6 +394,11 @@ def _step2_dataset(
     ## Perform step 2 for each chromosome and block
     with tqdm(total=n_blocks, unit="block") as pbar:
         for chrom in chroms:
+            if chrom in step1_predictions.keys():
+                step1_pred_chr = step1_predictions[chrom]
+            else:
+                step1_pred_chr = step1_predictions["all"]
+
             ## Get indices for this chromosome
             idx_chrom = np.array(
                 [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
@@ -410,14 +415,14 @@ def _step2_dataset(
             )
             Yc = Y  # chromosome-specific Y
             if trait_type == TraitType.QT:
-                Yc = Yc - step1_predictions[chrom]
+                Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                mu = expit(step1_predictions[chrom])
+                mu = expit(step1_pred_chr)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
 
-                O = jnp.asarray(step1_predictions[chrom])
+                O = jnp.asarray(step1_pred_chr)
                 extra_args["O"] = O
 
             Yc = Yc * M

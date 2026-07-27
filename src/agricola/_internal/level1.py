@@ -53,7 +53,7 @@ def _ridge_cv_qt(
     test_mask: Array,
     h2_prior: Array,
     n_blocks: list[int],
-) -> NDArray:
+) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a quantitative trait
 
     Args:
@@ -95,7 +95,7 @@ def _ridge_cv_qt(
     idx_best = np.argmin(cv_errors)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    return eta_loco
+    return eta_loco, eta_all[:, idx_best]
 
 
 def _ridge_cv_bt(
@@ -106,7 +106,7 @@ def _ridge_cv_bt(
     offset: Array,
     h2_prior: Array,
     n_blocks: list[int],
-) -> NDArray:
+) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a single binary trait
 
     Args:
@@ -150,12 +150,12 @@ def _ridge_cv_bt(
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    return eta_loco
+    return eta_loco, eta_all[:, idx_best]
 
 
 def _ridge_loocv_bt(
     Z: Array, Y: Array, offset: Array, h2_prior: Array, n_blocks: list[int]
-) -> NDArray:
+) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO LOOCV predictions for a single binary trait
 
     Args:
@@ -169,8 +169,7 @@ def _ridge_loocv_bt(
         An (N, C) numpy array of LOCO level 1 predictions (linear predictor)
     """
     ## Assign dimensions
-    N, B = Z.shape
-    A = len(h2_prior)
+    _, B = Z.shape
     C = len(n_blocks)
 
     ## Calculate penalties based on prior heritability
@@ -195,7 +194,7 @@ def _ridge_loocv_bt(
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
 
-    return eta_loco
+    return eta_loco, eta_all[:, idx_best]
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -245,6 +244,7 @@ def level1(
         Y = stdize(Y - (Q @ (Q.T @ Y)))
 
     loco_arr = np.zeros(shape=(N, P, C))
+    all_arr = np.zeros(shape=(N, P))
     logger.info("Getting level 1 predictions")
     time_total_start = time.perf_counter()
     with tqdm(total=Y.shape[1], unit="phenotypes") as pbar:
@@ -259,18 +259,21 @@ def level1(
                 offset = X @ beta_covar
 
                 if not loocv:
-                    loco_p = _ridge_cv_bt(
+                    loco_p, all_p = _ridge_cv_bt(
                         Z, Y[:, p], train_mask, test_mask, offset, h2_prior, n_blocks
                     )
                 else:
-                    loco_p = _ridge_loocv_bt(Z, Y[:, p], offset, h2_prior, n_blocks)
+                    loco_p, all_p = _ridge_loocv_bt(
+                        Z, Y[:, p], offset, h2_prior, n_blocks
+                    )
 
             else:
-                loco_p = _ridge_cv_qt(
+                loco_p, all_p = _ridge_cv_qt(
                     Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks
                 )
 
             loco_arr[:, p, :] = loco_p
+            all_arr[:, p] = all_p
             pbar.update(1)
 
     time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
@@ -278,5 +281,7 @@ def level1(
     level1_loco = {}
     for i, chrom in enumerate(level0_files[phenotypes[0]].keys()):
         level1_loco[chrom] = DataFrame(loco_arr[:, :, i], columns=Index(phenotypes))
+
+    level1_loco["all"] = DataFrame(all_arr, columns=Index(phenotypes))
 
     return level1_loco
