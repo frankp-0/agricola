@@ -2,6 +2,18 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.15.0] - 2026-07-27
+
+[v0.15.0]: https://github.com/frankp-0/agricola/compare/v0.14.1...v0.15.0>
+
+### Fixed
+
+- Fit y ~ pgs + covar for bt traits. Previously summed covar and pgs offsets, leading to conservative tests
+
+### Added
+
+- Allow chromosomes in step2 not included in step 1
+
 ## [v0.14.1] - 2026-07-22
 
 [v0.14.1]: https://github.com/frankp-0/agricola/compare/v0.14.0...v0.14.1>
