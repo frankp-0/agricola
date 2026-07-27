@@ -70,7 +70,7 @@ These are the non-global options for `step2`:
 | --- | --- | --- | --- |
 | `--outdir` | TEXT | optional | Output directory |
 | `--overwrite` | | optional | If true, any existing folders and files in outdir will be deleted If False, `--outdir` must be empty [default: `--no-overwrite`] |
-| `--level0-dir` | TEXT | optional | Directory where level 0 predictions are saved (use temp dir if not provided) |
+| `--step1-prefix` | TEXT | optional | Step 1 predictions are read from prefix.pkl. If not provided, agricola does not condition on whole-genome regression |
 | `--variant-file` | TEXT | optional | File with variants to include, one per line |
 | `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |

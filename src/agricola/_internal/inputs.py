@@ -176,13 +176,15 @@ def validate_step2_inputs(
     Y: ArrayLike,
     X: Optional[ArrayLike],
     phenotypes: list[str],
-    step1_predictions: dict[str, pd.DataFrame],
+    step1_predictions: Optional[dict[str, pd.DataFrame]],
     B: int,
     idx_sample: Optional[ArrayLike],
     variants: Optional[list[str]],
     test_type: str,
     trait_type: str,
-) -> tuple[Array, Array, dict[str, np.ndarray], Optional[Array], TestType, TraitType]:
+) -> tuple[
+    Array, Array, Optional[dict[str, np.ndarray]], Optional[Array], TestType, TraitType
+]:
     """Validate input data for step1"""
 
     ## Y
@@ -221,35 +223,41 @@ def validate_step2_inputs(
             raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
     N_pred = None
     P_pred = None
-    step1_predictions_np = {}
-    for chrom, pred_chrom in step1_predictions.items():
-        if not isinstance(pred_chrom, pd.DataFrame):
-            raise TypeError(
-                f"step1_predictions[{chrom}] must be a pandas DataFrame, got {type(pred_chrom)}"
-            )
-        if pred_chrom.ndim != 2:
+    step1_predictions_np = None
+    if step1_predictions is not None:
+        step1_predictions_np = {}
+        for chrom, pred_chrom in step1_predictions.items():
+            if not isinstance(pred_chrom, pd.DataFrame):
+                raise TypeError(
+                    f"step1_predictions[{chrom}] must be a pandas DataFrame, got {type(pred_chrom)}"
+                )
+            if pred_chrom.ndim != 2:
+                raise ValueError(
+                    f"step1_predictions[{chrom}] must be 2D (N, P), got shape {pred_chrom.shape}"
+                )
+
+            n_chrom, p_chrom = pred_chrom.shape
+
+            if N_pred is None:
+                N_pred = n_chrom
+                P_pred = p_chrom
+            else:
+                if n_chrom != N_pred:
+                    raise ValueError(
+                        f"All step1_predictions arrays must have same N; got {N_pred} vs {n_chrom} in step1_predictions[{chrom}]"
+                    )
+                if p_chrom != P_pred:
+                    raise ValueError(
+                        f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
+                    )
+            step1_predictions_np[chrom] = step1_predictions[chrom][
+                phenotypes
+            ].to_numpy()
+
+        if N_pred != N:
             raise ValueError(
-                f"step1_predictions[{chrom}] must be 2D (N, P), got shape {pred_chrom.shape}"
+                f"step1_predictions arrays have N={N_pred} but Y has N={N}"
             )
-
-        n_chrom, p_chrom = pred_chrom.shape
-
-        if N_pred is None:
-            N_pred = n_chrom
-            P_pred = p_chrom
-        else:
-            if n_chrom != N_pred:
-                raise ValueError(
-                    f"All step1_predictions arrays must have same N; got {N_pred} vs {n_chrom} in step1_predictions[{chrom}]"
-                )
-            if p_chrom != P_pred:
-                raise ValueError(
-                    f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
-                )
-        step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
-
-    if N_pred != N:
-        raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
 
     ## B
     if not isinstance(B, int) or B <= 0:

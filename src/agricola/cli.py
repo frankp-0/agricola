@@ -577,8 +577,12 @@ def step2(
     ancestries: Optional[str] = typer.Option(
         None, help="Ordered ancestry names, comma-separated"
     ),
-    step1_prefix: str = typer.Option(
-        ..., help="Step 1 predictions are deserialized from prefix.pkl"
+    step1_prefix: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Step 1 predictions are deserialized from prefix.pkl. "
+            "If not provided, agricola does not condition on whole-genome predictions. "
+        ),
     ),
     outdir: str = typer.Option(
         None,
@@ -696,11 +700,16 @@ def step2(
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Load step1 predictions
-    with open(step1_prefix + ".pkl", "rb") as file:
-        step1_predictions = pickle.load(file)
-
-    for _, i in enumerate(step1_predictions):
-        step1_predictions[i] = step1_predictions[i].loc[samples]
+    if step1_prefix is not None:
+        with open(step1_prefix + ".pkl", "rb") as file:
+            step1_predictions = pickle.load(file)
+        for _, i in enumerate(step1_predictions):
+            step1_predictions[i] = step1_predictions[i].loc[samples]
+    else:
+        step1_predictions = None
+        logger.info(
+            "--step1-prefix is not provided. Agricola will not condition on whole-genome regression.\n"
+        )
 
     ## Run step 2
     step2(

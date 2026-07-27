@@ -327,7 +327,7 @@ def _step2_dataset(
     writer: ParquetRotatingWriter,
     Y: Array,
     M: Array,
-    step1_predictions: dict[str, np.ndarray],
+    step1_predictions: Optional[dict[str, np.ndarray]],
     X: Array,
     idx_sample: Optional[Array],
     phenotypes: list[str],
@@ -394,10 +394,13 @@ def _step2_dataset(
     ## Perform step 2 for each chromosome and block
     with tqdm(total=n_blocks, unit="block") as pbar:
         for chrom in chroms:
-            if chrom in step1_predictions.keys():
-                step1_pred_chr = step1_predictions[chrom]
+            if step1_predictions is not None:
+                if chrom in step1_predictions.keys():
+                    step1_pred_chr = step1_predictions[chrom]
+                else:
+                    step1_pred_chr = step1_predictions["all"]
             else:
-                step1_pred_chr = step1_predictions["all"]
+                step1_pred_chr = np.zeros(Y.shape)
 
             ## Get indices for this chromosome
             idx_chrom = np.array(
@@ -415,16 +418,25 @@ def _step2_dataset(
                 Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                Xo = jnp.concatenate(
-                    [
+                if step1_predictions is not None:
+                    Xo = jnp.concatenate(
+                        [
+                            np.broadcast_to(
+                                X[:, :, None],
+                                (X.shape[0], X.shape[1], step1_pred_chr.shape[1]),
+                            ),
+                            step1_pred_chr[:, None, :],
+                        ],
+                        axis=1,
+                    )
+                else:
+                    Xo = jnp.asarray(
                         np.broadcast_to(
                             X[:, :, None],
-                            (X.shape[0], X.shape[1], step1_pred_chr.shape[1]),
-                        ),
-                        step1_pred_chr[:, None, :],
-                    ],
-                    axis=1,
-                )
+                            (X.shape[0], X.shape[1], Y.shape[1]),
+                        )
+                    )
+
                 beta_offset = vmap(logistic_ridge, in_axes=(2, 1, None, 1, None))(
                     Xo, Y, jnp.zeros(Y.shape[0]), M, 0
                 )
@@ -471,7 +483,7 @@ def step2(
     datasets: list[LancData],
     Y: ArrayLike,
     X: Optional[ArrayLike],
-    step1_predictions: dict[str, pd.DataFrame],
+    step1_predictions: Optional[dict[str, pd.DataFrame]],
     outdir: str | Path,
     phenotypes: list[str],
     trait_type: str = "qt",
@@ -494,7 +506,7 @@ def step2(
             per-chromosome)
         Y: A (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
-        step1_predictions: A dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays
+        step1_predictions: An optional dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays
         outdir: Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
