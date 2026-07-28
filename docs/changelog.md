@@ -2,15 +2,23 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
-## [v0.16.0] - 2026-07-28
+## [v0.17.0] - 2026-07-28
 
-[v0.16.0]: https://github.com/frankp-0/agricola/compare/v0.15.0...v0.16.0>
+[v0.17.0]: https://github.com/frankp-0/agricola/compare/v0.16.0...v0.17.0>
 
 ### Fixed
 
 - Fit y ~ covar + offset(pgs) for bt traits.
 This null model should follow regenie. Previously, fit y ~ covar + pgs for null
 model. Before that (<= 0.15.0), fit y ~ covar then added offset.
+
+## [v0.16.0] - 2026-07-27
+
+[v0.16.0]: https://github.com/frankp-0/agricola/compare/v0.15.0...v0.16.0>
+
+### Added
+
+- Allow step2 to be run without step1 predictions
 
 ## [v0.15.0] - 2026-07-27
 
