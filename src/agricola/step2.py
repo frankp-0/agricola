@@ -418,34 +418,13 @@ def _step2_dataset(
                 Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                if step1_predictions is not None:
-                    Xo = jnp.concatenate(
-                        [
-                            np.broadcast_to(
-                                X[:, :, None],
-                                (X.shape[0], X.shape[1], step1_pred_chr.shape[1]),
-                            ),
-                            step1_pred_chr[:, None, :],
-                        ],
-                        axis=1,
-                    )
-                else:
-                    Xo = jnp.asarray(
-                        np.broadcast_to(
-                            X[:, :, None],
-                            (X.shape[0], X.shape[1], Y.shape[1]),
-                        )
-                    )
-
-                beta_offset = vmap(logistic_ridge, in_axes=(2, 1, None, 1, None))(
-                    Xo, Y, jnp.zeros(Y.shape[0]), M, 0
+                beta_offset = vmap(logistic_ridge, in_axes=(None, 1, 1, 1, None))(
+                    X, Y, jnp.asarray(step1_pred_chr), M, 0
                 )
-                offset_covar = jnp.einsum("ncp,pc->np", Xo, beta_offset)
-                mu = expit(offset_covar)
+                O = X @ beta_offset.T + step1_pred_chr
+                mu = expit(O)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
-
-                O = jnp.asarray(offset_covar)
                 extra_args["O"] = O
 
             Yc = Yc * M
