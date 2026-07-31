@@ -48,7 +48,7 @@ def _logistic(
     def _cond_fun(state):
         i, beta = state
         _, beta_new = _body_fun(state)
-        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
+        return (i < max_iter) & (jnp.max(jnp.abs(beta_new - beta)) > tol)
 
     _, beta = lax.while_loop(_cond_fun, _body_fun, (0, beta0))
 

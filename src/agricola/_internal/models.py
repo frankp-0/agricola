@@ -114,7 +114,7 @@ def logistic_ridge(
     def cond_fun(state):
         i, beta = state
         beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
-        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
+        return (i < max_iter) & (jnp.max(jnp.abs(beta_new - beta)) > tol)
 
     def body_fun(state):
         i, beta = state
@@ -156,7 +156,7 @@ def logistic_ridge_loo(
     def cond_fun(state):
         i, beta = state
         beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
-        return (i < max_iter) & (jnp.linalg.norm(beta_new - beta) > tol)
+        return (i < max_iter) & (jnp.max(jnp.abs(beta_new - beta)) > tol)
 
     def body_fun(state):
         i, beta = state
