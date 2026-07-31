@@ -107,10 +107,10 @@ def _het_score(
     U: Array, covariance: Array, mask: Array, scale: Array = jnp.array([1.0])
 ) -> tuple[Array, Array, Array, Array]:
     inv_cov = _masked_inv(covariance, mask)
-    diag = jnp.diagonal(inv_cov)
+    diag = jnp.diagonal(covariance)
 
-    beta_het = U * diag[..., None]
-    chisq_anc = U**2 * diag[..., None] / scale
+    beta_het = U / diag[..., None]
+    chisq_anc = U**2 / diag[..., None] / scale
     chisq_het = jnp.einsum("kp,kl,lp->p", U, inv_cov, U) / scale
 
     return beta_het, chisq_anc, chisq_het, jnp.sum(mask)
@@ -249,12 +249,13 @@ def _qt_wald_lanc(
 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
     Gtr = Gl.T @ r_L
-    GltGl_inv = _masked_inv(Gl.T @ Gl, G_mask)
+    GltGl = Gl.T @ Gl
+    GltGl_inv = _masked_inv(GltGl, G_mask)
     beta_het = GltGl_inv @ Gtr
     r_G = r_L - Gl @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - (2 * K - 1))
-    chisq_anc = Gtr**2 * jnp.diagonal(GltGl_inv)[:, None] / mse_het
+    chisq_anc = Gtr**2 / jnp.diagonal(GltGl)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GltGl_inv, Gtr) / mse_het
 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
@@ -298,12 +299,13 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
     Gtr = G.T @ Y
-    GtG_inv = _masked_inv(G.T @ G, G_mask)
+    GtG = G.T @ G
+    GtG_inv = _masked_inv(GtG, G_mask)
     beta_het = GtG_inv @ Gtr
     r_G = Y - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - K)
-    chisq_anc = Gtr**2 * jnp.diagonal(GtG_inv)[:, None] / mse_het
+    chisq_anc = Gtr**2 / jnp.diagonal(GtG)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GtG_inv, Gtr) / mse_het
 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
