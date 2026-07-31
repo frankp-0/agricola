@@ -9,11 +9,7 @@ Notable changes to agricola (starting with v0.9.0) will be documented here.
 ### Fixed
 
 - Correct bug in calculating local ancestry dosages
-  - Bug introduced in v0.10.0
-  - Previously calculated local ancestry as union instead of sum of haplotype
-  ancestry by failing to cast a bool to an int
 - Use max absolute deviation in coefficients as criterion for logistic regression convergence
-  - Previously used norm, bad idea because it scales with number of parameters
 - Use correct QR decomp for covariates
 
 ## [v0.17.0] - 2026-07-28
