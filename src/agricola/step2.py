@@ -23,6 +23,9 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Optional
 from jax.scipy.special import expit
+from jax.scipy.linalg import qr
+from jax.numpy.linalg import pinv
+from jax.numpy import einsum
 from jax import vmap
 from lanctools import LancData
 import logging
@@ -433,9 +436,14 @@ def _step2_dataset(
                 X[:, :, None] * M[:, None, :], axis=0
             ) / jnp.sum(M, axis=0)
             Xm = Xm * M[:, None, :]
-            Q = jnp.linalg.qr(Xm.transpose(2, 0, 1), mode="reduced")[0].transpose(
-                1, 2, 0
-            )
+            Q, R, _ = qr(
+                Xm.transpose(2, 0, 1), mode="economic", pivoting=True
+            )  # QR decomp
+            R_proj = jnp.einsum(
+                "pcd,ped->pce", R, pinv(R)
+            )  # RR^+, generalized if less than full rank
+            Q = jnp.einsum("pnc,pcd->pnd", Q, jnp.sqrt(R_proj))
+            Q = Q.transpose(1, 2, 0)
 
             for block in blocks:
                 result_table = _step2_block(
