@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.19.0] - 2026-07-31
+
+[v0.19.0]: https://github.com/frankp-0/agricola/compare/v0.18.0...v0.19.0>
+
+### Fixed
+
+- Incorrect form of linear hypothesis test for Tractor estimates
+
 ## [v0.18.0] - 2026-07-31
 
 [v0.18.0]: https://github.com/frankp-0/agricola/compare/v0.17.0...v0.18.0>
