@@ -10,7 +10,7 @@ dependencies = [
   "jax>=0.6.2",
   "jaxlib>=0.6.2",
   "jaxtyping>=0.3.3",
-  "lanctools==0.6.0",
+  "lanctools==0.8.0",
   "numba>=0.63.1",
   "numpy>=2.2.6",
   "pandas>=2.3.3",
