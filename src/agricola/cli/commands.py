@@ -5,347 +5,28 @@
 """The command line interface for agricola."""
 
 from __future__ import annotations
-import os
 import pickle
 import typer
-from typing import Optional, TYPE_CHECKING
-from importlib.metadata import version, PackageNotFoundError
-from rich.console import Console
-from rich.text import Text
-import logging
-import sys
+from typing import Optional
 
-if TYPE_CHECKING:
-    from pandas import DataFrame
-    from jaxtyping import Array
-    from lanctools import LancData
+from .data import (
+    _load_lanc_data,
+    _load_pheno_and_covars,
+    _load_variants,
+    _load_samples,
+)
+from .formatting import _get_options_msg, _list_from_csv
+from .runtime import (
+    _get_version,
+    _print_welcome,
+    _report_devices,
+    _setup_logging,
+    logger,
+)
 
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="agricola CLI")
-logger = logging.getLogger("agricola")
-logging.getLogger("jax").setLevel(logging.WARNING)
-logging.getLogger("numba").setLevel(logging.WARNING)
-logging.getLogger("jax._src.xla_bridge").setLevel(logging.CRITICAL)
-console = Console()
-
-### ─────────────────────────────────────────────────────────────
-### Helpers
-### ─────────────────────────────────────────────────────────────
-
-
-def _list_from_csv(arg: Optional[str]) -> Optional[list[str]]:
-    return None if arg is None else [x.strip() for x in arg.split(",")]
-
-
-def _load_variants(path: Optional[str]) -> Optional[list[str]]:
-    return None if path is None else open(path).read().splitlines()
-
-
-def _read_psam(path) -> DataFrame:
-    import pandas as pd
-
-    with open(path) as f:
-        lines = f.readlines()
-
-    header_line = None
-    for line in reversed(lines):
-        if line.startswith("#"):
-            header_line = line
-            break
-
-    if header_line is not None:
-        cols = header_line.lstrip("#").strip().split()
-        df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
-
-    else:
-        data_line = next(l for l in lines if not l.startswith("#")).rstrip("\n")
-        ncols = len(data_line.split())
-
-        base = ["FID", "IID", "PAT", "MAT", "SEX"]
-        if ncols <= len(base):
-            names = base[:ncols]
-        else:
-            extra = [f"PHENO{i}" for i in range(1, ncols - len(base) + 1)]
-            names = base + extra
-
-        df = pd.read_csv(path, sep=r"[ \t]", header=None, names=names, engine="python")
-
-    if "IID" not in df.columns:
-        raise ValueError("IID column not found in psam")
-
-    return df
-
-
-def _load_samples(plinks: list[str], samples_file: Optional[str]):
-    df_psam = _read_psam(plinks[0] + ".psam")
-    samples_psam = df_psam["IID"].astype(str).to_list()
-
-    if samples_file is not None:
-        with open(samples_file, "r") as f:
-            samples_keep = [line.strip() for line in f.readlines()]
-        samples = [sample for sample in samples_psam if sample in samples_keep]
-    else:
-        samples = samples_psam
-    return samples, samples_psam
-
-
-def _read_pheno_covar(path) -> DataFrame:
-    import pandas as pd
-
-    with open(path) as f:
-        lines = f.readlines()
-
-    header_line = None
-    for line in reversed(lines):
-        if line.startswith("#"):
-            header_line = line
-            break
-
-    if header_line is not None:
-        cols = header_line.lstrip("#").strip().split()
-        df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
-        if set(df.columns).issubset(set(["FID", "IID"])):
-            raise ValueError("No phenotype columns found")
-    else:
-        data_line = next(l for l in lines if not l.startswith("#")).rstrip("\n")
-        ncols = len(data_line.split())
-
-        if ncols <= 2:
-            raise ValueError("No phenotype columns found")
-        else:
-            extra = [f"PHENO{i}" for i in range(1, ncols - 1)]
-            names = ["FID", "IID"] + extra
-
-        df = pd.read_csv(path, sep=r"[ \t]", header=None, names=names, engine="python")
-
-    if "IID" not in df.columns:
-        raise ValueError("IID column not found in psam")
-
-    return df
-
-
-def _load_pheno_and_covars(
-    pheno_file: str,
-    covar_file: Optional[str],
-    pheno: Optional[list[str]],
-    pheno_list: Optional[str],
-    covar: Optional[list[str]],
-    covar_list: Optional[str],
-    catcovar: Optional[list[str]],
-    catcovar_list: Optional[str],
-    samples_sub: list[str],
-) -> tuple[Array, Optional[Array], list[str], list[str]]:
-    import pandas as pd
-    import jax.numpy as jnp
-
-    df_pheno = _read_pheno_covar(pheno_file)
-    samples_pheno = df_pheno["IID"].astype(str).to_list()
-
-    samples: list[str] = [sample for sample in samples_sub if sample in samples_pheno]
-
-    if pheno_list is not None and pheno is not None:
-        raise ValueError("Only one of pheno and pheno_list may be provided")
-    if covar_list is not None and covar is not None:
-        raise ValueError("Only one of covar and covar_list may be provided")
-
-    if pheno_list is not None:
-        with open(pheno_list, "r") as f:
-            phenotypes = [p.strip() for p in f]
-    elif pheno is not None:
-        phenotypes = pheno
-    else:
-        phenotypes = None
-
-    if covar_list is not None:
-        with open(covar_list, "r") as f:
-            covariates = [p.strip() for p in f]
-    elif covar is not None:
-        covariates = covar
-    else:
-        covariates = None
-
-    if catcovar_list is not None:
-        with open(catcovar_list, "r") as f:
-            catcovariates = [p.strip() for p in f]
-    elif catcovar is not None:
-        catcovariates = catcovar
-    else:
-        catcovariates = None
-
-    if covar_file:
-        df_covar = _read_pheno_covar(covar_file).dropna()
-        samples_covar = df_covar["IID"].astype(str).to_list()
-        samples = [sample for sample in samples if sample in samples_covar]
-        df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
-        df_covar["IID"] = df_covar["IID"].astype(str)
-        df_covar["IID"] = pd.Categorical(
-            df_covar["IID"], categories=samples, ordered=True
-        )
-        df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore
-        if covariates is not None:
-            df_covar = df_covar[["IID"] + covariates]
-
-        df_covar_noid = df_covar.drop("IID", axis=1).drop(
-            "FID", axis=1, errors="ignore"
-        )
-        X = jnp.asarray(
-            pd.get_dummies(df_covar_noid, columns=catcovariates, dtype=float).to_numpy()
-        )
-    else:
-        X = None
-
-    df_pheno = df_pheno[df_pheno["IID"].astype(str).isin(samples)]
-    df_pheno["IID"] = df_pheno["IID"].astype(str)
-    df_pheno["IID"] = pd.Categorical(df_pheno["IID"], categories=samples, ordered=True)
-    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)  # pyright: ignore
-
-    if phenotypes is not None:
-        df_pheno = df_pheno[["IID"] + phenotypes]
-
-    Y = jnp.asarray(
-        df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
-    )
-
-    phenotypes = (
-        df_pheno.drop("IID", axis=1)
-        .drop("FID", axis=1, errors="ignore")
-        .columns.to_list()
-    )
-
-    return (
-        Y,
-        X,
-        phenotypes,
-        samples,
-    )
-
-
-def _load_lanc_data(
-    plink_prefix: Optional[list[str]],
-    plink_list: Optional[str],
-    lanc_file: Optional[list[str]],
-    lanc_list: Optional[str],
-    ancestries: Optional[list[str]],
-) -> tuple[list[LancData], list[str], list[str]]:
-    from lanctools import LancData
-
-    if plink_prefix and plink_list:
-        raise typer.BadParameter("Specify either --plink OR --plink-list, not both")
-    if lanc_file and lanc_list:
-        raise typer.BadParameter("Specify either --lanc OR --lanc-list, not both")
-
-    plinks: list[str]
-    if plink_prefix is None:
-        if plink_list is None:
-            raise typer.BadParameter("Specify one of --plink or --plink-list")
-        with open(plink_list) as f:
-            plinks = [line.strip() for line in f if line.strip()]
-    else:
-        plinks = plink_prefix
-
-    lancs: list[str]
-    if lanc_file is None:
-        if lanc_list is None:
-            raise typer.BadParameter("Specify one of --lanc or --lanc-list")
-        with open(lanc_list) as f:
-            lancs = [line.strip() for line in f if line.strip()]
-    else:
-        lancs = lanc_file
-
-    logger.info("Loading local ancestry data")
-    datasets = [
-        LancData(plink_prefix=plinks[i], lanc_file=lancs[i], ancestries=ancestries)
-        for i in range(len(plinks))
-    ]
-    logger.info("Local ancestry data loaded\n")
-
-    return (
-        datasets,
-        plinks,
-        lancs,
-    )
-
-
-def _get_version() -> str:
-    try:
-        return version("agricola")
-    except PackageNotFoundError:
-        return "unknown"
-
-
-def _print_welcome() -> None:
-    art = r"""
-                               ░██                      ░██            
-                                                        ░██            
- ░██████    ░████████ ░██░████ ░██ ░███████   ░███████  ░██  ░██████   
-      ░██  ░██    ░██ ░███     ░██░██    ░██ ░██    ░██ ░██       ░██  
- ░███████  ░██    ░██ ░██      ░██░██        ░██    ░██ ░██  ░███████  
-░██   ░██  ░██   ░███ ░██      ░██░██    ░██ ░██    ░██ ░██ ░██   ░██  
- ░█████░██  ░█████░██ ░██      ░██ ░███████   ░███████  ░██  ░█████░██ 
-                  ░██                                                  
-            ░███████                                                   
-                                                                       
-"""
-    console.print(Text(art, style="bold"))
-    console.print(
-        f"[bold]agricola[/bold] v{_get_version()}\n"
-        "[dim]Run --help to see available commands.[/dim]\n"
-    )
-
-
-def _setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
-    logger = logging.getLogger()
-
-    if verbose:
-        logger.setLevel(logging.DEBUG)
-        format = "%(asctime)s %(levelname)-8s %(name)s:%(lineno)d %(message)s"
-    else:
-        logger.setLevel(logging.INFO)
-        format = "%(levelname)s: %(message)s"
-
-    formatter = logging.Formatter(format)
-    logger.handlers.clear()
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # Optionally log to file at the selected level
-    if log_file:
-        if os.path.exists(log_file):
-            os.remove(log_file)
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-
-def _get_options_msg(options: dict[str, str]) -> str:
-    option_msg = ["Command options:"]
-    for key, value in options.items():
-        option_msg.append(f"  {key} = {value}")
-    option_msg = "\n".join(option_msg)
-    option_msg = option_msg + "\n"
-    return option_msg
-
-
-def _report_devices(backend: Optional[str] = None):
-    if backend is not None:
-        os.environ.setdefault("JAX_PLATFORMS", backend)
-    import jax
-
-    devices = jax.devices()
-    backend_default = jax.default_backend()
-
-    if backend is not None and backend != backend_default:
-        logger.warning(f"backend {backend} not available.\n")
-
-    logger.info(f"Using JAX backend: {backend_default}\n")
-
-    for device in devices:
-        logger.info(f"Using device: {device}")
-
-
 ### ─────────────────────────────────────────────────────────────
 ### App
 ### ─────────────────────────────────────────────────────────────
@@ -484,8 +165,8 @@ def step1(
         jax.config.update("jax_enable_x64", True)
 
     import jax.numpy as jnp
-    from ._internal.utils import get_cv_mask
-    from .step1 import step1
+    from ..pipeline.cross_validation import get_cv_mask
+    from ..pipeline.step1 import step1
     import numpy as np
 
     ## Load data
@@ -674,7 +355,7 @@ def step2(
     if double_precision:
         jax.config.update("jax_enable_x64", True)
 
-    from .step2 import step2
+    from ..pipeline.step2 import step2
     import numpy as np
 
     ## Load data
@@ -887,9 +568,9 @@ def all_steps(
 
     import jax.numpy as jnp
     import numpy as np
-    from ._internal.utils import get_cv_mask
-    from .step1 import step1
-    from .step2 import step2
+    from ..pipeline.cross_validation import get_cv_mask
+    from ..pipeline.step1 import step1
+    from ..pipeline.step2 import step2
 
     ## Catch bad impute early
     if trait_type == "bt" and impute:

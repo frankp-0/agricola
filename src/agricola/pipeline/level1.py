@@ -21,13 +21,11 @@ from numpy.typing import NDArray
 from tqdm import tqdm
 from typing import Optional
 from pandas import DataFrame, Index
-from .utils import stdize, TraitType
-from .models import (
-    ridge,
-    logistic_ridge,
-    logistic_ridge_loo,
-)
-from .inputs import validate_level1_inputs
+from ..numerical.linear_algebra import stdize
+from ..types import TraitType
+from ..models.logistic import logistic_ridge, logistic_ridge_loo
+from ..models.ridge import ridge
+from ..validation.inputs import validate_level1_inputs
 
 logger = logging.getLogger(__name__)
 

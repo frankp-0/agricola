@@ -10,7 +10,97 @@ import numpy as np
 from typing import Optional
 from lanctools import LancData
 import pandas as pd
-from .utils import stdize, assert_covar_full_rank, TraitType, TestType
+from ..numerical.linear_algebra import assert_covar_full_rank, stdize
+from ..types import TraitType, TestType
+
+
+def _validate_datasets(datasets: list[LancData]) -> None:
+    if not isinstance(datasets, (list, tuple)):
+        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
+    for i, ds in enumerate(datasets):
+        if not isinstance(ds, LancData):
+            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+
+
+def _prepare_y(Y: ArrayLike) -> tuple[Array, int]:
+    Y = jnp.asarray(Y)
+    if Y.ndim != 2:
+        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
+    Y_means = jnp.nanmean(Y, axis=0)
+    return jnp.where(jnp.isnan(Y), Y_means, Y), Y.shape[0]
+
+
+def _prepare_x(X: Optional[ArrayLike], N: int) -> Array:
+    if X is None:
+        X = jnp.ones((N, 1), dtype=float)
+    else:
+        X = jnp.asarray(X)
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
+        if X.shape[0] != N:
+            raise ValueError(
+                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
+            )
+        X = jnp.concatenate([jnp.ones((N, 1), dtype=float), X], axis=1)
+    X = stdize(X)
+    assert_covar_full_rank(X)
+    return X
+
+
+def _prepare_masks(train_mask: ArrayLike, test_mask: ArrayLike, N: int):
+    if train_mask is not None:
+        train_mask = jnp.asarray(train_mask)
+    if test_mask is not None:
+        test_mask = jnp.asarray(test_mask)
+    if not (train_mask is None or test_mask is None):
+        if (
+            train_mask.ndim != 2
+            or test_mask.ndim != 2
+            or train_mask.shape != test_mask.shape
+        ):
+            raise ValueError(
+                "train_mask and test_mask must be 2D (N, K) with the same shape"
+            )
+        if train_mask.shape[0] != N or test_mask.shape[0] != N:
+            raise ValueError("train_mask/test_mask must match N of Y")
+    return train_mask, test_mask
+
+
+def _prepare_h2(h2_prior: ArrayLike) -> Array:
+    h2_prior = jnp.asarray(h2_prior)
+    if h2_prior.ndim != 1:
+        raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
+    if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
+        raise ValueError("h2_prior values must be in the open interval (0, 1)")
+    return h2_prior
+
+
+def _validate_b(B: int) -> None:
+    if not isinstance(B, int) or B <= 0:
+        raise ValueError(f"B must be a positive integer, got {B}")
+
+
+def _validate_variants(variants: Optional[list[str]]) -> None:
+    if variants is not None and (
+        not isinstance(variants, (list, tuple))
+        or not all(isinstance(v, str) for v in variants)
+    ):
+        raise TypeError("variants must be a list of strings")
+
+
+def _prepare_idx_sample(
+    idx_sample: Optional[ArrayLike], N_pgen: int
+) -> Optional[Array]:
+    if idx_sample is None:
+        return None
+    idx_sample = jnp.asarray(idx_sample)
+    if idx_sample.ndim != 1:
+        raise TypeError("idx_sample must be 1D")
+    if idx_sample.dtype != np.uint32:
+        raise TypeError("idx_sample must have dtype numpy.uint32")
+    if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
+        raise ValueError("idx_sample outside range of N samples")
+    return idx_sample
 
 
 def validate_level0_inputs(
@@ -26,81 +116,29 @@ def validate_level0_inputs(
 ) -> tuple[Array, Array, Array, Array, Array, Optional[Array]]:
     """Validate input data for level0"""
     ## genotype/lanc data
-    if not isinstance(datasets, (list, tuple)):
-        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
-    for i, ds in enumerate(datasets):
-        if not isinstance(ds, LancData):
-            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+    _validate_datasets(datasets)
 
     ## Y
-    Y = jnp.asarray(Y)
-    if Y.ndim != 2:
-        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-
-    Y_means = jnp.nanmean(Y, axis=0)
-    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
-    N = Y.shape[0]
+    Y, N = _prepare_y(Y)
 
     ## X
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=float)
-    else:
-        X = jnp.asarray(X)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
+    X = _prepare_x(X, N)
 
-    if train_mask is not None:
-        train_mask = jnp.asarray(train_mask)
-    if test_mask is not None:
-        test_mask = jnp.asarray(test_mask)
-
-    if not (train_mask is None or test_mask is None):
-        if (
-            train_mask.ndim != 2
-            or test_mask.ndim != 2
-            or train_mask.shape != test_mask.shape
-        ):
-            raise ValueError(
-                "train_mask and test_mask must be 2D (N, K) with the same shape"
-            )
-        if train_mask.shape[0] != N or test_mask.shape[0] != N:
-            raise ValueError("train_mask/test_mask must match N of Y")
+    train_mask, test_mask = _prepare_masks(train_mask, test_mask, N)
 
     ## H2
-    h2_prior = jnp.asarray(h2_prior)
-    if h2_prior.ndim != 1:
-        raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
-    if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
-        raise ValueError("h2_prior values must be in the open interval (0, 1)")
+    h2_prior = _prepare_h2(h2_prior)
 
     ## B
-    if not isinstance(B, int) or B <= 0:
-        raise ValueError(f"B must be a positive integer, got {B}")
+    _validate_b(B)
 
     ## variants
-    if variants is not None:
-        if not isinstance(variants, (list, tuple)) or not all(
-            isinstance(v, str) for v in variants
-        ):
-            raise TypeError("variants must be a list of strings")
+    _validate_variants(variants)
 
     ## samples
     N_pgen = datasets[0].pgen.get_raw_sample_ct()
     if idx_sample is not None:
-        idx_sample = jnp.asarray(idx_sample)
-        if idx_sample.ndim != 1:
-            raise TypeError("idx_sample must be 1D")
-        if idx_sample.dtype != np.uint32:
-            raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
-            raise ValueError("idx_sample outside range of N samples")
+        idx_sample = _prepare_idx_sample(idx_sample, N_pgen)
 
     return (Y, X, train_mask, test_mask, h2_prior, idx_sample)
 
@@ -116,13 +154,7 @@ def validate_level1_inputs(
 ) -> tuple[Array, Array, Array, Array, Array, TraitType]:
     """Validate input data for level1"""
     ## Y
-    Y = jnp.asarray(Y)
-    if Y.ndim != 2:
-        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-
-    Y_means = jnp.nanmean(Y, axis=0)
-    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
-    N, _ = Y.shape
+    Y, N = _prepare_y(Y)
 
     if len(phenotypes) != Y.shape[1]:
         raise ValueError(
@@ -130,43 +162,12 @@ def validate_level1_inputs(
         )
 
     ## X
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=float)
-    else:
-        X = jnp.asarray(X)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), float), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
+    X = _prepare_x(X, N)
 
-    if train_mask is not None:
-        train_mask = jnp.asarray(train_mask)
-    if test_mask is not None:
-        test_mask = jnp.asarray(test_mask)
-
-    if not (train_mask is None or test_mask is None):
-        if (
-            train_mask.ndim != 2
-            or test_mask.ndim != 2
-            or train_mask.shape != test_mask.shape
-        ):
-            raise ValueError(
-                "train_mask and test_mask must be 2D (N, K) with the same shape"
-            )
-        if train_mask.shape[0] != N or test_mask.shape[0] != N:
-            raise ValueError("train_mask/test_mask must match N of Y")
+    train_mask, test_mask = _prepare_masks(train_mask, test_mask, N)
 
     ## H2
-    h2_prior = jnp.asarray(h2_prior)
-    if h2_prior.ndim != 1:
-        raise ValueError(f"h2_prior must be 1D, got shape {h2_prior.shape}")
-    if not jnp.all((0 < h2_prior) & (h2_prior < 1)):
-        raise ValueError("h2_prior values must be in the open interval (0, 1)")
+    h2_prior = _prepare_h2(h2_prior)
 
     return (Y, X, train_mask, test_mask, h2_prior, TraitType(trait_type))
 
@@ -188,39 +189,18 @@ def validate_step2_inputs(
     """Validate input data for step1"""
 
     ## Y
-    Y = jnp.asarray(Y)
-    if Y.ndim != 2:
-        raise ValueError(f"Y must be 2D (N, P), got shape {Y.shape}")
-
-    Y_means = jnp.nanmean(Y, axis=0)
-    Y = jnp.where(jnp.isnan(Y), Y_means, Y)
-    N, P = Y.shape
+    Y, N = _prepare_y(Y)
+    P = Y.shape[1]
 
     if len(phenotypes) != Y.shape[1]:
         raise ValueError(
             f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns"
         )
 
-    if X is None:
-        X = jnp.ones((Y.shape[0], 1), dtype=float)
-    else:
-        X = jnp.asarray(X)
-        if X.ndim != 2:
-            raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
-        if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
-        X = jnp.concatenate([jnp.ones((Y.shape[0], 1), dtype=float), X], axis=1)
-    X = stdize(X)
-    assert_covar_full_rank(X)
+    X = _prepare_x(X, N)
 
     # datasets
-    if not isinstance(datasets, (list, tuple)):
-        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
-    for i, ds in enumerate(datasets):
-        if not isinstance(ds, LancData):
-            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+    _validate_datasets(datasets)
     N_pred = None
     P_pred = None
     step1_predictions_np = None
@@ -260,26 +240,15 @@ def validate_step2_inputs(
             )
 
     ## B
-    if not isinstance(B, int) or B <= 0:
-        raise ValueError(f"B must be a positive integer, got {B}")
+    _validate_b(B)
 
     ## variants
-    if variants is not None:
-        if not isinstance(variants, (list, tuple)) or not all(
-            isinstance(v, str) for v in variants
-        ):
-            raise TypeError("variants must be a list of strings")
+    _validate_variants(variants)
 
     ## samples
     N_pgen = datasets[0].pgen.get_raw_sample_ct()
     if idx_sample is not None:
-        idx_sample = jnp.asarray(idx_sample)
-        if idx_sample.ndim != 1:
-            raise TypeError("idx_sample must be 1D")
-        if idx_sample.dtype != np.uint32:
-            raise TypeError("idx_sample must have dtype numpy.uint32")
-        if not set(np.asarray(idx_sample)).issubset(np.arange(N_pgen, dtype=np.uint32)):
-            raise ValueError("idx_sample outside range of N samples")
+        idx_sample = _prepare_idx_sample(idx_sample, N_pgen)
 
     return (
         Y,

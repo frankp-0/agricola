@@ -53,6 +53,17 @@ class F loco;
 class D,E,H agricola;
 ```
 
+## Package structure
+
+The Python package is organized by responsibility:
+
+- `agricola.pipeline` orchestrates the two analysis steps and output writing.
+- `agricola.io` handles genotype, local-ancestry, and variant access.
+- `agricola.models` contains reusable ridge and logistic-ridge models.
+- `agricola.statistics` contains quantitative and binary association kernels.
+- `agricola.numerical` contains shared standardization and linear-algebra helpers.
+- `agricola.validation` validates and prepares pipeline inputs.
+
 ## agricola
 
 ### Step 1: Whole-Genome Regression

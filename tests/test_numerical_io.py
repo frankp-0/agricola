@@ -5,12 +5,9 @@
 import pytest
 import jax.numpy as jnp
 import jax
-from agricola._internal.utils import (
-    stdize,
-    get_cv_mask,
-    assert_covar_full_rank,
-    get_geno_lanc_deconv,
-)
+from agricola.io.genotypes import get_geno_lanc_deconv
+from agricola.numerical.linear_algebra import assert_covar_full_rank, stdize
+from agricola.pipeline.cross_validation import get_cv_mask
 from lanctools import LancData
 import numpy as np
 

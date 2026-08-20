@@ -18,7 +18,6 @@ from jaxtyping import Array, ArrayLike
 import numpy as np
 from scipy.stats import chi2
 import pyarrow as pa
-import pyarrow.dataset as ds
 import pandas as pd
 from tqdm import tqdm
 from typing import Optional
@@ -29,28 +28,29 @@ from jax.numpy import einsum
 from jax import vmap
 from lanctools import LancData
 import logging
-from ._internal.utils import (
-    stdize,
-    get_geno_lanc_deconv,
-    TestType,
-    TraitType,
+from ..numerical.linear_algebra import stdize
+from ..io.genotypes import get_geno_lanc_deconv
+from ..io.variants import group_variant_indices_by_chromosome, get_variant_indices
+from ..types import TestType, TraitType
+from .writer import ParquetRotatingWriter
+from ..statistics.binary import (
+    bt_score_lanc,
+    bt_score_nolanc,
+    bt_wald_lanc,
+    bt_wald_nolanc,
 )
-from ._internal.step2_stats import (
+from ..statistics.quantitative import (
     qt_score_lanc,
     qt_score_lanc_impute,
     qt_score_nolanc,
     qt_score_nolanc_impute,
-    bt_score_lanc,
-    bt_score_nolanc,
     qt_wald_lanc,
     qt_wald_lanc_impute,
     qt_wald_nolanc,
     qt_wald_nolanc_impute,
-    bt_wald_lanc,
-    bt_wald_nolanc,
 )
-from ._internal.inputs import validate_step2_inputs
-from ._internal.models import logistic_ridge
+from ..validation.inputs import validate_step2_inputs
+from ..models.logistic import logistic_ridge
 
 
 logger = logging.getLogger(__name__)
@@ -75,55 +75,6 @@ def _prep_block(G, L, M, min_ac):
     L = L[:, :, :, None] - LM.sum(axis=0) / N_eff
     ac_variant_mask = ac.sum(axis=1) >= min_ac
     return G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask
-
-
-class ParquetRotatingWriter:
-    def __init__(
-        self,
-        output_dir: Path,
-        partition_phenotype: bool = True,
-        max_rows: int = 5000000,
-    ):
-        self.output_dir = output_dir
-        self.max_rows = max_rows
-        self.buffer = []
-        self.buffer_rows = 0
-        self.partition_phenotype = partition_phenotype
-        self.idx = 0
-
-        Path.mkdir(output_dir, parents=True, exist_ok=False)
-
-    def write(self, table):
-        self.buffer.append(table)
-        self.buffer_rows += table.num_rows
-
-        if self.buffer_rows >= self.max_rows:
-            self.flush()
-
-    def flush(self):
-        if not self.buffer:
-            return
-
-        partitioning = None
-        if self.partition_phenotype:
-            partitioning = ["phenotype"]
-        ds.write_dataset(
-            data=self.buffer,
-            base_dir=self.output_dir,
-            format="parquet",
-            basename_template=f"part-{{i}}_{self.idx:06d}.parquet",
-            partitioning=partitioning,
-            max_partitions=5000,
-            max_open_files=5000,
-            existing_data_behavior="overwrite_or_ignore",
-        )
-
-        self.buffer.clear()
-        self.buffer_rows = 0
-        self.idx += 1
-
-    def close(self):
-        self.flush()
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -363,36 +314,15 @@ def _step2_dataset(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
     """
-    ## Get variant indices
-    if variants is None:
-        idx_variant = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
-    else:
-        dataset_ids = [
-            dataset.pvar.get_variant_id(i).decode("utf8")
-            for i in np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
-        ]
-        varset = set(variants)
-        idx_variant = np.array(
-            [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
-        )
+    idx_variant = get_variant_indices(dataset, variants)
 
-    ## Get chromosomes and number of blocks
-    chromosomes = [
-        dataset.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant
-    ]
+    variants_by_chromosome = group_variant_indices_by_chromosome(dataset, idx_variant)
     if chrom is not None:
-        chroms = [chrom]
+        chroms = [chrom] if chrom in variants_by_chromosome else []
     else:
-        chr_seen = set()
-        chroms = [
-            chrom
-            for chrom in chromosomes
-            if not (chrom in chr_seen or chr_seen.add(chrom))
-        ]
+        chroms = list(variants_by_chromosome)
 
-    n_blocks = sum(
-        (len([c for c in chromosomes if c == chrom]) + B - 1) // B for chrom in chroms
-    )
+    n_blocks = sum((len(variants_by_chromosome[c]) + B - 1) // B for c in chroms)
 
     ## Perform step 2 for each chromosome and block
     with tqdm(total=n_blocks, unit="block") as pbar:
@@ -406,13 +336,9 @@ def _step2_dataset(
                 step1_pred_chr = np.zeros(Y.shape)
 
             ## Get indices for this chromosome
-            idx_chrom = np.array(
-                [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
-            )
+            idx_chrom = variants_by_chromosome[chrom]
             ## Split into blocks
-            blocks = [
-                idx_variant[idx_chrom[i : i + B]] for i in range(0, len(idx_chrom), B)
-            ]
+            blocks = [idx_chrom[i : i + B] for i in range(0, len(idx_chrom), B)]
 
             extra_args = {}
 
@@ -521,65 +447,64 @@ def step2(
     else:
         max_rows_total = 5000000
 
-    writer = ParquetRotatingWriter(outdir_path, partition_phenotype, max_rows_total)
-
-    if impute:
-        M = jnp.ones(shape=jnp.asarray(Y).shape)
-    else:
-        M = (~jnp.isnan(jnp.asarray(Y))).astype(float)
-
-    Y, X, step1_predictions_np, idx_sample, test_type_enum, trait_type_enum = (
-        validate_step2_inputs(
-            datasets,
-            Y,
-            X,
-            phenotypes,
-            step1_predictions,
-            B,
-            idx_sample,
-            variants,
-            test_type,
-            trait_type,
-        )
-    )
-
-    ## Adjust phenotype for covariates to match step 1
-    if trait_type_enum == TraitType.QT:
-        Q, _ = jnp.linalg.qr(X, mode="reduced")
-        Y = stdize(Y - (Q @ (Q.T @ Y)))
-        if (M == 1).all():
-            impute = True
-    else:
+    with ParquetRotatingWriter(
+        outdir_path, partition_phenotype, max_rows_total
+    ) as writer:
         if impute:
+            M = jnp.ones(shape=jnp.asarray(Y).shape)
+        else:
+            M = (~jnp.isnan(jnp.asarray(Y))).astype(float)
+
+        Y, X, step1_predictions_np, idx_sample, test_type_enum, trait_type_enum = (
+            validate_step2_inputs(
+                datasets,
+                Y,
+                X,
+                phenotypes,
+                step1_predictions,
+                B,
+                idx_sample,
+                variants,
+                test_type,
+                trait_type,
+            )
+        )
+
+        ## Adjust phenotype for covariates to match step 1
+        if trait_type_enum == TraitType.QT:
+            Q, _ = jnp.linalg.qr(X, mode="reduced")
+            Y = stdize(Y - (Q @ (Q.T @ Y)))
+            if (M == 1).all():
+                impute = True
+        elif impute:
             raise ValueError("impute must be False for binary traits")
 
-    time_total_start = time.perf_counter()
-    for dataset in datasets:
-        pgen_path = dataset.plink_prefix + ".pgen"
-        logger.info(f"Testing associations for file: {pgen_path}\n")
+        time_total_start = time.perf_counter()
+        for dataset in datasets:
+            pgen_path = dataset.plink_prefix + ".pgen"
+            logger.info("Testing associations for file: %s", pgen_path)
 
-        time_ds_start = time.perf_counter()
-        _step2_dataset(
-            dataset,
-            writer,
-            Y,
-            M,
-            step1_predictions_np,
-            X,
-            idx_sample,
-            phenotypes,
-            trait_type_enum,
-            test_type_enum,
-            chrom,
-            B,
-            min_ac,
-            variants,
-            adjust_lanc,
-            impute,
-        )
-        time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
-        logger.info(f"Elapsed time: {time_ds}\n")
+            time_ds_start = time.perf_counter()
+            _step2_dataset(
+                dataset,
+                writer,
+                Y,
+                M,
+                step1_predictions_np,
+                X,
+                idx_sample,
+                phenotypes,
+                trait_type_enum,
+                test_type_enum,
+                chrom,
+                B,
+                min_ac,
+                variants,
+                adjust_lanc,
+                impute,
+            )
+            time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
+            logger.info("Elapsed time: %s", time_ds)
 
-    time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
-    logger.info(f"Step 2 completed in: {time_total}\n")
-    writer.close()
+        time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
+        logger.info("Step 2 completed in: %s", time_total)

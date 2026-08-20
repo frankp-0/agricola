@@ -8,13 +8,14 @@ This module performs "step 1" of agricola, combining the "level 0" and "level 1"
 steps . The entry-point for this module is the `step1` function.
 """
 
-import os
 import tempfile
+from contextlib import nullcontext
+from pathlib import Path
 from jaxtyping import ArrayLike
 from typing import Optional
 from pandas import DataFrame
-from ._internal.level0 import level0
-from ._internal.level1 import level1
+from .level0 import level0
+from .level1 import level1
 from lanctools import LancData
 
 
@@ -58,47 +59,38 @@ def step1(
     Returns:
         A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
     """
-    rm_dir0 = False
-    if level0_dir is None:
-        rm_dir0 = True
-        tmp = tempfile.TemporaryDirectory()
-        level0_dir = tmp.name
-
-    os.makedirs(level0_dir, exist_ok=True)
-
-    level0_files = level0(
-        datasets,
-        Y,
-        X,
-        phenotypes,
-        train_mask,
-        test_mask,
-        h2_prior,
-        B,
-        idx_sample,
-        variants,
-        level0_dir,
-        prune_blocks,
+    directory_context = (
+        tempfile.TemporaryDirectory()
+        if level0_dir is None
+        else nullcontext(level0_dir)
     )
+    with directory_context as working_dir:
+        level0_path = Path(working_dir)
+        level0_path.mkdir(parents=True, exist_ok=True)
 
-    step1_predictions = level1(
-        level0_files,
-        Y,
-        X,
-        phenotypes,
-        train_mask,
-        test_mask,
-        h2_prior,
-        trait_type,
-        loocv,
-    )
+        level0_files = level0(
+            datasets,
+            Y,
+            X,
+            phenotypes,
+            train_mask,
+            test_mask,
+            h2_prior,
+            B,
+            idx_sample,
+            variants,
+            str(level0_path),
+            prune_blocks,
+        )
 
-    ## Cleanup
-    if rm_dir0:
-        for files in level0_files.values():
-            for file in files.values():
-                os.remove(file)
-        if os.path.isdir(level0_dir) and not os.listdir(level0_dir):
-            os.rmdir(level0_dir)
-
-    return step1_predictions
+        return level1(
+            level0_files,
+            Y,
+            X,
+            phenotypes,
+            train_mask,
+            test_mask,
+            h2_prior,
+            trait_type,
+            loocv,
+        )

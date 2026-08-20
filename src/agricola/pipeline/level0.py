@@ -13,8 +13,8 @@ module is the `level0` function.
 import time
 from datetime import timedelta
 import logging
-import os
 import tempfile
+from pathlib import Path
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike
@@ -23,9 +23,10 @@ from numpy.random import choice
 from tqdm import tqdm
 from typing import Optional
 from lanctools import LancData
-from .utils import stdize
-from .models import ridge
-from .inputs import validate_level0_inputs
+from ..numerical.linear_algebra import stdize
+from ..io.variants import group_variant_indices_by_chromosome, get_variant_indices
+from ..models.ridge import ridge
+from ..validation.inputs import validate_level0_inputs
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -141,28 +142,17 @@ def level0(
     K = len(h2_prior)
 
     ## Perform level 0 for each dataset
-    if level0_dir is None:
-        tmp = tempfile.TemporaryDirectory()
-        level0_dir = tmp.name
-
-    os.makedirs(level0_dir, exist_ok=True)
+    output_dir = Path(level0_dir) if level0_dir is not None else Path(
+        tempfile.mkdtemp(prefix="agricola-level0-")
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     level0_files_chrom = {}
 
     M = 0
     idx_variant_ds = {}
     for i, ds in enumerate(datasets):
-        if variants is None:
-            idx_variant = np.arange(ds.pvar.get_variant_ct(), dtype=np.uint32)
-        else:
-            dataset_ids = [
-                ds.pvar.get_variant_id(i).decode("utf8")
-                for i in np.arange(ds.pvar.get_variant_ct(), dtype=np.uint32)
-            ]
-            varset = set(variants)
-            idx_variant = np.array(
-                [i for i, x in enumerate(dataset_ids) if x in varset], dtype=np.uint32
-            )
+        idx_variant = get_variant_indices(ds, variants)
         if prune_blocks:
             M_ds = len(idx_variant)
             M_ds = M_ds - (M_ds % B)
@@ -181,26 +171,15 @@ def level0(
         logger.info(f"Getting level 0 predictions for file: {pgen_path}")
 
         idx_variant = idx_variant_ds[i]
-        chromosomes = [ds.pvar.get_variant_chrom(i).decode("utf8") for i in idx_variant]
-        chr_seen = set()
-        chroms = [
-            chrom
-            for chrom in chromosomes
-            if not (chrom in chr_seen or chr_seen.add(chrom))
-        ]
-        for chrom in chroms:
-            idx_chrom = np.array(
-                [i for i, c in enumerate(chromosomes) if c == chrom], dtype=np.uint32
-            )
+        variants_by_chromosome = group_variant_indices_by_chromosome(ds, idx_variant)
+        for chrom, idx_chrom in variants_by_chromosome.items():
 
-            blocks = [
-                idx_variant[idx_chrom[i : i + B]] for i in range(0, len(idx_chrom), B)
-            ]
+            blocks = [idx_chrom[i : i + B] for i in range(0, len(idx_chrom), B)]
 
             n_blocks = len(blocks)
 
             fnames = [
-                os.path.join(level0_dir, f"{pheno}_{chrom}.npy") for pheno in phenotypes
+                str(output_dir / f"{pheno}_{chrom}.npy") for pheno in phenotypes
             ]
             Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=float)
 

@@ -7,27 +7,29 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from jax.scipy.special import expit
-from agricola._internal.step2_stats import (
+from agricola.statistics.binary import (
+    bt_score_lanc,
+    bt_score_nolanc,
+    bt_wald_lanc,
+    bt_wald_nolanc,
+    _bt_score_lanc,
+    _bt_score_nolanc,
+    _bt_wald_lanc,
+    _bt_wald_nolanc,
+)
+from agricola.statistics.quantitative import (
     qt_score_lanc,
     qt_score_lanc_impute,
     qt_score_nolanc,
     qt_score_nolanc_impute,
-    bt_score_lanc,
-    bt_score_nolanc,
     qt_wald_lanc,
     qt_wald_lanc_impute,
     qt_wald_nolanc,
     qt_wald_nolanc_impute,
-    bt_wald_lanc,
-    bt_wald_nolanc,
     _qt_score_lanc,
     _qt_score_nolanc,
-    _bt_score_lanc,
-    _bt_score_nolanc,
     _qt_wald_lanc,
     _qt_wald_nolanc,
-    _bt_wald_lanc,
-    _bt_wald_nolanc,
 )
 
 
