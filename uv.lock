@@ -57,7 +57,7 @@ requires-dist = [
     { name = "jax", extras = ["tpu"], marker = "extra == 'tpu'", specifier = ">=0.6.2" },
     { name = "jaxlib", specifier = ">=0.6.2" },
     { name = "jaxtyping", specifier = ">=0.3.3" },
-    { name = "lanctools", specifier = "==0.4.0" },
+    { name = "lanctools", specifier = "==0.8.0" },
     { name = "numba", specifier = ">=0.63.1" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "pandas", specifier = ">=2.3.3" },
@@ -735,7 +735,7 @@ wheels = [
 
 [[package]]
 name = "lanctools"
-version = "0.4.0"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numba" },
@@ -745,24 +745,24 @@ dependencies = [
     { name = "pgenlib" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/51/6d/311582d6f630d5e2ef7776b9c8a577974c3d7f93863f6e85b08fa3580f6c/lanctools-0.4.0.tar.gz", hash = "sha256:266daf0a7741b939de36ddf627198a0f1393c88557725ed5adeb28f93aade531", size = 218234, upload-time = "2026-03-10T18:21:21.579Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/32/518bca64267441defbee4cade28e51ac90e48aecc4de807e793ff8a253ee/lanctools-0.8.0.tar.gz", hash = "sha256:e6fa23da4ade4b4836a72dc664986c82a0c437c5f9683b0ec504b24e10e728b7", size = 90621, upload-time = "2026-08-18T15:27:34.987Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/34/705657909c2314fc367ede0868790df3315b91257d2639fe8969c56d4df9/lanctools-0.4.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:ab079538ba9eb079a117b6bfc09a16c57f3f967d1dfcf25a4c8f4bf819ddf8b9", size = 117621, upload-time = "2026-03-10T18:21:24.636Z" },
-    { url = "https://files.pythonhosted.org/packages/b1/21/f4bb6c5ef2f806554272ffb344fad332eb976e86a30ca03f46c1a98bd761/lanctools-0.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e8bf9c615cf90043c071d85d9dc45bba96908e527b596de65705dfca1fccc59f", size = 110662, upload-time = "2026-03-10T18:21:19.824Z" },
-    { url = "https://files.pythonhosted.org/packages/62/02/c3b8b2bf5c897082d4b5fa6d67c1d72829336ccf94e298f59881e0da671f/lanctools-0.4.0-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:c01222ea25b2549fb9286b2c5f70a0f88be2cd3322a4db7672f134699e2e656f", size = 1237851, upload-time = "2026-03-10T18:21:15.129Z" },
-    { url = "https://files.pythonhosted.org/packages/df/3d/85513e09051509eaf414043f6d0aabec7d17a3448c463df579f54219b3cc/lanctools-0.4.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:7b69ed7f39dc278a9d0f6dabb1c4fb7b570232ffdafc46e7248daaac7976a316", size = 1127854, upload-time = "2026-03-10T18:21:18.196Z" },
-    { url = "https://files.pythonhosted.org/packages/16/b7/2af828f4273b340980233727f02b6cc50b7ac4ad8f898bb2a2d5a795d45b/lanctools-0.4.0-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:14942ff1903cec14a1a844976fe7e29c54d42fc0b41221b284aa44616918c56d", size = 118677, upload-time = "2026-03-10T18:21:28.292Z" },
-    { url = "https://files.pythonhosted.org/packages/94/c7/4b5b26d9623d5c2edbff9e71c5f2594c3dd6249ff09a9ab752002f16b995/lanctools-0.4.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e7969d9ab19b24348839235ee06a899efcc179fef82be2c307f709651833ab84", size = 112150, upload-time = "2026-03-10T18:21:16.462Z" },
-    { url = "https://files.pythonhosted.org/packages/5c/ff/e9312ea62a70427e04dd87649461de83c7988fd042356ba4415d23e70d9b/lanctools-0.4.0-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:db8814ced7d4cc902c942f176da566a83d12cc4b9ed474966dbaa719a04d6633", size = 1237999, upload-time = "2026-03-10T18:21:30.059Z" },
-    { url = "https://files.pythonhosted.org/packages/15/e6/c97d3f67277227d7b228bc80ad249cccade31e12f15ac0b31cdb793c9523/lanctools-0.4.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:650359d557c45877ff77dadd3f627da256e84c87c23b97eff2851187ad7e01aa", size = 1129328, upload-time = "2026-03-10T18:21:36.879Z" },
-    { url = "https://files.pythonhosted.org/packages/79/e5/cd4be415de4d7c11c0888c3a16b074c6d1dcb442991e7a7767554e6a94e7/lanctools-0.4.0-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7100094c597175ffa9c76acfe8604b4e998900fa254aa11adff0363ad4a8c4ee", size = 119550, upload-time = "2026-03-10T18:21:13.533Z" },
-    { url = "https://files.pythonhosted.org/packages/16/80/0b324be0709f193403a530bb1d39bb21ef1c819e1d899c6d48f49e192241/lanctools-0.4.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0f1296b17d9b29da4cb1538bef59e8e1931e5fb184aefe05767fceeac7ae8168", size = 111425, upload-time = "2026-03-10T18:21:32.112Z" },
-    { url = "https://files.pythonhosted.org/packages/da/b0/9db21a4125d0f155e4e623d79df2a4921bf2753d12fc6ae5457fd8ab304d/lanctools-0.4.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:812aaf4e7bbcfbb02803e574d9647a19ab71c501c387c8ba36535b1046150c00", size = 1238958, upload-time = "2026-03-10T18:21:22.514Z" },
-    { url = "https://files.pythonhosted.org/packages/68/61/6f20417ecb2969ed0c6b74a85db5157d0b8c4730caa197657c50cb42ca2a/lanctools-0.4.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:e9e311bae0677dc60d2a5c934f3490046bf7db03552f17930b829dfc99ce5049", size = 1130286, upload-time = "2026-03-10T18:21:33.3Z" },
-    { url = "https://files.pythonhosted.org/packages/52/1c/5ff268a8ca0689aa61e43f481b8bf174e888fcd3614dea118ce962bffcb6/lanctools-0.4.0-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a77de11ed405b837d3233ddb9311ea874b2f4f2093bb7ec1ed5e39ebb8fbb0b3", size = 119543, upload-time = "2026-03-10T18:21:26.153Z" },
-    { url = "https://files.pythonhosted.org/packages/d6/7e/983b7d15f775ae9ff89435408e817c05b5ddc4e6af2ee9ccbf4f40b1902a/lanctools-0.4.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:89f78d5c171064cdefd2cab02302c1cb72f10cf74ef00fda67090f2eb8278b2f", size = 111529, upload-time = "2026-03-10T18:21:35.018Z" },
-    { url = "https://files.pythonhosted.org/packages/27/b2/71bf39da56680214e346ec3f132030f6dc10b63f33c8d5c72666ba9b41af/lanctools-0.4.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:e9bfbacc3bdb1c316975096a0540076aaae532d414bca6ed3c809c99df0b134d", size = 1238972, upload-time = "2026-03-10T18:21:38.54Z" },
-    { url = "https://files.pythonhosted.org/packages/47/d9/9a9c59ef45035e6edd87a29b74d74ab7ff6a33b18ab2fe3ab9a752cc0185/lanctools-0.4.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:18e80ccf000282557283a4d031640e6bd4121ab8e48328ad48adef025ad20c6d", size = 1130144, upload-time = "2026-03-10T18:21:40.102Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/4d/cc240bcadaa1ae45cb20cb50339fb03bd044a96c995a6ec313f294556ac5/lanctools-0.8.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7eb01b8ad248712e49d73cbbb4edda869e1262550f0fe0110add0ee4597dfb92", size = 121252, upload-time = "2026-08-18T15:27:14.522Z" },
+    { url = "https://files.pythonhosted.org/packages/be/74/e26ae6a2c3f8eefe410c768605d144cf957901f359bd01bc4d8e8f83fc62/lanctools-0.8.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ff475086efd5165c30cd258145a64aa82ff2219bab7b588141d464ba4bdb5e34", size = 113440, upload-time = "2026-08-18T15:27:15.666Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/f3/fe33ce6f778ff89a5c78b8b0bd189cbbf6ee8330a07045aade227b5bfdd8/lanctools-0.8.0-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:2c78b1e7cd365c8e7d5acdb5f50264e08122aa2f3ed96e70ced04e96b7462969", size = 1241922, upload-time = "2026-08-18T15:27:16.989Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/cb/fa3c9af2f6d5ab21c96c48b5f2eb6e6d8c916ef140b548ee916757622bbd/lanctools-0.8.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:0d438a9cb7734da0e424faf91c26b4037acbb837d8ecc9f898cd681c844a9a37", size = 1130813, upload-time = "2026-08-18T15:27:18.707Z" },
+    { url = "https://files.pythonhosted.org/packages/16/96/f7da1c2af035a37dcfa02e9cd54a109367c7c934ff268bae2061484f2f4e/lanctools-0.8.0-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c1a6733d10bc6bfd6ab633fe4501d3bae1938f90157e15bbde31dcce27bebfad", size = 122247, upload-time = "2026-08-18T15:27:19.95Z" },
+    { url = "https://files.pythonhosted.org/packages/77/f1/0b4b5df3f28aae64ce9b0928a220dcc67ea5a045758a491381ee59b60fef/lanctools-0.8.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8aca4e904e06e75bdbb0f757d0df5efb21bd53db66236a8957b467908810d4de", size = 115086, upload-time = "2026-08-18T15:27:21.121Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/12/0e0bc0fce4d207e5d3d9c5289f3604bc722cd0e6356f20fd23fd5d12c556/lanctools-0.8.0-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:a950c9b09e54df4a55b1928c2fca3db5a43c0bdfacb61bf194a5446448e3c631", size = 1241901, upload-time = "2026-08-18T15:27:22.397Z" },
+    { url = "https://files.pythonhosted.org/packages/49/94/6249eff6c42e63cedfc95c2d1ba8aa853ba07808e99a56cce07c0211a87d/lanctools-0.8.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:9fe51535e5249c557afb8fda33e5fe5b775e3ec0c2dfe68b05d78fda961d3c95", size = 1132845, upload-time = "2026-08-18T15:27:23.833Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/e6/0733f55af7588beec4900fc9ea8079b3181dfac9b2bf3d7277949e2cb268/lanctools-0.8.0-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:cdebe9c2880e32276c9e45f1cd1019c2439cd0ae7d00743333a3443f2667ffa5", size = 122980, upload-time = "2026-08-18T15:27:25.023Z" },
+    { url = "https://files.pythonhosted.org/packages/10/02/80ecc2fa77f8dddb2c54f8459dfc3f63a945f5ee660dd7fe205805de5811/lanctools-0.8.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3fc443548e348f05e06ad23dd0b0010119d9af17f40199b0156a42e0d207ab50", size = 114689, upload-time = "2026-08-18T15:27:26.034Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/52/15eb5dc92d450c59c4b9f444b47881302b010600b6f31ed02afabb7086ea/lanctools-0.8.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:9a4b0e1d7c0284a823f2e3fcc39a72b6d8c43393fc0972e5a77eb38408bc8251", size = 1243253, upload-time = "2026-08-18T15:27:27.202Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/e3/a020f09ca42a3a1ff9824900c8a5352e5d93a2fb82a7386010b3598e7a2b/lanctools-0.8.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ca529a5602c09108b88a40dd7b8c3706eda48fee693dc197317ba1aca7dd47bc", size = 1133681, upload-time = "2026-08-18T15:27:28.495Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/e0/aa5668d7135ecc9d2b2b2e3d8e06289d2a879aa0e6e4a7bf524d8acaf847/lanctools-0.8.0-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9618df1af7964ce26040190b3fdb7281dff327f57c15da3af89a6e80cda357af", size = 123012, upload-time = "2026-08-18T15:27:29.749Z" },
+    { url = "https://files.pythonhosted.org/packages/39/a6/5257f6dcdf88b0d28ef432ecc731d0f9221340c94721fa2c65f9479f413a/lanctools-0.8.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e97dc2d75cef14de68215e908f78354f6de1f6b7c7ef78c1a74f16bac0f96dd2", size = 114776, upload-time = "2026-08-18T15:27:30.764Z" },
+    { url = "https://files.pythonhosted.org/packages/61/b2/93d51141c7a8e610b98d344476b854529e12e489b809880d70f07a65f7f6/lanctools-0.8.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:4ff760d8611817a49c5fcc508745a86177cf79507430a5212e2e0c430f4d5f2a", size = 1243259, upload-time = "2026-08-18T15:27:32.078Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/0f/baf52c940a443541aa0f8441fc8307fa129745a3ee5e6ec55934a757f166/lanctools-0.8.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:e2672f69a5e2cf90e52530490024631ec68766eb0b161bb6bd8173fb0c9e26de", size = 1133698, upload-time = "2026-08-18T15:27:33.598Z" },
 ]
 
 [[package]]
