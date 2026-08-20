@@ -9,16 +9,16 @@ import jax.numpy as jnp
 from jaxtyping import Array
 
 from .common import (
-    _adj_by_lanc,
-    _het_score,
-    _hom_score,
-    _make_blockwise,
-    _mask_score,
-    _mask_wald,
-    _masked_inv,
-    _prep_geno,
-    _prep_lanc_geno,
-    _qr_resid,
+    adj_by_lanc,
+    het_score,
+    hom_score,
+    make_blockwise,
+    mask_score,
+    mask_wald,
+    masked_inv,
+    prep_geno,
+    prep_lanc_geno,
+    qr_resid,
 )
 
 
@@ -31,24 +31,24 @@ def _qt_score_lanc(
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     ## Get H and residualize all by covariates
-    G, L, H = _prep_lanc_geno(G, L, Q)
+    G, L, H = prep_lanc_geno(G, L, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    QL, G, Gl, G_mask, H, Hl, H_mask = _adj_by_lanc(G, H, L)
+    QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
 
     ## Fit null model: Y ~ L
-    r_L = _qr_resid(Y, QL)
+    r_L = qr_resid(Y, QL)
     mse_null = jnp.sum(r_L**2, axis=0) / (N_eff - (G.shape[1] - 1))
 
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ r_L
     GltGl = Gl.T @ Gl
-    beta_het, chisq_anc, chisq_het, df_het = _het_score(U, GltGl, G_mask, mse_null)
+    beta_het, chisq_anc, chisq_het, df_het = het_score(U, GltGl, G_mask, mse_null)
 
     ## Score test for genotypes (homogeneous test)
-    beta_hom, chisq_hom = _hom_score(H.T @ r_L, jnp.sum(Hl**2), mse_null)
+    beta_hom, chisq_hom = hom_score(H.T @ r_L, jnp.sum(Hl**2), mse_null)
 
-    return _mask_score(
+    return mask_score(
         beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask
     )
 
@@ -57,7 +57,7 @@ def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array,
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     ## Get H and residualize all by covariates
-    G, H = _prep_geno(G, Q)
+    G, H = prep_geno(G, Q)
 
     mse_null = jnp.sum(Y**2, axis=0) / N_eff
 
@@ -70,14 +70,14 @@ def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array,
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ Y
     GtG = G.T @ G
-    beta_het, chisq_anc, chisq_het, df_het = _het_score(U, GtG, G_mask, mse_null)
+    beta_het, chisq_anc, chisq_het, df_het = het_score(U, GtG, G_mask, mse_null)
 
     ## Score test for genotypes (homogeneous test)
     UH = H.T @ Y
     HtH = jnp.sum(H**2)
-    beta_hom, chisq_hom = _hom_score(UH, HtH, mse_null)
+    beta_hom, chisq_hom = hom_score(UH, HtH, mse_null)
 
-    return _mask_score(
+    return mask_score(
         beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask
     )
 
@@ -90,20 +90,20 @@ def _qt_wald_lanc(
     K = G.shape[1]
 
     ## Get H and residualize all by covariates
-    G, L, H = _prep_lanc_geno(G, L, Q)
+    G, L, H = prep_lanc_geno(G, L, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    QL, G, Gl, G_mask, H, Hl, H_mask = _adj_by_lanc(G, H, L)
+    QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
     H = H[:, None]
     Hl = Hl[:, None]
 
     ## Fit null model: Y ~ L
-    r_L = _qr_resid(Y, QL)
+    r_L = qr_resid(Y, QL)
 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
     Gtr = Gl.T @ r_L
     GltGl = Gl.T @ Gl
-    GltGl_inv = _masked_inv(GltGl, G_mask)
+    GltGl_inv = masked_inv(GltGl, G_mask)
     beta_het = GltGl_inv @ Gtr
     r_G = r_L - Gl @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
@@ -123,7 +123,7 @@ def _qt_wald_lanc(
     ## LRT
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
 
-    return _mask_wald(
+    return mask_wald(
         beta_het,
         beta_hom,
         chisq_anc,
@@ -141,7 +141,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     K = G.shape[1]
 
     ## Get H and residualize all by covariates
-    G, H = _prep_geno(G, Q)
+    G, H = prep_geno(G, Q)
 
     ## Mask out low variation columns
     G_mask = jnp.sum(G**2, axis=0) > 0
@@ -153,7 +153,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
     Gtr = G.T @ Y
     GtG = G.T @ G
-    GtG_inv = _masked_inv(GtG, G_mask)
+    GtG_inv = masked_inv(GtG, G_mask)
     beta_het = GtG_inv @ Gtr
     r_G = Y - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
@@ -172,7 +172,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
 
     chisq_lrt = N_eff * jnp.log(sse_hom / sse_het)
 
-    return _mask_wald(
+    return mask_wald(
         beta_het,
         beta_hom,
         chisq_anc,
@@ -188,7 +188,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
 ### Block-wise functions
 ### ─────────────────────────────────────────────────────────────
 
-qt_score_lanc = _make_blockwise(
+qt_score_lanc = make_blockwise(
     _qt_score_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0)
 )
 
@@ -196,20 +196,20 @@ qt_score_lanc_impute = jit(
     vmap(_qt_score_lanc, in_axes=(1, 1, None, None, None)),
 )
 
-qt_score_nolanc = _make_blockwise(_qt_score_nolanc, (1, None, None, None), (3, 1, 2, 0))
+qt_score_nolanc = make_blockwise(_qt_score_nolanc, (1, None, None, None), (3, 1, 2, 0))
 
 
 qt_score_nolanc_impute = jit(
     vmap(_qt_score_nolanc, in_axes=(1, None, None, None)),
 )
 
-qt_wald_lanc = _make_blockwise(_qt_wald_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0))
+qt_wald_lanc = make_blockwise(_qt_wald_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0))
 
 qt_wald_lanc_impute = jit(
     vmap(_qt_wald_lanc, in_axes=(1, 1, None, None, None)),
 )
 
-qt_wald_nolanc = _make_blockwise(_qt_wald_nolanc, (1, None, None, None), (3, 1, 2, 0))
+qt_wald_nolanc = make_blockwise(_qt_wald_nolanc, (1, None, None, None), (3, 1, 2, 0))
 
 qt_wald_nolanc_impute = jit(
     vmap(_qt_wald_nolanc, in_axes=(1, None, None, None)),

@@ -22,14 +22,14 @@ logging.getLogger("jax._src.xla_bridge").setLevel(logging.CRITICAL)
 console = Console()
 
 
-def _get_version() -> str:
+def get_version() -> str:
     try:
         return version("agricola")
     except PackageNotFoundError:
         return "unknown"
 
 
-def _print_welcome() -> None:
+def print_welcome() -> None:
     art = r"""
                                ░██                      ░██            
                                                         ░██            
@@ -44,12 +44,12 @@ def _print_welcome() -> None:
 """
     console.print(Text(art, style="bold"))
     console.print(
-        f"[bold]agricola[/bold] v{_get_version()}\n"
+        f"[bold]agricola[/bold] v{get_version()}\n"
         "[dim]Run --help to see available commands.[/dim]\n"
     )
 
 
-def _setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
+def setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
     log_format = (
@@ -70,7 +70,7 @@ def _setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
         root_logger.addHandler(file_handler)
 
 
-def _report_devices(backend: Optional[str] = None):
+def report_devices(backend: Optional[str] = None):
     if backend is not None:
         os.environ.setdefault("JAX_PLATFORMS", backend)
     import jax

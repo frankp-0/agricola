@@ -142,8 +142,10 @@ def level0(
     K = len(h2_prior)
 
     ## Perform level 0 for each dataset
-    output_dir = Path(level0_dir) if level0_dir is not None else Path(
-        tempfile.mkdtemp(prefix="agricola-level0-")
+    output_dir = (
+        Path(level0_dir)
+        if level0_dir is not None
+        else Path(tempfile.mkdtemp(prefix="agricola-level0-"))
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -173,14 +175,11 @@ def level0(
         idx_variant = idx_variant_ds[i]
         variants_by_chromosome = group_variant_indices_by_chromosome(ds, idx_variant)
         for chrom, idx_chrom in variants_by_chromosome.items():
-
             blocks = [idx_chrom[i : i + B] for i in range(0, len(idx_chrom), B)]
 
             n_blocks = len(blocks)
 
-            fnames = [
-                str(output_dir / f"{pheno}_{chrom}.npy") for pheno in phenotypes
-            ]
+            fnames = [str(output_dir / f"{pheno}_{chrom}.npy") for pheno in phenotypes]
             Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=float)
 
             col0 = 0

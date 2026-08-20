@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from lanctools import LancData
 
 
-def _load_variants(path: Optional[str]) -> Optional[list[str]]:
+def load_variants(path: Optional[str]) -> Optional[list[str]]:
     if path is None:
         return None
     with Path(path).open() as file:
@@ -35,7 +35,9 @@ def _read_psam(path: str | Path) -> DataFrame:
         cols = header_line.lstrip("#").strip().split()
         df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
     else:
-        data_line = next(line for line in lines if not line.startswith("#")).rstrip("\n")
+        data_line = next(line for line in lines if not line.startswith("#")).rstrip(
+            "\n"
+        )
         ncols = len(data_line.split())
         base = ["FID", "IID", "PAT", "MAT", "SEX"]
         if ncols <= len(base):
@@ -49,7 +51,7 @@ def _read_psam(path: str | Path) -> DataFrame:
     return df
 
 
-def _load_samples(
+def load_samples(
     plinks: list[str], samples_file: Optional[str]
 ) -> tuple[list[str], list[str]]:
     df_psam = _read_psam(plinks[0] + ".psam")
@@ -76,7 +78,9 @@ def _read_pheno_covar(path: str | Path) -> DataFrame:
         if set(df.columns).issubset({"FID", "IID"}):
             raise ValueError("No phenotype columns found")
     else:
-        data_line = next(line for line in lines if not line.startswith("#")).rstrip("\n")
+        data_line = next(line for line in lines if not line.startswith("#")).rstrip(
+            "\n"
+        )
         ncols = len(data_line.split())
         if ncols <= 2:
             raise ValueError("No phenotype columns found")
@@ -88,7 +92,7 @@ def _read_pheno_covar(path: str | Path) -> DataFrame:
     return df
 
 
-def _load_pheno_and_covars(
+def load_pheno_and_covars(
     pheno_file: str,
     covar_file: Optional[str],
     pheno: Optional[list[str]],
@@ -146,7 +150,9 @@ def _load_pheno_and_covars(
         df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)
         if covariates is not None:
             df_covar = df_covar[["IID"] + covariates]
-        df_covar_noid = df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore")
+        df_covar_noid = df_covar.drop("IID", axis=1).drop(
+            "FID", axis=1, errors="ignore"
+        )
         X = jnp.asarray(
             pd.get_dummies(df_covar_noid, columns=catcovariates, dtype=float).to_numpy()
         )
@@ -164,12 +170,14 @@ def _load_pheno_and_covars(
         df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
     )
     phenotypes = (
-        df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").columns.to_list()
+        df_pheno.drop("IID", axis=1)
+        .drop("FID", axis=1, errors="ignore")
+        .columns.to_list()
     )
     return Y, X, phenotypes, samples
 
 
-def _load_lanc_data(
+def load_lanc_data(
     plink_prefix: Optional[list[str]],
     plink_list: Optional[str],
     lanc_file: Optional[list[str]],
@@ -198,6 +206,7 @@ def _load_lanc_data(
         lancs = lanc_file
 
     import logging
+
     logger = logging.getLogger("agricola")
     logger.info("Loading local ancestry data")
     datasets = [

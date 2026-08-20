@@ -10,17 +10,17 @@ import typer
 from typing import Optional
 
 from .data import (
-    _load_lanc_data,
-    _load_pheno_and_covars,
-    _load_variants,
-    _load_samples,
+    load_lanc_data,
+    load_pheno_and_covars,
+    load_variants,
+    load_samples,
 )
-from .formatting import _get_options_msg, _list_from_csv
+from .formatting import get_options_msg, list_from_csv
 from .runtime import (
-    _get_version,
-    _print_welcome,
-    _report_devices,
-    _setup_logging,
+    get_version,
+    print_welcome,
+    report_devices,
+    setup_logging,
     logger,
 )
 
@@ -43,9 +43,9 @@ def main(
     ),
 ) -> None:
     if version_flag:
-        typer.echo(f"agricola {_get_version()}")
+        typer.echo(f"agricola {get_version()}")
         raise typer.Exit()
-    _print_welcome()
+    print_welcome()
 
 
 @app.command()
@@ -155,9 +155,9 @@ def step1(
     ),
     verbose: bool = typer.Option(False),
 ) -> None:
-    _setup_logging(log, verbose)
-    _report_devices(backend)
-    logger.debug(_get_options_msg(locals()))
+    setup_logging(log, verbose)
+    report_devices(backend)
+    logger.debug(get_options_msg(locals()))
 
     import jax
 
@@ -170,14 +170,14 @@ def step1(
     import numpy as np
 
     ## Load data
-    ancestries_list = _list_from_csv(ancestries)
-    datasets, plinks, _ = _load_lanc_data(
+    ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
-    variants = _load_variants(variant_file)
+    variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
-    samples, samples_psam = _load_samples(plinks, samples_file)
-    Y, X, phenotypes, samples = _load_pheno_and_covars(
+    samples, samples_psam = load_samples(plinks, samples_file)
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,
@@ -346,9 +346,9 @@ def step2(
     ),
     verbose: bool = typer.Option(False),
 ) -> None:
-    _setup_logging(log, verbose)
-    _report_devices(backend)
-    logger.debug(_get_options_msg(locals()))
+    setup_logging(log, verbose)
+    report_devices(backend)
+    logger.debug(get_options_msg(locals()))
 
     import jax
 
@@ -359,15 +359,15 @@ def step2(
     import numpy as np
 
     ## Load data
-    ancestries_list = _list_from_csv(ancestries)
-    datasets, plinks, _ = _load_lanc_data(
+    ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
 
-    variants = _load_variants(variant_file)
-    samples, samples_psam = _load_samples(plinks, samples_file)
+    variants = load_variants(variant_file)
+    samples, samples_psam = load_samples(plinks, samples_file)
 
-    Y, X, phenotypes, samples = _load_pheno_and_covars(
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,
@@ -557,9 +557,9 @@ def all_steps(
     ),
     verbose: bool = typer.Option(False),
 ) -> None:
-    _setup_logging(log, verbose)
-    _report_devices(backend)
-    logger.debug(_get_options_msg(locals()))
+    setup_logging(log, verbose)
+    report_devices(backend)
+    logger.debug(get_options_msg(locals()))
 
     import jax
 
@@ -577,16 +577,16 @@ def all_steps(
         raise typer.BadParameter("Binary traits must use --no-impute")
 
     ## Load data
-    ancestries_list = _list_from_csv(ancestries)
-    datasets, plinks, _ = _load_lanc_data(
+    ancestries_list = list_from_csv(ancestries)
+    datasets, plinks, _ = load_lanc_data(
         plink, plink_list, lanc, lanc_list, ancestries_list
     )
-    variants1 = _load_variants(variant_file1)
-    variants2 = _load_variants(variant_file2)
+    variants1 = load_variants(variant_file1)
+    variants2 = load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
 
-    samples, samples_psam = _load_samples(plinks, samples_file)
-    Y, X, phenotypes, samples = _load_pheno_and_covars(
+    samples, samples_psam = load_samples(plinks, samples_file)
+    Y, X, phenotypes, samples = load_pheno_and_covars(
         pheno_file,
         covar_file,
         pheno,

@@ -18,7 +18,7 @@ def _naninf_to_0(X: Array) -> Array:
     return jnp.nan_to_num(X, posinf=0, neginf=0)
 
 
-def _logistic(
+def logistic(
     X: Array,
     y: Array,
     offset: Array,
@@ -51,12 +51,12 @@ def _logistic(
     return beta
 
 
-def _qr_resid(X: Array, Q: Array) -> Array:
+def qr_resid(X: Array, Q: Array) -> Array:
     return X - Q @ (Q.T @ X)
 
 
 def _project_and_mask_collinear(X: Array, QL: Array) -> tuple[Array, Array, Array]:
-    Xl = _qr_resid(X, QL)
+    Xl = qr_resid(X, QL)
     Xl_norm = jnp.sum(Xl**2, axis=0)
     X_norm = jnp.sum(X**2, axis=0)
     r2_Xl = 1 - Xl_norm / X_norm
@@ -72,7 +72,7 @@ def _masked_nan(X: Array, mask: Array) -> Array:
     return jnp.where(mask, X, jnp.nan)
 
 
-def _masked_inv(A: Array, mask: Array) -> Array:
+def masked_inv(A: Array, mask: Array) -> Array:
     return inv(A + jnp.diag((~mask).astype(A.dtype)))
 
 
@@ -80,17 +80,17 @@ def _masked_solve(A: Array, mask: Array, x: Array) -> Array:
     return solve(A + jnp.diag((~mask).astype(A.dtype)), x)
 
 
-def _prep_geno(G: Array, Q: Array) -> tuple[Array, Array]:
+def prep_geno(G: Array, Q: Array) -> tuple[Array, Array]:
     H = jnp.sum(G, axis=1)
-    return _qr_resid(G, Q), _qr_resid(H, Q)
+    return qr_resid(G, Q), qr_resid(H, Q)
 
 
-def _prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, Array, Array]:
+def prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, Array, Array]:
     H = jnp.sum(G, axis=1)
-    return (_qr_resid(G, Q), _qr_resid(L, Q), _qr_resid(H, Q))
+    return (qr_resid(G, Q), qr_resid(L, Q), qr_resid(H, Q))
 
 
-def _adj_by_lanc(
+def adj_by_lanc(
     G: Array, H: Array, L: Array
 ) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
     QL, _ = qr(L, mode="reduced")
@@ -99,10 +99,10 @@ def _adj_by_lanc(
     return QL, G, Gl, G_mask, H, Hl, H_mask
 
 
-def _het_score(
+def het_score(
     U: Array, covariance: Array, mask: Array, scale: Array = jnp.array([1.0])
 ) -> tuple[Array, Array, Array, Array]:
-    inv_cov = _masked_inv(covariance, mask)
+    inv_cov = masked_inv(covariance, mask)
     diag = jnp.diagonal(covariance)
 
     beta_het = U / diag[..., None]
@@ -112,13 +112,13 @@ def _het_score(
     return beta_het, chisq_anc, chisq_het, jnp.sum(mask)
 
 
-def _hom_score(UH: Array, HtH: Array, scale: Array = jnp.array([1.0])):
+def hom_score(UH: Array, HtH: Array, scale: Array = jnp.array([1.0])):
     beta_hom = UH / HtH
     chisq = UH**2 / HtH / scale
     return beta_hom, chisq
 
 
-def _mask_score(
+def mask_score(
     beta_het: Array,
     beta_hom: Array,
     chisq_anc: Array,
@@ -138,7 +138,7 @@ def _mask_score(
     )
 
 
-def _mask_wald(
+def mask_wald(
     beta_het: Array,
     beta_hom: Array,
     chisq_anc: Array,
@@ -163,7 +163,7 @@ def _mask_wald(
     )
 
 
-def _make_blockwise(fun, inner_axes, outer_axes, out_axes=-1):
+def make_blockwise(fun, inner_axes, outer_axes, out_axes=-1):
     return jit(
         vmap(
             vmap(fun, in_axes=inner_axes),

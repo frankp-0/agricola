@@ -24,7 +24,6 @@ from typing import Optional
 from jax.scipy.special import expit
 from jax.scipy.linalg import qr
 from jax.numpy.linalg import pinv
-from jax.numpy import einsum
 from jax import vmap
 from lanctools import LancData
 import logging
@@ -54,6 +53,24 @@ from ..models.logistic import logistic_ridge
 
 
 logger = logging.getLogger(__name__)
+
+_QT_FUNCTIONS = {
+    (TestType.SCORE, True, False): qt_score_lanc,
+    (TestType.SCORE, True, True): qt_score_lanc_impute,
+    (TestType.WALD, True, False): qt_wald_lanc,
+    (TestType.WALD, True, True): qt_wald_lanc_impute,
+    (TestType.SCORE, False, False): qt_score_nolanc,
+    (TestType.SCORE, False, True): qt_score_nolanc_impute,
+    (TestType.WALD, False, False): qt_wald_nolanc,
+    (TestType.WALD, False, True): qt_wald_nolanc_impute,
+}
+
+_BT_FUNCTIONS = {
+    (TestType.SCORE, True): bt_score_lanc,
+    (TestType.WALD, True): bt_wald_lanc,
+    (TestType.SCORE, False): bt_score_nolanc,
+    (TestType.WALD, False): bt_wald_nolanc,
+}
 
 ### ─────────────────────────────────────────────────────────────
 ### Helpers
@@ -128,58 +145,26 @@ def _step2_block(
     N_eff = jnp.broadcast_to(N_eff, (Y.shape[1]))
     valid_idx = np.broadcast_to(np.asarray(ac_variant_mask), (B, P))
 
-    func_map = {
-        (TraitType.QT, TestType.SCORE, True, False): (
-            qt_score_lanc,
-            lambda: (G, L, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.SCORE, True, True): (
-            qt_score_lanc_impute,
-            lambda: (G[:, :, :, 0], L[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
-        ),
-        (TraitType.QT, TestType.WALD, True, False): (
-            qt_wald_lanc,
-            lambda: (G, L, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, True, True): (
-            qt_wald_lanc_impute,
-            lambda: (G[:, :, :, 0], L[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
-        ),
-        (TraitType.BT, TestType.SCORE, True, False): (
-            bt_score_lanc,
-            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.BT, TestType.WALD, True, False): (
-            bt_wald_lanc,
-            lambda: (G, L, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.QT, TestType.SCORE, False, False): (
-            qt_score_nolanc,
-            lambda: (G, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.SCORE, False, True): (
-            qt_score_nolanc_impute,
-            lambda: (G[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
-        ),
-        (TraitType.QT, TestType.WALD, False, False): (
-            qt_wald_nolanc,
-            lambda: (G, Y, Q, N_eff),
-        ),
-        (TraitType.QT, TestType.WALD, False, True): (
-            qt_wald_nolanc_impute,
-            lambda: (G[:, :, :, 0], Y, Q[:, :, 0], N_eff[0]),
-        ),
-        (TraitType.BT, TestType.SCORE, False, False): (
-            bt_score_nolanc,
-            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-        ),
-        (TraitType.BT, TestType.WALD, False, False): (
-            bt_wald_nolanc,
-            lambda: (G, Y, Q, extra_args["O"], M, N_eff),
-        ),
-    }
+    if trait_type == TraitType.QT:
+        if impute:
+            G_qt = G[:, :, :, 0]
+            L_qt = L[:, :, :, 0]
+            Q_qt = Q[:, :, 0]
+            N_eff_qt = N_eff[0]
+        else:
+            G_qt, L_qt, Q_qt, N_eff_qt = G, L, Q, N_eff
 
-    test_func, arg_fn = func_map[(trait_type, test_type, adjust_lanc, impute)]
+        if adjust_lanc:
+            test_args = (G_qt, L_qt, Y, Q_qt, N_eff_qt)
+        else:
+            test_args = (G_qt, Y, Q_qt, N_eff_qt)
+        test_func = _QT_FUNCTIONS[(test_type, adjust_lanc, impute)]
+    else:
+        if adjust_lanc:
+            test_args = (G, L, Y, Q, extra_args["O"], M, N_eff)
+        else:
+            test_args = (G, Y, Q, extra_args["O"], M, N_eff)
+        test_func = _BT_FUNCTIONS[(test_type, adjust_lanc)]
 
     log10p_lrt: np.ndarray | None = None
 
@@ -193,14 +178,14 @@ def _step2_block(
             chisq_anc,
             chisq_lrt,
             df_lrt,
-        ) = test_func(*arg_fn())
+        ) = test_func(*test_args)
         chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
         if df_lrt.ndim == 1:
             df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
         chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc = test_func(
-            *arg_fn()
+            *test_args
         )
 
     chisq_hom = jnp.reshape(chisq_hom, (B, P))
