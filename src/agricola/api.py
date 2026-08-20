@@ -5,5 +5,6 @@
 """Public Python API for agricola."""
 
 from .pipeline import step1, step2
+from .types import TestType, TraitType
 
-__all__ = ["step1", "step2"]
+__all__ = ["TestType", "TraitType", "step1", "step2"]

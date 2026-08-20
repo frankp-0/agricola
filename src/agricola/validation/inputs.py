@@ -139,7 +139,7 @@ def validate_level1_inputs(
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
-    trait_type: str,
+    trait_type: str | TraitType,
 ) -> tuple[Array, Array, Array, Array, Array, TraitType]:
     """Validate input data for level1"""
     ## Y
@@ -168,8 +168,8 @@ def validate_step2_inputs(
     B: int,
     idx_sample: ArrayLike | None,
     variants: list[str] | None,
-    test_type: str,
-    trait_type: str,
+    test_type: str | TestType,
+    trait_type: str | TraitType,
 ) -> tuple[Array, Array, dict[str, np.ndarray] | None, Array | None, TestType, TraitType]:
     """Validate input data for step1"""
 

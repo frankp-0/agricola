@@ -16,6 +16,7 @@ from jaxtyping import ArrayLike
 from lanctools import LancData
 from pandas import DataFrame
 
+from ..types import TraitType
 from .level0 import level0
 from .level1 import level1
 
@@ -28,7 +29,7 @@ def step1(
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
-    trait_type: str,
+    trait_type: str | TraitType,
     loocv: bool = False,
     B: int = 1000,
     idx_sample: ArrayLike | None = None,

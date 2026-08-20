@@ -223,3 +223,5 @@ bt_wald_nolanc = make_blockwise(
     (1, None, None, None, None),
     (3, 1, 2, 1, 1),
 )
+
+__all__ = ["bt_score_lanc", "bt_score_nolanc", "bt_wald_lanc", "bt_wald_nolanc"]
