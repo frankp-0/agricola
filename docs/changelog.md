@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Reorganized the package into `pipeline`, `io`, `models`, `statistics`, `numerical`, and `validation` modules.
+- Split CLI data loading, formatting, and runtime setup into dedicated helpers
+- Centralized shared quantitative and binary association-statistic kernels
+
 ## [v0.19.0] - 2026-07-31
 
 [v0.19.0]: https://github.com/frankp-0/agricola/compare/v0.18.0...v0.19.0>
