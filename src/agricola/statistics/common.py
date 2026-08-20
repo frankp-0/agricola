@@ -53,6 +53,37 @@ def logistic(
     return beta
 
 
+def logistic_with_convergence(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    X_mask: Array,
+    max_iter: int = 10,
+    tol: float = 1e-6,
+) -> tuple[Array, Array]:
+    beta0 = jnp.zeros(X.shape[1])
+
+    def body_fun(state):
+        i, beta, _ = state
+        eta = X @ beta + offset
+        mu = expit(eta)
+        r = (y - mu) * train_mask
+        w = mu * (1 - mu) * train_mask
+        XW = X * w[:, None]
+        delta = _masked_solve(X.T @ XW, X_mask, X.T @ r)
+        beta_new = _naninf_to_0(beta + delta)
+        converged = jnp.max(jnp.abs(beta_new - beta)) <= tol
+        return i + 1, beta_new, converged
+
+    def cond_fun(state):
+        i, _, converged = state
+        return (i < max_iter) & ~converged
+
+    _, beta, converged = lax.while_loop(cond_fun, body_fun, (0, beta0, jnp.array(False)))
+    return beta, converged
+
+
 def qr_resid(X: Array, Q: Array) -> Array:
     return X - Q @ (Q.T @ X)
 

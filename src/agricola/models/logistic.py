@@ -42,19 +42,34 @@ def logistic_ridge(
     tol: float = 1e-6,
 ) -> Array:
     """Fit logistic ridge regression with an offset and training mask."""
+    beta, _ = logistic_ridge_with_convergence(X, y, offset, train_mask, alpha, max_iter, tol)
+    return beta
+
+
+def logistic_ridge_with_convergence(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    alpha: float | Array,
+    max_iter: int = 50,
+    tol: float = 1e-6,
+) -> tuple[Array, Array]:
+    """Fit logistic ridge regression and return whether it converged."""
     beta0 = jnp.zeros(X.shape[1])
 
     def cond_fun(state):
-        i, beta = state
-        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
-        return (i < max_iter) & (jnp.max(jnp.abs(beta_new - beta)) > tol)
+        i, _, converged = state
+        return (i < max_iter) & ~converged
 
     def body_fun(state):
-        i, beta = state
-        return i + 1, _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        i, beta, _ = state
+        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
+        converged = jnp.max(jnp.abs(beta_new - beta)) <= tol
+        return i + 1, beta_new, converged
 
-    _, beta = lax.while_loop(cond_fun, body_fun, (0, beta0))
-    return beta
+    _, beta, converged = lax.while_loop(cond_fun, body_fun, (0, beta0, jnp.array(False)))
+    return beta, converged
 
 
 def logistic_ridge_loo(
@@ -80,4 +95,8 @@ def logistic_ridge_loo(
     return beta[:, None] - ((h_inv @ X.T) * (y - mu) / (1 - gamma))
 
 
-__all__ = ["logistic_ridge", "logistic_ridge_loo"]
+__all__ = [
+    "logistic_ridge",
+    "logistic_ridge_loo",
+    "logistic_ridge_with_convergence",
+]

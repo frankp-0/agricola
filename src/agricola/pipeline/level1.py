@@ -17,6 +17,7 @@ from datetime import timedelta
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jax.nn import softplus
 from jaxtyping import Array, ArrayLike
 from numpy.typing import NDArray
 from pandas import DataFrame, Index
@@ -140,7 +141,7 @@ def _ridge_cv_bt(
 
     ## Get best CV alpha
     eta_all = np.sum(eta, axis=2)
-    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - np.log(1 + jnp.exp(eta_all))
+    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - softplus(eta_all)
     l_alphas = np.sum(l_i_alphas, axis=0)
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]
@@ -182,7 +183,7 @@ def _ridge_loocv_bt(
     eta = jnp.moveaxis(eta, (0, 1, 2), (1, 0, 2))
 
     eta_all = np.sum(eta, axis=2)
-    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - np.log(1 + jnp.exp(eta_all))
+    l_i_alphas = Y[:, None] * (eta_all + offset[:, None]) - softplus(eta_all)
     l_alphas = np.sum(l_i_alphas, axis=0)
     idx_best = np.argmax(l_alphas)
     eta_loco = eta_all[:, idx_best][:, None] - eta[:, idx_best, :]

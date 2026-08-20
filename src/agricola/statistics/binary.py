@@ -5,6 +5,7 @@
 """Binary-trait step-2 association statistic kernels."""
 
 import jax.numpy as jnp
+from jax.nn import softplus
 from jax.numpy.linalg import solve
 from jax.scipy.special import expit
 from jaxtyping import Array
@@ -13,7 +14,7 @@ from .common import (
     adj_by_lanc,
     het_score,
     hom_score,
-    logistic,
+    logistic_with_convergence,
     make_blockwise,
     mask_score,
     mask_wald,
@@ -36,7 +37,7 @@ def _bt_score_lanc(
 
     ## Fit null model L + offset
     L_mask = jnp.sum(L**2, axis=0) > 0
-    beta_L = logistic(L, Y, offset, M, L_mask)
+    beta_L, converged = logistic_with_convergence(L, Y, offset, M, L_mask)
     mu = expit(L @ beta_L + offset)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
@@ -53,9 +54,10 @@ def _bt_score_lanc(
     HtH = Hlw.T @ Hlw
     beta_hom, chisq_hom = hom_score(UH, HtH)
 
-    return mask_score(
+    result = mask_score(
         beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
     )
+    return (*result, converged)
 
 
 def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tuple[Array, ...]:
@@ -83,8 +85,11 @@ def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> t
     HtH = Hw.T @ Hw
     beta_hom, chisq_hom = hom_score(UH, HtH)
 
-    return mask_score(
-        beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
+    return (
+        *mask_score(
+            beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
+        ),
+        jnp.array(True),
     )
 
 
@@ -104,7 +109,7 @@ def _bt_wald_lanc(
     ## Wald test for anc-deconvoluted genotypes
     Xg_mask = jnp.concatenate([G_mask, L_mask])
     Xg = jnp.concatenate([G, L], axis=1)
-    beta_het = logistic(Xg, Y, offset, M, Xg_mask)
+    beta_het, converged_het = logistic_with_convergence(Xg, Y, offset, M, Xg_mask)
     etag = Xg @ beta_het + offset
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -117,7 +122,7 @@ def _bt_wald_lanc(
     ## Wald test for genotypes
     Xh_mask = jnp.concatenate([H_mask[None], L_mask])
     Xh = jnp.concatenate([H, L], axis=1)
-    beta_hom = logistic(Xh, Y, offset, M, Xh_mask)
+    beta_hom, converged_hom = logistic_with_convergence(Xh, Y, offset, M, Xh_mask)
     etah = Xh @ beta_hom + offset
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -127,11 +132,11 @@ def _bt_wald_lanc(
     chisq_hom = beta_hom[0] ** 2 / XtXw_inv[0, 0]
 
     ## LRT
-    l_het = (Y * etag - jnp.log(1 + jnp.exp(etag))) * M
-    l_hom = (Y * etah - jnp.log(1 + jnp.exp(etah))) * M
+    l_het = (Y * etag - softplus(etag)) * M
+    l_hom = (Y * etah - softplus(etah)) * M
     chisq_lrt = 2 * jnp.sum(l_het - l_hom)
 
-    return mask_wald(
+    result = mask_wald(
         beta_het[:K],
         beta_hom[0],
         chisq_anc,
@@ -141,6 +146,7 @@ def _bt_wald_lanc(
         G_mask,
         H_mask,
     )
+    return (*result, converged_het & converged_hom)
 
 
 def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tuple[Array, ...]:
@@ -152,7 +158,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
     ## Wald test for anc-deconvoluted genotypes
     G_mask = jnp.sum(G**2, axis=0) > 0
-    beta_het = logistic(G, Y, offset, M, G_mask)
+    beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask)
     etag = G @ beta_het + offset
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -164,7 +170,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
     ## Wald test for genotypes
     H_mask = jnp.sum(H**2, axis=0) > 0
-    beta_hom = logistic(H, Y, offset, M, H_mask)
+    beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask)
     etah = H @ beta_hom + offset
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -173,11 +179,11 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     chisq_hom = beta_hom**2 * HtH
 
     ## LRT
-    l_het = (Y * etag - jnp.log(1 + jnp.exp(etag))) * M
-    l_hom = (Y * etah - jnp.log(1 + jnp.exp(etah))) * M
+    l_het = (Y * etag - softplus(etag)) * M
+    l_hom = (Y * etah - softplus(etah)) * M
     chisq_lrt = 2 * jnp.sum(l_het - l_hom)
 
-    return mask_wald(
+    result = mask_wald(
         beta_het[:K],
         beta_hom[0],
         chisq_anc,
@@ -187,16 +193,33 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
         G_mask,
         H_mask,
     )
+    return (*result, converged_het & converged_hom)
 
 
 ### ─────────────────────────────────────────────────────────────
 ### Block-wise functions
 ### ─────────────────────────────────────────────────────────────
 
-bt_score_lanc = make_blockwise(_bt_score_lanc, (1, 1, None, None, None, None), (3, 3, 1, 2, 1, 1))
+bt_score_lanc = make_blockwise(
+    _bt_score_lanc,
+    (1, 1, None, None, None, None),
+    (3, 3, 1, 2, 1, 1),
+)
 
-bt_score_nolanc = make_blockwise(_bt_score_nolanc, (1, None, None, None, None), (3, 1, 2, 1, 1))
+bt_score_nolanc = make_blockwise(
+    _bt_score_nolanc,
+    (1, None, None, None, None),
+    (3, 1, 2, 1, 1),
+)
 
-bt_wald_lanc = make_blockwise(_bt_wald_lanc, (1, 1, None, None, None, None), (3, 3, 1, 2, 1, 1))
+bt_wald_lanc = make_blockwise(
+    _bt_wald_lanc,
+    (1, 1, None, None, None, None),
+    (3, 3, 1, 2, 1, 1),
+)
 
-bt_wald_nolanc = make_blockwise(_bt_wald_nolanc, (1, None, None, None, None), (3, 1, 2, 1, 1))
+bt_wald_nolanc = make_blockwise(
+    _bt_wald_nolanc,
+    (1, None, None, None, None),
+    (3, 1, 2, 1, 1),
+)

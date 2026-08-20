@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from ..io.genotypes import get_geno_lanc_deconv
 from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
-from ..models.logistic import logistic_ridge
+from ..models.logistic import logistic_ridge_with_convergence
 from ..numerical.linear_algebra import stdize
 from ..statistics.binary import (
     bt_score_lanc,
@@ -168,22 +168,53 @@ def _step2_block(
     log10p_lrt: np.ndarray | None = None
 
     if test_type == TestType.WALD:
-        (
-            chisq_hom,
-            beta_hom,
-            chisq_het,
-            beta_het,
-            df_het,
-            chisq_anc,
-            chisq_lrt,
-            df_lrt,
-        ) = test_func(*test_args)
+        if trait_type == TraitType.BT:
+            (
+                chisq_hom,
+                beta_hom,
+                chisq_het,
+                beta_het,
+                df_het,
+                chisq_anc,
+                chisq_lrt,
+                df_lrt,
+                test_converged,
+            ) = test_func(*test_args)
+        else:
+            (
+                chisq_hom,
+                beta_hom,
+                chisq_het,
+                beta_het,
+                df_het,
+                chisq_anc,
+                chisq_lrt,
+                df_lrt,
+            ) = test_func(*test_args)
         chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
         if df_lrt.ndim == 1:
             df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
-        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc = test_func(*test_args)
+        if trait_type == TraitType.BT:
+            (
+                chisq_hom,
+                beta_hom,
+                chisq_het,
+                beta_het,
+                df_het,
+                chisq_anc,
+                test_converged,
+            ) = test_func(*test_args)
+        else:
+            (
+                chisq_hom,
+                beta_hom,
+                chisq_het,
+                beta_het,
+                df_het,
+                chisq_anc,
+            ) = test_func(*test_args)
 
     chisq_hom = jnp.reshape(chisq_hom, (B, P))
     beta_hom = jnp.reshape(beta_hom, (B, P))
@@ -238,6 +269,9 @@ def _step2_block(
         colnames.append("LOG10P_LRT")
 
     result_arr = np.concatenate(result_components, axis=1)
+    converged = None
+    if trait_type == TraitType.BT and test_converged is not None:
+        converged = np.asarray(test_converged) & np.asarray(extra_args["converged"])[None, :]
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
@@ -258,6 +292,8 @@ def _step2_block(
 
         for j, name in enumerate(colnames):
             columns[name] = pa.array(result_arr[idx, j, i])
+        if converged is not None:
+            columns["CONVERGED"] = pa.array(converged[idx, i])
 
         columns["phenotype"] = pa.array([phenotypes[i]] * idx.sum())
 
@@ -339,14 +375,16 @@ def _step2_dataset(
                 Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                beta_offset = vmap(logistic_ridge, in_axes=(None, 1, 1, 1, None))(
-                    X, Y, jnp.asarray(step1_pred_chr), M, 0
-                )
+                beta_offset, offset_converged = vmap(
+                    logistic_ridge_with_convergence,
+                    in_axes=(None, 1, 1, 1, None),
+                )(X, Y, jnp.asarray(step1_pred_chr), M, 0)
                 offset = X @ beta_offset.T + step1_pred_chr
                 mu = expit(offset)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
                 extra_args["offset"] = offset
+                extra_args["converged"] = offset_converged
 
             Yc = Yc * M
             ## Adjust covariates for per-phenotype missingness
