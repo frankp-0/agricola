@@ -123,6 +123,7 @@ The parquet files have the following schema:
 | BETA_HOM | double | Effect estimate for $\beta$ under homogeneous model (all ancestry-specific effects equal)
 | LOG10P_HET | double | P-value for test $\beta_{\text{anc}_0}=\cdots=\beta_{\text{anc}_k}=0$ |
 | LOG10P_HOM | double | P-value for $\beta=0$ under homogeneous model (all ancestry-specific effects equal) |
+| LOG10P_CCT | double | P-value for the Cauchy combination test between the heterogeneous and homogeneous models |
 | LOG10P_{anc} | double | P-value for test $\beta_{\text{anc}} = 0$ |
 | LOG10P_LRT | double | P-value for likelihood ratio test of heterogeneous vs. homogeneous model (only output for `--test-type wald`) |
 | phenotype | string | phenotype name (only output if using `--no-partition-phenotype`) |

@@ -198,6 +198,14 @@ def _step2_block(
     log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
 
+    p_het = 10**log10p_het
+    p_hom = 10**log10p_hom
+
+    T_cct = 0.5 * np.tan(np.pi * (0.5 - p_het)) + 0.5 * np.tan(np.pi * (0.5 - p_hom))
+
+    p_cct = 0.5 - np.arctan(T_cct) / np.pi
+    log10p_cct = np.log10(p_cct)
+
     ## Create array with results
     result_components = [
         np.broadcast_to(N_eff, (B, 1, P)),
@@ -207,6 +215,7 @@ def _step2_block(
         beta_hom[:, None, :],
         log10p_het[:, None, :],
         log10p_hom[:, None, :],
+        log10p_cct[:, None, :],
         log10p_anc,
     ]
 
@@ -220,6 +229,7 @@ def _step2_block(
         "BETA_HOM",
         "LOG10P_HET",
         "LOG10P_HOM",
+        "LOG10P_CCT",
         *["LOG10P_" + anc for anc in ancs],
     ]
 
