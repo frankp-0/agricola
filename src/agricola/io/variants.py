@@ -9,9 +9,7 @@ from lanctools import LancData
 from numpy.typing import NDArray
 
 
-def get_variant_indices(
-    dataset: LancData, variants: list[str] | None = None
-) -> NDArray[np.uint32]:
+def get_variant_indices(dataset: LancData, variants: list[str] | None = None) -> NDArray[np.uint32]:
     """Return dataset variant indices, optionally restricted to variant IDs."""
     indices = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
     if variants is None:

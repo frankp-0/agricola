@@ -5,8 +5,8 @@
 """Quantitative-trait ridge regression."""
 
 import jax.numpy as jnp
-from jaxtyping import Array
 from jax.scipy.linalg import cho_factor, cho_solve
+from jaxtyping import Array
 
 
 def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
@@ -23,5 +23,6 @@ def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
         alphas[:, None, None, None] * identity[None, None, :, :]
     )
     return cho_solve(cho_factor(XTXs), XTY)
+
 
 __all__ = ["ridge"]

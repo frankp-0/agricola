@@ -11,18 +11,19 @@ steps . The entry-point for this module is the `step1` function.
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
+
 from jaxtyping import ArrayLike
-from typing import Optional
+from lanctools import LancData
 from pandas import DataFrame
+
 from .level0 import level0
 from .level1 import level1
-from lanctools import LancData
 
 
 def step1(
     datasets: list[LancData],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
@@ -30,9 +31,9 @@ def step1(
     trait_type: str,
     loocv: bool = False,
     B: int = 1000,
-    idx_sample: Optional[ArrayLike] = None,
-    variants: Optional[list[str]] = None,
-    level0_dir: Optional[str] = None,
+    idx_sample: ArrayLike | None = None,
+    variants: list[str] | None = None,
+    level0_dir: str | None = None,
     prune_blocks: bool = True,
 ) -> dict[str, DataFrame]:
     """Perform agricola step 1
@@ -51,18 +52,18 @@ def step1(
             cross validation. Ignored for trait_type="qt".
         B: The number of variants per block
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
-        variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
+        variants: A list of variant IDs to include in the analysis. If not provided,
+            all variants are used
         level0_dir: The directory where level 0 predictions are written
         prune_blocks: Whether to sample variants in a dataset in level 0 so that
             n_variants (mod B) = 0. This will improve speed with JIT compilations
 
     Returns:
-        A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
+        A dict where keys are chromosomes and values are (N, P) pandas DataFrames
+            of level 1 predictions
     """
     directory_context = (
-        tempfile.TemporaryDirectory()
-        if level0_dir is None
-        else nullcontext(level0_dir)
+        tempfile.TemporaryDirectory() if level0_dir is None else nullcontext(level0_dir)
     )
     with directory_context as working_dir:
         level0_path = Path(working_dir)

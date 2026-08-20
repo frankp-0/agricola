@@ -5,15 +5,13 @@
 """Genotype and local-ancestry access helpers."""
 
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array
 from lanctools import LancData
-import numpy as np
 from numpy.typing import NDArray
 
 
-def _get_lanc_masks(
-    dataset: LancData, indices: NDArray[np.uint32]
-) -> tuple[Array, Array]:
+def _get_lanc_masks(dataset: LancData, indices: NDArray[np.uint32]) -> tuple[Array, Array]:
     lanc = jnp.asarray(dataset.get_lanc(indices))
     ancestries = jnp.arange(len(dataset.ancestries))
     return (
@@ -22,9 +20,7 @@ def _get_lanc_masks(
     )
 
 
-def get_geno_lanc_deconv(
-    dataset: LancData, indices: NDArray[np.uint32]
-) -> tuple[Array, Array]:
+def get_geno_lanc_deconv(dataset: LancData, indices: NDArray[np.uint32]) -> tuple[Array, Array]:
     """Return ancestry-deconvoluted genotypes and local ancestries."""
     geno = jnp.asarray(dataset.get_geno(indices))
     left_mask, right_mask = _get_lanc_masks(dataset, indices)

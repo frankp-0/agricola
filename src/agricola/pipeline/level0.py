@@ -10,24 +10,25 @@ for each trait across a sequence of heritability priors. The entry-point for thi
 module is the `level0` function.
 """
 
-import time
-from datetime import timedelta
 import logging
 import tempfile
+import time
+from datetime import timedelta
 from pathlib import Path
+
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike
 import numpy as np
-from numpy.random import choice
-from tqdm import tqdm
-from typing import Optional
+from jaxtyping import Array, ArrayLike
 from lanctools import LancData
-from ..numerical.linear_algebra import stdize
-from ..io.variants import group_variant_indices_by_chromosome, get_variant_indices
-from ..models.ridge import ridge
-from ..validation.inputs import validate_level0_inputs
+from numpy.random import choice
 from numpy.typing import NDArray
+from tqdm import tqdm
+
+from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
+from ..models.ridge import ridge
+from ..numerical.linear_algebra import stdize
+from ..validation.inputs import validate_level0_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ def _level0_block(
     Q: Array,
     train_mask: Array,
     test_mask: Array,
-    idx_sample: Optional[Array],
+    idx_sample: Array | None,
     block: NDArray,
     h2_prior: Array,
     M: int,
@@ -99,16 +100,16 @@ def _level0_block(
 def level0(
     datasets: list[LancData],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
     B: int = 1000,
-    idx_sample: Optional[ArrayLike] = None,
-    variants: Optional[list[str]] = None,
-    level0_dir: Optional[str] = None,
-    prune_blocks: Optional[bool] = True,
+    idx_sample: ArrayLike | None = None,
+    variants: list[str] | None = None,
+    level0_dir: str | None = None,
+    prune_blocks: bool | None = True,
 ) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
@@ -123,13 +124,15 @@ def level0(
         h2_prior: A 1D jax array of prior values for snp heritability
         B: The number of variants per block
         idx_sample: An optional (N_sub,) jax array with indices of samples to include
-        variants: A list of variant IDs to include in the analysis. If not provided, all variants are used
+        variants: A list of variant IDs to include in the analysis. If not provided,
+            all variants are used
         level0_dir: The directory where level 0 predictions are written
         prune_blocks: Whether to sample variants in a dataset so that n_variants
             (mod B) = 0. This will improve speed with JIT compilations
     Returns:
-        level0_files: A two-level dict. The outer keys are phenotypes, the inner keys are chromosomes,
-            and the values are paths to .npy files containing (N, n_blocks) level 0 predictions.
+        level0_files: A two-level dict. The outer keys are phenotypes, the inner
+            keys are chromosomes, and the values are paths to .npy files containing
+            (N, n_blocks) level 0 predictions.
     """
     (Y, X, train_mask, test_mask, h2_prior, idx_sample) = validate_level0_inputs(
         datasets, Y, X, train_mask, test_mask, h2_prior, B, idx_sample, variants
@@ -211,8 +214,7 @@ def level0(
     time_total = str(timedelta(seconds=int(time.perf_counter() - time_total_start)))
     logger.info(f"Step 1 Level 0 predictions completed in: {time_total}\n")
     level0_files = {
-        k: {dk: dv[i] for dk, dv in level0_files_chrom.items()}
-        for i, k in enumerate(phenotypes)
+        k: {dk: dv[i] for dk, dv in level0_files_chrom.items()} for i, k in enumerate(phenotypes)
     }
 
     return level0_files

@@ -5,8 +5,8 @@
 """Cross-validation split construction."""
 
 import jax
-from jaxtyping import Array
 import jax.numpy as jnp
+from jaxtyping import Array
 
 
 def get_cv_mask(n: int, k: int, key: Array) -> tuple[Array, Array]:
@@ -23,9 +23,7 @@ def get_cv_mask(n: int, k: int, key: Array) -> tuple[Array, Array]:
     test_mask = jnp.zeros((n, k), dtype=bool)
     for fold in range(k):
         test_indices = folds[fold]
-        train_indices = jnp.concatenate(
-            [folds[i] for i in range(k) if i != fold]
-        )
+        train_indices = jnp.concatenate([folds[i] for i in range(k) if i != fold])
         test_mask = test_mask.at[test_indices, fold].set(True)
         train_mask = train_mask.at[train_indices, fold].set(True)
     return train_mask, test_mask

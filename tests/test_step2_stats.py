@@ -2,22 +2,27 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-import pytest
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 from jax.scipy.special import expit
+
 from agricola.statistics.binary import (
-    bt_score_lanc,
-    bt_score_nolanc,
-    bt_wald_lanc,
-    bt_wald_nolanc,
     _bt_score_lanc,
     _bt_score_nolanc,
     _bt_wald_lanc,
     _bt_wald_nolanc,
+    bt_score_lanc,
+    bt_score_nolanc,
+    bt_wald_lanc,
+    bt_wald_nolanc,
 )
 from agricola.statistics.quantitative import (
+    _qt_score_lanc,
+    _qt_score_nolanc,
+    _qt_wald_lanc,
+    _qt_wald_nolanc,
     qt_score_lanc,
     qt_score_lanc_impute,
     qt_score_nolanc,
@@ -26,10 +31,6 @@ from agricola.statistics.quantitative import (
     qt_wald_lanc_impute,
     qt_wald_nolanc,
     qt_wald_nolanc_impute,
-    _qt_score_lanc,
-    _qt_score_nolanc,
-    _qt_wald_lanc,
-    _qt_wald_nolanc,
 )
 
 
@@ -115,9 +116,8 @@ def toy_bt():
     X = jax.random.normal(shape=(N, C, P), key=keys[3])
     Q = jnp.linalg.qr(X.transpose(2, 0, 1), mode="reduced")[0].transpose(1, 2, 0)
     M = jax.random.binomial(shape=(N, P), n=1, p=0.5, key=keys[4])
-    O = jax.random.normal(shape=(N, P), key=keys[5])
-    N_eff = jnp.repeat(N, P)
-    return (G, L, Y, Q, O, M, N_eff)
+    offset = jax.random.normal(shape=(N, P), key=keys[5])
+    return (G, L, Y, Q, offset, M)
 
 
 @pytest.fixture
@@ -142,10 +142,9 @@ def toy_bt_edge():
     Y = jnp.round(expit(jax.random.normal(shape=(10000,), key=jax.random.key(881234))))
     X = jnp.ones((10000, 1))
     Q, _ = jnp.linalg.qr(X, mode="reduced")
-    O = jnp.full(shape=(10000), fill_value=0)
+    offset = jnp.full(shape=(10000), fill_value=0)
     M = jnp.round(expit(jax.random.normal(shape=(10000,), key=jax.random.key(61234))))
-    N_eff = 10000
-    return (G, L, Y, Q, O, M, N_eff)
+    return (G, L, Y, Q, offset, M)
 
 
 ### ─────────────────────────────────────────────────────────────

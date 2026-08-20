@@ -7,17 +7,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import typer
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
     from jaxtyping import Array
     from lanctools import LancData
+    from pandas import DataFrame
 
 
-def load_variants(path: Optional[str]) -> Optional[list[str]]:
+def load_variants(path: str | None) -> list[str] | None:
     if path is None:
         return None
     with Path(path).open() as file:
@@ -35,9 +35,7 @@ def _read_psam(path: str | Path) -> DataFrame:
         cols = header_line.lstrip("#").strip().split()
         df = pd.read_csv(path, sep=r"[ \t]", comment="#", names=cols, engine="python")
     else:
-        data_line = next(line for line in lines if not line.startswith("#")).rstrip(
-            "\n"
-        )
+        data_line = next(line for line in lines if not line.startswith("#")).rstrip("\n")
         ncols = len(data_line.split())
         base = ["FID", "IID", "PAT", "MAT", "SEX"]
         if ncols <= len(base):
@@ -51,9 +49,7 @@ def _read_psam(path: str | Path) -> DataFrame:
     return df
 
 
-def load_samples(
-    plinks: list[str], samples_file: Optional[str]
-) -> tuple[list[str], list[str]]:
+def load_samples(plinks: list[str], samples_file: str | None) -> tuple[list[str], list[str]]:
     df_psam = _read_psam(plinks[0] + ".psam")
     samples_psam = df_psam["IID"].astype(str).to_list()
     if samples_file is not None:
@@ -78,9 +74,7 @@ def _read_pheno_covar(path: str | Path) -> DataFrame:
         if set(df.columns).issubset({"FID", "IID"}):
             raise ValueError("No phenotype columns found")
     else:
-        data_line = next(line for line in lines if not line.startswith("#")).rstrip(
-            "\n"
-        )
+        data_line = next(line for line in lines if not line.startswith("#")).rstrip("\n")
         ncols = len(data_line.split())
         if ncols <= 2:
             raise ValueError("No phenotype columns found")
@@ -94,17 +88,17 @@ def _read_pheno_covar(path: str | Path) -> DataFrame:
 
 def load_pheno_and_covars(
     pheno_file: str,
-    covar_file: Optional[str],
-    pheno: Optional[list[str]],
-    pheno_list: Optional[str],
-    covar: Optional[list[str]],
-    covar_list: Optional[str],
-    catcovar: Optional[list[str]],
-    catcovar_list: Optional[str],
+    covar_file: str | None,
+    pheno: list[str] | None,
+    pheno_list: str | None,
+    covar: list[str] | None,
+    covar_list: str | None,
+    catcovar: list[str] | None,
+    catcovar_list: str | None,
     samples_sub: list[str],
-) -> tuple[Array, Optional[Array], list[str], list[str]]:
-    import pandas as pd
+) -> tuple[Array, Array | None, list[str], list[str]]:
     import jax.numpy as jnp
+    import pandas as pd
 
     df_pheno = _read_pheno_covar(pheno_file)
     samples_pheno = df_pheno["IID"].astype(str).to_list()
@@ -147,12 +141,10 @@ def load_pheno_and_covars(
         df_covar["IID"] = pd.Categorical(
             df_covar["IID"].astype(str), categories=samples, ordered=True
         )
-        df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)
+        df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore[reportCallIssue]
         if covariates is not None:
-            df_covar = df_covar[["IID"] + covariates]
-        df_covar_noid = df_covar.drop("IID", axis=1).drop(
-            "FID", axis=1, errors="ignore"
-        )
+            df_covar = df_covar[["IID", *covariates]]
+        df_covar_noid = df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore")
         X = jnp.asarray(
             pd.get_dummies(df_covar_noid, columns=catcovariates, dtype=float).to_numpy()
         )
@@ -160,29 +152,21 @@ def load_pheno_and_covars(
         X = None
 
     df_pheno = df_pheno[df_pheno["IID"].astype(str).isin(samples)]
-    df_pheno["IID"] = pd.Categorical(
-        df_pheno["IID"].astype(str), categories=samples, ordered=True
-    )
-    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)
+    df_pheno["IID"] = pd.Categorical(df_pheno["IID"].astype(str), categories=samples, ordered=True)
+    df_pheno = df_pheno.sort_values("IID").reset_index(drop=True)  # pyright: ignore[reportCallIssue]
     if phenotypes is not None:
-        df_pheno = df_pheno[["IID"] + phenotypes]
-    Y = jnp.asarray(
-        df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy()
-    )
-    phenotypes = (
-        df_pheno.drop("IID", axis=1)
-        .drop("FID", axis=1, errors="ignore")
-        .columns.to_list()
-    )
+        df_pheno = df_pheno[["IID", *phenotypes]]
+    Y = jnp.asarray(df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").to_numpy())
+    phenotypes = df_pheno.drop("IID", axis=1).drop("FID", axis=1, errors="ignore").columns.to_list()
     return Y, X, phenotypes, samples
 
 
 def load_lanc_data(
-    plink_prefix: Optional[list[str]],
-    plink_list: Optional[str],
-    lanc_file: Optional[list[str]],
-    lanc_list: Optional[str],
-    ancestries: Optional[list[str]],
+    plink_prefix: list[str] | None,
+    plink_list: str | None,
+    lanc_file: list[str] | None,
+    lanc_list: str | None,
+    ancestries: list[str] | None,
 ) -> tuple[list[LancData], list[str], list[str]]:
     from lanctools import LancData
 

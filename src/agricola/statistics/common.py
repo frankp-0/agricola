@@ -4,14 +4,16 @@
 
 """Shared numerical helpers for step-2 association statistics."""
 
-from jax import jit, vmap
 import jax.lax as lax
 import jax.numpy as jnp
+from jax import jit, vmap
 from jax.numpy.linalg import inv, qr, solve
-from jaxtyping import Array
 from jax.scipy.special import expit
+from jaxtyping import Array
 
 ### ─────────────────────────────────────────────────────────────
+
+DEFAULT_SCALE = jnp.array([1.0])
 
 
 def _naninf_to_0(X: Array) -> Array:
@@ -55,7 +57,7 @@ def qr_resid(X: Array, Q: Array) -> Array:
     return X - Q @ (Q.T @ X)
 
 
-def _project_and_mask_collinear(X: Array, QL: Array) -> tuple[Array, Array, Array]:
+def _project_and_mask_collinear(X: Array, QL: Array) -> tuple[Array, ...]:
     Xl = qr_resid(X, QL)
     Xl_norm = jnp.sum(Xl**2, axis=0)
     X_norm = jnp.sum(X**2, axis=0)
@@ -80,19 +82,17 @@ def _masked_solve(A: Array, mask: Array, x: Array) -> Array:
     return solve(A + jnp.diag((~mask).astype(A.dtype)), x)
 
 
-def prep_geno(G: Array, Q: Array) -> tuple[Array, Array]:
+def prep_geno(G: Array, Q: Array) -> tuple[Array, ...]:
     H = jnp.sum(G, axis=1)
     return qr_resid(G, Q), qr_resid(H, Q)
 
 
-def prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, Array, Array]:
+def prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, ...]:
     H = jnp.sum(G, axis=1)
     return (qr_resid(G, Q), qr_resid(L, Q), qr_resid(H, Q))
 
 
-def adj_by_lanc(
-    G: Array, H: Array, L: Array
-) -> tuple[Array, Array, Array, Array, Array, Array, Array]:
+def adj_by_lanc(G: Array, H: Array, L: Array) -> tuple[Array, ...]:
     QL, _ = qr(L, mode="reduced")
     G, Gl, G_mask = _project_and_mask_collinear(G, QL)
     H, Hl, H_mask = _project_and_mask_collinear(H, QL)
@@ -100,8 +100,8 @@ def adj_by_lanc(
 
 
 def het_score(
-    U: Array, covariance: Array, mask: Array, scale: Array = jnp.array([1.0])
-) -> tuple[Array, Array, Array, Array]:
+    U: Array, covariance: Array, mask: Array, scale: Array = DEFAULT_SCALE
+) -> tuple[Array, ...]:
     inv_cov = masked_inv(covariance, mask)
     diag = jnp.diagonal(covariance)
 
@@ -109,10 +109,10 @@ def het_score(
     chisq_anc = U**2 / diag[..., None] / scale
     chisq_het = jnp.einsum("kp,kl,lp->p", U, inv_cov, U) / scale
 
-    return beta_het, chisq_anc, chisq_het, jnp.sum(mask)
+    return beta_het, chisq_anc, chisq_het
 
 
-def hom_score(UH: Array, HtH: Array, scale: Array = jnp.array([1.0])):
+def hom_score(UH: Array, HtH: Array, scale: Array = DEFAULT_SCALE):
     beta_hom = UH / HtH
     chisq = UH**2 / HtH / scale
     return beta_hom, chisq

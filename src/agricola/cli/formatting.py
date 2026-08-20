@@ -6,10 +6,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
 
-
-def list_from_csv(arg: Optional[str]) -> Optional[list[str]]:
+def list_from_csv(arg: str | None) -> list[str] | None:
     return None if arg is None else [x.strip() for x in arg.split(",")]
 
 

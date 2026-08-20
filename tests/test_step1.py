@@ -3,12 +3,14 @@
 # See LICENSE.txt file for full license text
 
 from pathlib import Path
-import pytest
-import numpy as np
-import jax.numpy as jnp
+
 import jax
-from lanctools import LancData
+import jax.numpy as jnp
+import numpy as np
+import pytest
 from jax.scipy.special import expit
+from lanctools import LancData
+
 from agricola.pipeline.level0 import level0
 from agricola.pipeline.level1 import level1
 
@@ -50,7 +52,7 @@ def valid_inputs_1(P=3, C=1, H=4):
         }
         for i in range(3)
     ]
-    level0_files = dict(zip([str(i) for i in range(3)], level0_dicts))
+    level0_files = dict(zip([str(i) for i in range(3)], level0_dicts, strict=True))
     Y, X, phenotypes, train_mask, test_mask, h2_prior = valid_inputs_0(P, C, H)
     h2_prior = jnp.linspace(0.1, 0.9, H)
     return level0_files, Y, X, phenotypes, train_mask, test_mask, h2_prior
@@ -92,7 +94,7 @@ def test_level0_X_matches_N_error(
     """Check that N mis-match with X throws error"""
     Y, _, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
     wrong_X = jnp.zeros((5, 2))
-    with pytest.raises(ValueError, match="must match Y.shape"):
+    with pytest.raises(ValueError, match="must match Y\\.shape"):
         level0(toy_data, Y, wrong_X, phenotypes, train_mask, test_mask, h2)
 
 
@@ -201,11 +203,11 @@ def test_level1_X_dim_error():
 def test_level1_X_matches_N_error():
     """Check that N mis-match with X throws error"""
     level0_files, Y, _, phenos, train, test, h2 = valid_inputs_1()
-    with pytest.raises(ValueError, match="must match Y.shape"):
+    with pytest.raises(ValueError, match="must match Y\\.shape"):
         level1(level0_files, Y, jnp.zeros((5, 2)), phenos, train, test, h2, "qt")
 
     Y = jnp.round(expit(Y))
-    with pytest.raises(ValueError, match="must match Y.shape"):
+    with pytest.raises(ValueError, match="must match Y\\.shape"):
         level1(level0_files, Y, jnp.zeros((5, 2)), phenos, train, test, h2, "bt")
 
 
@@ -224,15 +226,11 @@ def test_level1_mask_shape_mismatch_error():
     """Check that train/test mask shape mis-match throws error"""
     level0_files, Y, X, phenos, _, _, h2 = valid_inputs_1()
     with pytest.raises(ValueError, match="same shape"):
-        level1(
-            level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "qt"
-        )
+        level1(level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="same shape"):
-        level1(
-            level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "bt"
-        )
+        level1(level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "bt")
 
 
 def test_level1_h2_prior_dim_error():
@@ -250,15 +248,11 @@ def test_level1_h2_prior_domain_error():
     """Check that h2_prior outside (0,1) throws error"""
     level0_files, Y, X, phenos, train, test, _ = valid_inputs_1()
     with pytest.raises(ValueError, match="in the open interval"):
-        level1(
-            level0_files, Y, X, phenos, train, test, jnp.array([0.5, 0.0, 0.7]), "qt"
-        )
+        level1(level0_files, Y, X, phenos, train, test, jnp.array([0.5, 0.0, 0.7]), "qt")
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="in the open interval"):
-        level1(
-            level0_files, Y, X, phenos, train, test, jnp.array([0.5, 0.0, 0.7]), "bt"
-        )
+        level1(level0_files, Y, X, phenos, train, test, jnp.array([0.5, 0.0, 0.7]), "bt")
 
 
 def test_level1_qt_validation():
@@ -291,7 +285,5 @@ def test_level1_bt_valid_input():
     for pheno in ["0", "1", "2"]:
         for chrom in ["20", "21", "22"]:
             actual = result[chrom][pheno]
-            expected = np.load("tests/data/level1/bt_loco_level1.npz")[
-                f"{chrom}_{pheno}"
-            ]
+            expected = np.load("tests/data/level1/bt_loco_level1.npz")[f"{chrom}_{pheno}"]
             np.testing.assert_allclose(actual, expected, atol=1e-6, rtol=1e-5)

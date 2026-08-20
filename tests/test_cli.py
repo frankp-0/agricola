@@ -2,12 +2,14 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-import pytest
-import pandas as pd
 from pathlib import Path
-from typer.testing import CliRunner
-from agricola.cli import app
+
 import jax
+import pandas as pd
+import pytest
+from typer.testing import CliRunner
+
+from agricola.cli import app
 
 runner = CliRunner()
 

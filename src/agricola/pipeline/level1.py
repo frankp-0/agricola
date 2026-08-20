@@ -10,21 +10,22 @@ using ridge or logistic ridge regression with cross-validation. The entry-point
 for this module is the `level1` function.
 """
 
+import logging
 import time
 from datetime import timedelta
-import logging
+
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike
 import numpy as np
+from jaxtyping import Array, ArrayLike
 from numpy.typing import NDArray
-from tqdm import tqdm
-from typing import Optional
 from pandas import DataFrame, Index
-from ..numerical.linear_algebra import stdize
-from ..types import TraitType
+from tqdm import tqdm
+
 from ..models.logistic import logistic_ridge, logistic_ridge_loo
 from ..models.ridge import ridge
+from ..numerical.linear_algebra import stdize
+from ..types import TraitType
 from ..validation.inputs import validate_level1_inputs
 
 logger = logging.getLogger(__name__)
@@ -80,9 +81,7 @@ def _ridge_cv_qt(
         col0 = col0 + n_block
 
     eta = (
-        jnp.einsum(
-            "nb,akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :]
-        )
+        jnp.einsum("nb,akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :])
         * test_mask[:, None, None, :]
     )
     eta = jnp.sum(eta, axis=3)
@@ -134,9 +133,7 @@ def _ridge_cv_bt(
         beta_mask[np.arange(col0, col0 + n_block), c] = 1
         col0 = col0 + n_block
     eta = (
-        jnp.einsum(
-            "nb, akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :]
-        )
+        jnp.einsum("nb, akbc->nack", Z, beta[:, :, :, None] * beta_mask[None, None, :, :])
         * test_mask[:, None, None, :]
     )
     eta = jnp.sum(eta, axis=3)
@@ -181,9 +178,7 @@ def _ridge_loocv_bt(
         n_block = n_blocks[c]
         beta_mask[np.arange(col0, col0 + n_block), c] = 1
         col0 = col0 + n_block
-    eta = jnp.sum(
-        Z[None, :, :, None] * beta[:, :, :, None] * beta_mask[None, None, :, :], axis=2
-    )
+    eta = jnp.sum(Z[None, :, :, None] * beta[:, :, :, None] * beta_mask[None, None, :, :], axis=2)
     eta = jnp.moveaxis(eta, (0, 1, 2), (1, 0, 2))
 
     eta_all = np.sum(eta, axis=2)
@@ -203,7 +198,7 @@ def _ridge_loocv_bt(
 def level1(
     level0_files: dict[str, dict[str, str]],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
@@ -214,8 +209,9 @@ def level1(
     """Perform level 1 ridge regressions
 
     Args:
-        level0_files: A two-level dict. The outer keys are phenotypes, the inner keys are chromosomes,
-            and the values are paths to .npy files containing (N, n_blocks) level 0 predictions.
+        level0_files: A two-level dict. The outer keys are phenotypes, the inner
+            keys are chromosomes, and the values are paths to .npy files containing
+            (N, n_blocks) level 0 predictions.
         Y: A (N, P) ArrayLike of phenotypes
         X: An optional (N, C) ArrayLike of covariates (no intercept)
         phenotypes: A list of phenotype names, ordered as the columns of Y
@@ -227,7 +223,8 @@ def level1(
             cross validation. Ignored for trait_type="qt".
 
     Returns:
-        A dict where keys are chromosomes and values are (N, P) pandas DataFrames of level 1 predictions
+        A dict where keys are chromosomes and values are (N, P) pandas DataFrames
+            of level 1 predictions
     """
     ## Validate inputs
     Y, X, train_mask, test_mask, h2_prior, trait = validate_level1_inputs(
@@ -261,14 +258,10 @@ def level1(
                         Z, Y[:, p], train_mask, test_mask, offset, h2_prior, n_blocks
                     )
                 else:
-                    loco_p, all_p = _ridge_loocv_bt(
-                        Z, Y[:, p], offset, h2_prior, n_blocks
-                    )
+                    loco_p, all_p = _ridge_loocv_bt(Z, Y[:, p], offset, h2_prior, n_blocks)
 
             else:
-                loco_p, all_p = _ridge_cv_qt(
-                    Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks
-                )
+                loco_p, all_p = _ridge_cv_qt(Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks)
 
             loco_arr[:, p, :] = loco_p
             all_arr[:, p] = all_p

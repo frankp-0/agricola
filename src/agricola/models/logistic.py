@@ -51,9 +51,7 @@ def logistic_ridge(
 
     def body_fun(state):
         i, beta = state
-        return i + 1, _logistic_ridge_step(
-            beta, X, y, offset, train_mask, alpha
-        )
+        return i + 1, _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
 
     _, beta = lax.while_loop(cond_fun, body_fun, (0, beta0))
     return beta
@@ -68,21 +66,18 @@ def logistic_ridge_loo(
     tol: float = 1e-6,
 ) -> Array:
     """Fit logistic ridge regression and return leave-one-out coefficients."""
-    beta = logistic_ridge(
-        X, y, offset, jnp.ones(X.shape[0]), alpha, max_iter, tol
-    )
+    beta = logistic_ridge(X, y, offset, jnp.ones(X.shape[0]), alpha, max_iter, tol)
     eta = X @ beta + offset
     mu = expit(eta)
     weights = mu * (1 - mu)
     weighted_x = X * weights[:, None]
-    h_inv = jax.scipy.linalg.inv(
-        X.T @ weighted_x + alpha * jnp.eye(X.shape[1])
-    )
+    h_inv = jax.scipy.linalg.inv(X.T @ weighted_x + alpha * jnp.eye(X.shape[1]))
 
     def quad_form_h_inv(x):
         return (x @ h_inv) @ x.T
 
     gamma = weights * jax.vmap(quad_form_h_inv, in_axes=0)(X)
     return beta[:, None] - ((h_inv @ X.T) * (y - mu) / (1 - gamma))
+
 
 __all__ = ["logistic_ridge", "logistic_ridge_loo"]

@@ -10,7 +10,6 @@ import logging
 import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
-from typing import Optional
 
 from rich.console import Console
 from rich.text import Text
@@ -49,7 +48,7 @@ def print_welcome() -> None:
     )
 
 
-def setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
+def setup_logging(log_file: str | None, verbose: bool = False) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
     log_format = (
@@ -70,7 +69,7 @@ def setup_logging(log_file: Optional[str], verbose: bool = False) -> None:
         root_logger.addHandler(file_handler)
 
 
-def report_devices(backend: Optional[str] = None):
+def report_devices(backend: str | None = None):
     if backend is not None:
         os.environ.setdefault("JAX_PLATFORMS", backend)
     import jax

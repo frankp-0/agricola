@@ -2,14 +2,15 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-import pytest
-import numpy as np
-import jax.numpy as jnp
 import jax
-from jax.scipy.special import expit
+import jax.numpy as jnp
+import numpy as np
 import pandas as pd
-from agricola import step2
+import pytest
+from jax.scipy.special import expit
 from lanctools import LancData
+
+from agricola import step2
 
 
 @pytest.fixture
@@ -111,10 +112,10 @@ def test_step2_X_dim_error(tmp_path, toy_data):
 
 def test_step2_X_matches_N_error(tmp_path, toy_data):
     """Check that N mis-match with X throws error"""
-    Y, X, step1_predictions = valid_inputs()
+    Y, _, step1_predictions = valid_inputs()
     phenotypes = [str(i) for i in range(3)]
     outdir = tmp_path / "result"
-    with pytest.raises(ValueError, match="must match Y.shape"):
+    with pytest.raises(ValueError, match="must match Y\\.shape"):
         step2(
             toy_data,
             Y,
@@ -126,7 +127,7 @@ def test_step2_X_matches_N_error(tmp_path, toy_data):
         )  # pyright: ignore
 
     Y = jnp.round(expit(Y))
-    with pytest.raises(ValueError, match="must match Y.shape"):
+    with pytest.raises(ValueError, match="must match Y\\.shape"):
         step2(
             toy_data,
             Y,

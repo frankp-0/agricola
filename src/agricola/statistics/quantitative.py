@@ -4,8 +4,8 @@
 
 """Quantitative-trait step-2 association statistic kernels."""
 
-from jax import jit, vmap
 import jax.numpy as jnp
+from jax import jit, vmap
 from jaxtyping import Array
 
 from .common import (
@@ -21,13 +21,10 @@ from .common import (
     qr_resid,
 )
 
-
 ### ─────────────────────────────────────────────────────────────
 
 
-def _qt_score_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, ...]:
+def _qt_score_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     ## Get H and residualize all by covariates
@@ -43,14 +40,12 @@ def _qt_score_lanc(
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ r_L
     GltGl = Gl.T @ Gl
-    beta_het, chisq_anc, chisq_het, df_het = het_score(U, GltGl, G_mask, mse_null)
+    beta_het, chisq_anc, chisq_het = het_score(U, GltGl, G_mask, mse_null)
 
     ## Score test for genotypes (homogeneous test)
     beta_hom, chisq_hom = hom_score(H.T @ r_L, jnp.sum(Hl**2), mse_null)
 
-    return mask_score(
-        beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask
-    )
+    return mask_score(beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask)
 
 
 def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
@@ -70,21 +65,17 @@ def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array,
     ## Score test for anc-deconvoluted genotypes (heterogeneous test)
     U = G.T @ Y
     GtG = G.T @ G
-    beta_het, chisq_anc, chisq_het, df_het = het_score(U, GtG, G_mask, mse_null)
+    beta_het, chisq_anc, chisq_het = het_score(U, GtG, G_mask, mse_null)
 
     ## Score test for genotypes (homogeneous test)
     UH = H.T @ Y
     HtH = jnp.sum(H**2)
     beta_hom, chisq_hom = hom_score(UH, HtH, mse_null)
 
-    return mask_score(
-        beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask
-    )
+    return mask_score(beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask)
 
 
-def _qt_wald_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, N_eff: Array
-) -> tuple[Array, ...]:
+def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     K = G.shape[1]
@@ -188,9 +179,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
 ### Block-wise functions
 ### ─────────────────────────────────────────────────────────────
 
-qt_score_lanc = make_blockwise(
-    _qt_score_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0)
-)
+qt_score_lanc = make_blockwise(_qt_score_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0))
 
 qt_score_lanc_impute = jit(
     vmap(_qt_score_lanc, in_axes=(1, 1, None, None, None)),

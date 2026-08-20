@@ -37,6 +37,7 @@ dev = [
   "mkdocstrings-python>=2.0.1",
   "pytest>=9.0.2",
   "pytest-cov>=7.0.0",
+  "ruff>=0.16.3",
   "zensical>=0.0.16",
 ]
 
@@ -44,6 +45,31 @@ dev = [
 where = ["src"]
 
 [tool.uv.sources]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes (unused imports/variables, etc.)
+  "I",   # isort (import sorting)
+  "B",   # flake8-bugbear (common design bugs)
+  "UP",  # pyupgrade (upgrades syntax to modern Python)
+  "RUF", # Ruff-specific rules
+]
+
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"src/agricola/cli/commands.py" = ["B008"]
+"src/agricola/cli/runtime.py" = ["W291", "W293"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [project.scripts]
 agricola = "agricola.cli:main_entry"

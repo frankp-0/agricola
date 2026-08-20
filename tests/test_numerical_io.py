@@ -2,14 +2,15 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
-import pytest
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
+from lanctools import LancData
+
 from agricola.io.genotypes import get_geno_lanc_deconv
 from agricola.numerical.linear_algebra import assert_covar_full_rank, stdize
 from agricola.pipeline.cross_validation import get_cv_mask
-from lanctools import LancData
-import numpy as np
 
 
 def test_stdize_basic():
@@ -67,9 +68,7 @@ def test_assert_covar_full_rank_rank_deficient():
 
 
 def test_get_lanc_geno_deconv_shape():
-    dataset = LancData(
-        plink_prefix="tests/data/chr20", lanc_file="tests/data/chr20.lanc"
-    )
+    dataset = LancData(plink_prefix="tests/data/chr20", lanc_file="tests/data/chr20.lanc")
     indices = np.asarray([0, 4, 30], dtype=np.uint32)
 
     G, L = get_geno_lanc_deconv(dataset, indices)

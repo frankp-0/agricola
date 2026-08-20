@@ -5,13 +5,13 @@
 """Input validation for steps 1 and 2."""
 
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike
 import numpy as np
-from typing import Optional
-from lanctools import LancData
 import pandas as pd
+from jaxtyping import Array, ArrayLike
+from lanctools import LancData
+
 from ..numerical.linear_algebra import assert_covar_full_rank, stdize
-from ..types import TraitType, TestType
+from ..types import TestType, TraitType
 
 
 def _validate_datasets(datasets: list[LancData]) -> None:
@@ -30,7 +30,7 @@ def _prepare_y(Y: ArrayLike) -> tuple[Array, int]:
     return jnp.where(jnp.isnan(Y), Y_means, Y), Y.shape[0]
 
 
-def _prepare_x(X: Optional[ArrayLike], N: int) -> Array:
+def _prepare_x(X: ArrayLike | None, N: int) -> Array:
     if X is None:
         X = jnp.ones((N, 1), dtype=float)
     else:
@@ -38,9 +38,7 @@ def _prepare_x(X: Optional[ArrayLike], N: int) -> Array:
         if X.ndim != 2:
             raise ValueError(f"X must be 2D (N, C), got shape {X.shape}")
         if X.shape[0] != N:
-            raise ValueError(
-                f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}"
-            )
+            raise ValueError(f"X.shape[0] must match Y.shape[0], got {X.shape[0]} vs {N}")
         X = jnp.concatenate([jnp.ones((N, 1), dtype=float), X], axis=1)
     X = stdize(X)
     assert_covar_full_rank(X)
@@ -53,14 +51,8 @@ def _prepare_masks(train_mask: ArrayLike, test_mask: ArrayLike, N: int):
     if test_mask is not None:
         test_mask = jnp.asarray(test_mask)
     if not (train_mask is None or test_mask is None):
-        if (
-            train_mask.ndim != 2
-            or test_mask.ndim != 2
-            or train_mask.shape != test_mask.shape
-        ):
-            raise ValueError(
-                "train_mask and test_mask must be 2D (N, K) with the same shape"
-            )
+        if train_mask.ndim != 2 or test_mask.ndim != 2 or train_mask.shape != test_mask.shape:
+            raise ValueError("train_mask and test_mask must be 2D (N, K) with the same shape")
         if train_mask.shape[0] != N or test_mask.shape[0] != N:
             raise ValueError("train_mask/test_mask must match N of Y")
     return train_mask, test_mask
@@ -80,17 +72,14 @@ def _validate_b(B: int) -> None:
         raise ValueError(f"B must be a positive integer, got {B}")
 
 
-def _validate_variants(variants: Optional[list[str]]) -> None:
+def _validate_variants(variants: list[str] | None) -> None:
     if variants is not None and (
-        not isinstance(variants, (list, tuple))
-        or not all(isinstance(v, str) for v in variants)
+        not isinstance(variants, (list, tuple)) or not all(isinstance(v, str) for v in variants)
     ):
         raise TypeError("variants must be a list of strings")
 
 
-def _prepare_idx_sample(
-    idx_sample: Optional[ArrayLike], N_pgen: int
-) -> Optional[Array]:
+def _prepare_idx_sample(idx_sample: ArrayLike | None, N_pgen: int) -> Array | None:
     if idx_sample is None:
         return None
     idx_sample = jnp.asarray(idx_sample)
@@ -106,14 +95,14 @@ def _prepare_idx_sample(
 def validate_level0_inputs(
     datasets: list[LancData],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     train_mask: ArrayLike,
     test_mask: ArrayLike,
     h2_prior: ArrayLike,
     B: int = 2000,
-    idx_sample: Optional[ArrayLike] = None,
-    variants: Optional[list[str]] = None,
-) -> tuple[Array, Array, Array, Array, Array, Optional[Array]]:
+    idx_sample: ArrayLike | None = None,
+    variants: list[str] | None = None,
+) -> tuple[Array, Array, Array, Array, Array, Array | None]:
     """Validate input data for level0"""
     ## genotype/lanc data
     _validate_datasets(datasets)
@@ -145,7 +134,7 @@ def validate_level0_inputs(
 
 def validate_level1_inputs(
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     phenotypes: list[str],
     train_mask: ArrayLike,
     test_mask: ArrayLike,
@@ -157,9 +146,7 @@ def validate_level1_inputs(
     Y, N = _prepare_y(Y)
 
     if len(phenotypes) != Y.shape[1]:
-        raise ValueError(
-            f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns"
-        )
+        raise ValueError(f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns")
 
     ## X
     X = _prepare_x(X, N)
@@ -175,27 +162,22 @@ def validate_level1_inputs(
 def validate_step2_inputs(
     datasets: list[LancData],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
+    X: ArrayLike | None,
     phenotypes: list[str],
-    step1_predictions: Optional[dict[str, pd.DataFrame]],
+    step1_predictions: dict[str, pd.DataFrame] | None,
     B: int,
-    idx_sample: Optional[ArrayLike],
-    variants: Optional[list[str]],
+    idx_sample: ArrayLike | None,
+    variants: list[str] | None,
     test_type: str,
     trait_type: str,
-) -> tuple[
-    Array, Array, Optional[dict[str, np.ndarray]], Optional[Array], TestType, TraitType
-]:
+) -> tuple[Array, Array, dict[str, np.ndarray] | None, Array | None, TestType, TraitType]:
     """Validate input data for step1"""
 
     ## Y
     Y, N = _prepare_y(Y)
-    P = Y.shape[1]
 
     if len(phenotypes) != Y.shape[1]:
-        raise ValueError(
-            f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns"
-        )
+        raise ValueError(f"phenotype has length {len(phenotypes)}, but Y has {Y.shape[1]} columns")
 
     X = _prepare_x(X, N)
 
@@ -224,20 +206,18 @@ def validate_step2_inputs(
             else:
                 if n_chrom != N_pred:
                     raise ValueError(
-                        f"All step1_predictions arrays must have same N; got {N_pred} vs {n_chrom} in step1_predictions[{chrom}]"
+                        f"All step1_predictions arrays must have same N; got {N_pred} "
+                        f"vs {n_chrom} in step1_predictions[{chrom}]"
                     )
                 if p_chrom != P_pred:
                     raise ValueError(
-                        f"All step1_predictions arrays must have same P; got {P_pred} vs {p_chrom} in step1_predictions[{chrom}]"
+                        f"All step1_predictions arrays must have same P; got {P_pred} "
+                        f"vs {p_chrom} in step1_predictions[{chrom}]"
                     )
-            step1_predictions_np[chrom] = step1_predictions[chrom][
-                phenotypes
-            ].to_numpy()
+            step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
 
         if N_pred != N:
-            raise ValueError(
-                f"step1_predictions arrays have N={N_pred} but Y has N={N}"
-            )
+            raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")
 
     ## B
     _validate_b(B)

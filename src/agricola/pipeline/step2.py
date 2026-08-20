@@ -8,30 +8,29 @@ This module uses whole-genome predictions from steps 0/1 to adjust traits and
 perform single variant association tests. The entry-point is the `step2` function.
 """
 
+import logging
+import shutil
 import time
 from datetime import timedelta
 from pathlib import Path
-import shutil
+
 import jax.numpy as jnp
-from jax import jit
-from jaxtyping import Array, ArrayLike
 import numpy as np
-from scipy.stats import chi2
-import pyarrow as pa
 import pandas as pd
-from tqdm import tqdm
-from typing import Optional
-from jax.scipy.special import expit
-from jax.scipy.linalg import qr
+import pyarrow as pa
+from jax import jit, vmap
 from jax.numpy.linalg import pinv
-from jax import vmap
+from jax.scipy.linalg import qr
+from jax.scipy.special import expit
+from jaxtyping import Array, ArrayLike
 from lanctools import LancData
-import logging
-from ..numerical.linear_algebra import stdize
+from scipy.stats import chi2
+from tqdm import tqdm
+
 from ..io.genotypes import get_geno_lanc_deconv
-from ..io.variants import group_variant_indices_by_chromosome, get_variant_indices
-from ..types import TestType, TraitType
-from .writer import ParquetRotatingWriter
+from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
+from ..models.logistic import logistic_ridge
+from ..numerical.linear_algebra import stdize
 from ..statistics.binary import (
     bt_score_lanc,
     bt_score_nolanc,
@@ -48,9 +47,9 @@ from ..statistics.quantitative import (
     qt_wald_nolanc,
     qt_wald_nolanc_impute,
 )
+from ..types import TestType, TraitType
 from ..validation.inputs import validate_step2_inputs
-from ..models.logistic import logistic_ridge
-
+from .writer import ParquetRotatingWriter
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +107,7 @@ def _step2_block(
     trait_type: TraitType,
     test_type: TestType,
     block: np.ndarray,
-    idx_sample: Optional[Array],
+    idx_sample: Array | None,
     min_ac: int,
     extra_args: dict,
     adjust_lanc: bool,
@@ -161,9 +160,9 @@ def _step2_block(
         test_func = _QT_FUNCTIONS[(test_type, adjust_lanc, impute)]
     else:
         if adjust_lanc:
-            test_args = (G, L, Y, Q, extra_args["O"], M, N_eff)
+            test_args = (G, L, Y, Q, extra_args["offset"], M)
         else:
-            test_args = (G, Y, Q, extra_args["O"], M, N_eff)
+            test_args = (G, Y, Q, extra_args["offset"], M)
         test_func = _BT_FUNCTIONS[(test_type, adjust_lanc)]
 
     log10p_lrt: np.ndarray | None = None
@@ -184,9 +183,7 @@ def _step2_block(
             df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
-        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc = test_func(
-            *test_args
-        )
+        chisq_hom, beta_hom, chisq_het, beta_het, df_het, chisq_anc = test_func(*test_args)
 
     chisq_hom = jnp.reshape(chisq_hom, (B, P))
     beta_hom = jnp.reshape(beta_hom, (B, P))
@@ -266,16 +263,16 @@ def _step2_dataset(
     writer: ParquetRotatingWriter,
     Y: Array,
     M: Array,
-    step1_predictions: Optional[dict[str, np.ndarray]],
+    step1_predictions: dict[str, np.ndarray] | None,
     X: Array,
-    idx_sample: Optional[Array],
+    idx_sample: Array | None,
     phenotypes: list[str],
     trait_type: TraitType,
     test_type: TestType,
-    chrom: Optional[str],
+    chrom: str | None,
     B: int = 500,
     min_ac: int = 1,
-    variants: Optional[list[str]] = None,
+    variants: list[str] | None = None,
     adjust_lanc: bool = True,
     impute: bool = False,
 ) -> None:
@@ -335,21 +332,17 @@ def _step2_dataset(
                 beta_offset = vmap(logistic_ridge, in_axes=(None, 1, 1, 1, None))(
                     X, Y, jnp.asarray(step1_pred_chr), M, 0
                 )
-                O = X @ beta_offset.T + step1_pred_chr
-                mu = expit(O)
+                offset = X @ beta_offset.T + step1_pred_chr
+                mu = expit(offset)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
-                extra_args["O"] = O
+                extra_args["offset"] = offset
 
             Yc = Yc * M
             ## Adjust covariates for per-phenotype missingness
-            Xm = X[:, :, None] - jnp.sum(
-                X[:, :, None] * M[:, None, :], axis=0
-            ) / jnp.sum(M, axis=0)
+            Xm = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(M, axis=0)
             Xm = Xm * M[:, None, :]
-            Q, R, _ = qr(
-                Xm.transpose(2, 0, 1), mode="economic", pivoting=True
-            )  # QR decomp
+            Q, R, _ = qr(Xm.transpose(2, 0, 1), mode="economic", pivoting=True)  # QR decomp
             R_proj = jnp.einsum(
                 "pcd,ped->pce", R, pinv(R)
             )  # RR^+, generalized if less than full rank
@@ -380,22 +373,22 @@ def _step2_dataset(
 def step2(
     datasets: list[LancData],
     Y: ArrayLike,
-    X: Optional[ArrayLike],
-    step1_predictions: Optional[dict[str, pd.DataFrame]],
+    X: ArrayLike | None,
+    step1_predictions: dict[str, pd.DataFrame] | None,
     outdir: str | Path,
     phenotypes: list[str],
     trait_type: str = "qt",
     test_type: str = "score",
-    chrom: Optional[str] = None,
+    chrom: str | None = None,
     B: int = 1000,
     min_ac: int = 1,
-    idx_sample: Optional[ArrayLike] = None,
-    variants: Optional[list[str]] = None,
+    idx_sample: ArrayLike | None = None,
+    variants: list[str] | None = None,
     adjust_lanc: bool = True,
     impute: bool = False,
     overwrite: bool = True,
     partition_phenotype: bool = True,
-    max_rows: Optional[int] = None,
+    max_rows: int | None = None,
 ) -> None:
     """Perform agricola step 2
 
@@ -404,7 +397,8 @@ def step2(
             per-chromosome)
         Y: A (N, P) jax array of outcomes
         X: A (N, C) jax array of covariates
-        step1_predictions: An optional dict with LOCO linear predictions from step 1. The values are (N, P) NumPy arrays
+        step1_predictions: An optional dict with LOCO linear predictions from step 1.
+            The values are (N, P) NumPy arrays
         outdir: Outputs will be written to {output_prefix}_{phenotype}.parquet
         phenotypes: A list of phenotype names
         trait_type: either "qt" or "bt"
@@ -432,9 +426,7 @@ def step2(
     else:
         max_rows_total = 5000000
 
-    with ParquetRotatingWriter(
-        outdir_path, partition_phenotype, max_rows_total
-    ) as writer:
+    with ParquetRotatingWriter(outdir_path, partition_phenotype, max_rows_total) as writer:
         if impute:
             M = jnp.ones(shape=jnp.asarray(Y).shape)
         else:
