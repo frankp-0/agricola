@@ -5,7 +5,7 @@
 ### Genotype
 
 **agricola** accepts genotype files in plink2 .pgen format (with corresponding
-.pvar and .psam). Please see the [plink2 documentation][plink2_docs] for futher
+.pvar and .psam). Please see the [plink2 documentation](https://www.cog-genomics.org/plink/2.0/) for futher
 details. **agricola** accepts either 1) a single pgen file with multiple
 chromosomes, or 2) a set of plink2 files, each corresponding to a separate
 chromosome.
@@ -30,12 +30,12 @@ chromosome.
 
 **agricola** accepts only .lanc files, as defined by admix-kit, for local ancestry.
 This format was chosen for its flexibility, low memory overhead, and simplicity.
-Please see the admix-kit documentation for further details.
+Please see the [admix-kit documentation](https://kangchenghou.github.io/admix-kit/) for further details.
 
 To make working with this format easier, we introduce the **lanctools**
 Python package and CLI tool. **lanctools** can convert RFMix msp.tsv
 files or FLARE vcf.gz files into .lanc format. We provide an example below.
-Please see the [lanctools documentation][flare_docs] for further details.
+Please see the [lanctools documentation](https://frankp-0.github.io/lanctools/) for further details.
 
 ```bash
 # convert FLARE to .lanc format
