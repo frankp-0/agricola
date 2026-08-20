@@ -186,8 +186,8 @@ def step1(
     logger.info("Datasets loaded")
 
     ## Get train/test split
-    key = jax.random.PRNGKey(seed)
-    train_mask, test_mask = get_cv_mask(len(Y), 5, key)
+    key_cv, key_step1 = jax.random.split(jax.random.key(seed))
+    train_mask, test_mask = get_cv_mask(len(Y), 5, key_cv)
 
     ## Run step 1
     step1_predictions = step1(
@@ -205,6 +205,7 @@ def step1(
         variants,
         level0_dir,
         prune_blocks,
+        key_step1,
     )
 
     for _, i in enumerate(step1_predictions):
@@ -582,8 +583,8 @@ def all_steps(
     idx_sample = np.where(np.isin(samples_psam, samples))[0].astype(np.uint32)
 
     ## Get train/test split
-    key = jax.random.PRNGKey(seed)
-    train_mask, test_mask = get_cv_mask(len(Y), 5, key)
+    key_cv, key_step1 = jax.random.split(jax.random.key(seed))
+    train_mask, test_mask = get_cv_mask(len(Y), 5, key_cv)
 
     ## Run step 1
     step1_predictions = step1(
@@ -601,6 +602,7 @@ def all_steps(
         variants1,
         level0_dir,
         prune_blocks,
+        key_step1,
     )
 
     step2(

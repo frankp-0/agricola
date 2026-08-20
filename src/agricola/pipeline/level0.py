@@ -21,7 +21,6 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, ArrayLike
 from lanctools import LancData
-from numpy.random import choice
 from numpy.typing import NDArray
 from tqdm import tqdm
 
@@ -110,6 +109,7 @@ def level0(
     variants: list[str] | None = None,
     level0_dir: str | None = None,
     prune_blocks: bool | None = True,
+    key: ArrayLike | None = None,
 ) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
@@ -129,6 +129,7 @@ def level0(
         level0_dir: The directory where level 0 predictions are written
         prune_blocks: Whether to sample variants in a dataset so that n_variants
             (mod B) = 0. This will improve speed with JIT compilations
+        key: Optional JAX PRNG key used for variant subsampling
     Returns:
         level0_files: A two-level dict. The outer keys are phenotypes, the inner
             keys are chromosomes, and the values are paths to .npy files containing
@@ -156,6 +157,11 @@ def level0(
 
     M = 0
     idx_variant_ds = {}
+    keys = (
+        jax.random.split(jax.random.key(0), len(datasets))
+        if key is None
+        else jax.random.split(jnp.asarray(key), len(datasets))
+    )
     for i, ds in enumerate(datasets):
         idx_variant = get_variant_indices(ds, variants)
         if prune_blocks:
@@ -163,7 +169,9 @@ def level0(
             M_ds = M_ds - (M_ds % B)
             if not M_ds:
                 M_ds = len(idx_variant)
-            idx_variant = choice(idx_variant, M_ds, replace=False)
+            idx_variant = np.asarray(
+                jax.random.choice(keys[i], idx_variant, shape=(M_ds,), replace=False)
+            )
 
         idx_variant = np.sort(idx_variant)
         idx_variant_ds[i] = idx_variant

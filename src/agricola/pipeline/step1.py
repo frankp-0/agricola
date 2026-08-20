@@ -35,6 +35,7 @@ def step1(
     variants: list[str] | None = None,
     level0_dir: str | None = None,
     prune_blocks: bool = True,
+    key: ArrayLike | None = None,
 ) -> dict[str, DataFrame]:
     """Perform agricola step 1
 
@@ -57,6 +58,7 @@ def step1(
         level0_dir: The directory where level 0 predictions are written
         prune_blocks: Whether to sample variants in a dataset in level 0 so that
             n_variants (mod B) = 0. This will improve speed with JIT compilations
+        key: Optional JAX PRNG key used for level 0 variant subsampling
 
     Returns:
         A dict where keys are chromosomes and values are (N, P) pandas DataFrames
@@ -82,6 +84,7 @@ def step1(
             variants,
             str(level0_path),
             prune_blocks,
+            key,
         )
 
         return level1(
