@@ -7,18 +7,18 @@ readme = "README.md"
 authors = [{ name = "Franklin Ockerman", email = "frank.ockerman@gmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
-    "jax>=0.11.1",
-    "jaxlib>=0.11.1",
-    "jaxtyping>=0.3.11",
-    "lanctools>=1.0.1",
-    "numba>=0.67.0",
-    "numpy>=2.5.2",
-    "pandas>=3.0.5",
-    "pgenlib>=0.94.1",
-    "pyarrow>=25.0.1",
-    "rich>=15.0.0",
-    "tqdm>=4.70.0",
-    "typer>=0.27.1",
+  "jax>=0.11.1",
+  "jaxlib>=0.11.1",
+  "jaxtyping>=0.3.11",
+  "lanctools>=1.0.1",
+  "numba>=0.67.0",
+  "numpy>=2.5.2",
+  "pandas>=3.0.5",
+  "pgenlib>=0.94.1",
+  "pyarrow>=25.0.1",
+  "rich>=15.0.0",
+  "tqdm>=4.70.0",
+  "typer>=0.27.1",
 ]
 
 [project.urls]
@@ -33,12 +33,12 @@ build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
-    "ipython>=9.16.1",
-    "mkdocstrings-python>=2.0.7",
-    "pytest>=9.1.1",
-    "pytest-cov>=7.1.0",
-    "ruff>=0.16.4",
-    "zensical>=0.0.57",
+  "ipython>=9.16.1",
+  "mkdocstrings-python>=2.0.7",
+  "pytest>=9.1.1",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.16.4",
+  "zensical>=0.0.57",
 ]
 
 [tool.setuptools.packages.find]
@@ -75,12 +75,8 @@ indent-style = "space"
 agricola = "agricola.cli:main_entry"
 
 [project.optional-dependencies]
-cuda = [
-    "jax[cuda]>=0.11.1",
-]
-tpu = [
-    "jax[tpu]>=0.11.1",
-]
+cuda = ["jax[cuda]>=0.11.1"]
+tpu = ["jax[tpu]>=0.11.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
