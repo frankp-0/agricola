@@ -2,13 +2,20 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
-## [Unreleased]
+## [v0.20.0] - 2026-08-25
+
+[v0.20.0]: https://github.com/frankp-0/agricola/compare/v0.19.0...v0.20.0>
 
 ### Changed
 
 - Reorganized the package into `pipeline`, `io`, `models`, `statistics`, `numerical`, and `validation` modules.
 - Split CLI data loading, formatting, and runtime setup into dedicated helpers
 - Centralized shared quantitative and binary association-statistic kernels
+
+### Added
+
+- Cauchy Combination Test
+- Report convergence for logistic regression
 
 ## [v0.19.0] - 2026-07-31
 
