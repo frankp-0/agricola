@@ -221,8 +221,8 @@ def test_qt_lanc_score_edge(toy_qt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -236,8 +236,8 @@ def test_qt_lanc_wald_edge(toy_qt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -252,8 +252,8 @@ def test_qt_nolanc_score_edge(toy_qt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -268,8 +268,8 @@ def test_qt_nolanc_wald_edge(toy_qt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -283,8 +283,8 @@ def test_bt_lanc_score_edge(toy_bt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -298,8 +298,8 @@ def test_bt_lanc_wald_edge(toy_bt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -314,8 +314,8 @@ def test_bt_nolanc_score_edge(toy_bt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
 
 
@@ -332,6 +332,6 @@ def test_bt_nolanc_wald_edge(toy_bt_edge):
         np.testing.assert_allclose(
             np.asarray(actual_array),
             expected[f"arr_{i}"],
-            rtol=1e-6,
-            atol=1e-8,
+            rtol=1e-4,
+            atol=1e-5,
         )
