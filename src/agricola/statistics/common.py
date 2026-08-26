@@ -63,24 +63,42 @@ def logistic_with_convergence(
     tol: float = 1e-6,
 ) -> tuple[Array, Array]:
     beta0 = jnp.zeros(X.shape[1])
+    total_weight = jnp.sum(train_mask)
 
-    def body_fun(state):
-        i, beta, _ = state
+    def gradient(beta):
         eta = X @ beta + offset
         mu = expit(eta)
-        r = (y - mu) * train_mask
+        return X.T @ ((y - mu) * train_mask)
+
+    gradient0 = gradient(beta0)
+
+    def body_fun(state):
+        i, beta, current_gradient, _ = state
+        eta = X @ beta + offset
+        mu = expit(eta)
         w = mu * (1 - mu) * train_mask
         XW = X * w[:, None]
-        delta = _masked_solve(X.T @ XW, X_mask, X.T @ r)
+        delta = _masked_solve(X.T @ XW, X_mask, current_gradient)
         beta_new = _naninf_to_0(beta + delta)
-        converged = jnp.max(jnp.abs(beta_new - beta)) <= tol
-        return i + 1, beta_new, converged
+        gradient_new = gradient(beta_new)
+        max_gradient = jnp.max(jnp.abs(gradient_new)) / jnp.maximum(total_weight, 1)
+        converged = (
+            (total_weight > 0)
+            & jnp.all(jnp.isfinite(beta_new))
+            & jnp.all(jnp.isfinite(gradient_new))
+            & (max_gradient <= tol)
+        )
+        return i + 1, beta_new, gradient_new, converged
 
     def cond_fun(state):
-        i, _, converged = state
+        i, _, _, converged = state
         return (i < max_iter) & ~converged
 
-    _, beta, converged = lax.while_loop(cond_fun, body_fun, (0, beta0, jnp.array(False)))
+    _, beta, _, converged = lax.while_loop(
+        cond_fun,
+        body_fun,
+        (0, beta0, gradient0, jnp.array(False)),
+    )
     return beta, converged
 
 

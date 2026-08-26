@@ -12,7 +12,7 @@ from jax.scipy.special import expit
 from jaxtyping import Array
 
 
-def _logistic_ridge_step(
+def _logistic_ridge_gradient(
     beta: Array,
     X: Array,
     y: Array,
@@ -23,11 +23,24 @@ def _logistic_ridge_step(
     eta = X @ beta + offset
     mu = expit(eta)
     residual = (y - mu) * train_mask
+    return X.T @ residual - alpha * beta
+
+
+def _logistic_ridge_step(
+    beta: Array,
+    X: Array,
+    offset: Array,
+    train_mask: Array,
+    alpha: float | Array,
+    gradient: Array,
+) -> Array:
+    eta = X @ beta + offset
+    mu = expit(eta)
     weights = mu * (1 - mu) * train_mask
     weighted_x = X * weights[:, None]
     delta = cho_solve(
         cho_factor(X.T @ weighted_x + alpha * jnp.eye(X.shape[1])),
-        X.T @ residual,
+        gradient,
     )
     return beta + delta
 
@@ -38,7 +51,7 @@ def logistic_ridge(
     offset: Array,
     train_mask: Array,
     alpha: float | Array,
-    max_iter: int = 50,
+    max_iter: int = 20,
     tol: float = 1e-6,
 ) -> Array:
     """Fit logistic ridge regression with an offset and training mask."""
@@ -52,23 +65,39 @@ def logistic_ridge_with_convergence(
     offset: Array,
     train_mask: Array,
     alpha: float | Array,
-    max_iter: int = 50,
+    max_iter: int = 20,
     tol: float = 1e-6,
 ) -> tuple[Array, Array]:
     """Fit logistic ridge regression and return whether it converged."""
     beta0 = jnp.zeros(X.shape[1])
+    gradient0 = _logistic_ridge_gradient(beta0, X, y, offset, train_mask, alpha)
+    total_weight = jnp.sum(train_mask)
 
     def cond_fun(state):
-        i, _, converged = state
+        i, _, _, converged = state
         return (i < max_iter) & ~converged
 
     def body_fun(state):
-        i, beta, _ = state
-        beta_new = _logistic_ridge_step(beta, X, y, offset, train_mask, alpha)
-        converged = jnp.max(jnp.abs(beta_new - beta)) <= tol
-        return i + 1, beta_new, converged
+        i, beta, gradient, _ = state
+        beta_new = _logistic_ridge_step(beta, X, offset, train_mask, alpha, gradient)
+        gradient_new = _logistic_ridge_gradient(beta_new, X, y, offset, train_mask, alpha)
+        max_gradient = jnp.max(jnp.abs(gradient_new)) / jnp.maximum(total_weight, 1)
 
-    _, beta, converged = lax.while_loop(cond_fun, body_fun, (0, beta0, jnp.array(False)))
+        converged = (
+            (total_weight > 0)
+            & jnp.all(jnp.isfinite(beta_new))
+            & jnp.all(jnp.isfinite(gradient_new))
+            & (max_gradient <= tol)
+        )
+
+        return i + 1, beta_new, gradient_new, converged
+
+    _, beta, _, converged = lax.while_loop(
+        cond_fun,
+        body_fun,
+        (0, beta0, gradient0, jnp.array(False)),
+    )
+
     return beta, converged
 
 
