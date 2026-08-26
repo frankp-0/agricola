@@ -71,7 +71,7 @@ def setup_logging(log_file: str | None, verbose: bool = False) -> None:
 
 def report_devices(backend: str | None = None):
     if backend is not None:
-        os.environ.setdefault("JAX_PLATFORMS", backend)
+        os.environ["JAX_PLATFORMS"] = backend
     import jax
 
     devices = jax.devices()
