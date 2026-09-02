@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.23.1] - 2026-09-02
+
+[v0.23.1]: https://github.com/frankp-0/agricola/compare/v0.23.0...v0.23.1>
+
+### Fixed
+
+- Prevent NaNs from rank-deficient step2 covariate projection
+
 ## [v0.23.0] - 2026-09-02
 
 [v0.23.0]: https://github.com/frankp-0/agricola/compare/v0.22.0...v0.23.0>
