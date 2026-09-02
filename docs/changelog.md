@@ -2,13 +2,13 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
-## [v0.21.1] - 2026-09-01
+## [v0.22.0] - 2026-09-01
 
-[v0.21.1]: https://github.com/frankp-0/agricola/compare/v0.21.0...v0.21.1>
+[v0.22.0]: https://github.com/frankp-0/agricola/compare/v0.21.1...v0.22.0>
 
-### Fixed
+### Added
 
-- Drop NAs from covariates after selecting columns.
+- lowmem option in step 1 to reduce memory usage at the cost of speed
 
 ## [v0.21.0] - 2026-08-26
 
