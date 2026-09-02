@@ -47,11 +47,9 @@ _fit_logistic_ridge = jax.vmap(
     jax.vmap(jax.jit(logistic_ridge), in_axes=(None, None, None, 1, None)),
     in_axes=(None, None, None, None, 0),
 )
-_fit_logistic_ridge_lowmem = jax.jit(logistic_ridge_lowmem)
 _fit_logistic_ridge_loo = jax.jit(
     jax.vmap(jax.jit(logistic_ridge_loo), in_axes=(None, None, None, 0)),
 )
-_fit_logistic_ridge_loo_lowmem = jax.jit(logistic_ridge_loo_lowmem)
 
 
 def _ridge_cv_qt(
@@ -138,7 +136,7 @@ def _ridge_cv_bt(
     alphas = B * (1 - h2_prior) / h2_prior
 
     beta = (
-        _fit_logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
+        logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
         if lowmem
         else _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)
     )  # AKB
@@ -192,7 +190,7 @@ def _ridge_loocv_bt(
     alphas = B * (1 - h2_prior) / h2_prior
 
     beta = (
-        _fit_logistic_ridge_loo_lowmem(Z, Y, offset, alphas)
+        logistic_ridge_loo_lowmem(Z, Y, offset, alphas)
         if lowmem
         else _fit_logistic_ridge_loo(Z, Y, offset, alphas)
     )  # ABN
@@ -291,9 +289,7 @@ def level1(
                         lowmem,
                     )
                 else:
-                    loco_p, all_p = _ridge_loocv_bt(
-                        Z, Y[:, p], offset, h2_prior, n_blocks, lowmem
-                    )
+                    loco_p, all_p = _ridge_loocv_bt(Z, Y[:, p], offset, h2_prior, n_blocks, lowmem)
 
             else:
                 loco_p, all_p = _ridge_cv_qt(

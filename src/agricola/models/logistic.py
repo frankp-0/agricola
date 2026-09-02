@@ -69,7 +69,13 @@ def logistic_ridge_lowmem(
     tol: float = 1e-6,
 ) -> Array:
     """Fit logistic ridge regression for many alphas with lower peak memory."""
-    betas = [logistic_ridge(X, y, offset, train_mask, alpha, max_iter, tol) for alpha in alphas]
+    betas = []
+    for alpha in alphas:
+        beta = jax.vmap(
+            lambda mask: logistic_ridge(X, y, offset, mask, alpha, max_iter, tol),
+            in_axes=(1,),
+        )(train_mask)
+        betas.append(beta)
     return jnp.stack(betas, axis=0)
 
 

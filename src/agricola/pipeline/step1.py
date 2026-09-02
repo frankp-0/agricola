@@ -73,7 +73,7 @@ def step1(
         level0_path = Path(working_dir)
         level0_path.mkdir(parents=True, exist_ok=True)
 
-        level0_files =         level0_files = level0(
+        level0_files = level0_files = level0(
             datasets,
             Y,
             X,
