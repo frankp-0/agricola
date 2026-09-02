@@ -391,10 +391,10 @@ def _step2_dataset(
             Xm = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(M, axis=0)
             Xm = Xm * M[:, None, :]
             Q, R, _ = qr(Xm.transpose(2, 0, 1), mode="economic", pivoting=True)  # QR decomp
-            R_proj = jnp.einsum(
-                "pcd,ped->pce", R, pinv(R)
-            )  # RR^+, generalized if less than full rank
-            Q = jnp.einsum("pnc,pcd->pnd", Q, jnp.sqrt(R_proj))
+            R_proj = jnp.einsum("pcd,ped->pce", pinv(R), R)  # R^+R projects onto the row space of R
+            # RR^+ is an orthogonal projector; its matrix square root is itself.
+            R_proj = 0.5 * (R_proj + R_proj.transpose(0, 2, 1))
+            Q = jnp.einsum("pnc,pcd->pnd", Q, R_proj)
             Q = Q.transpose(1, 2, 0)
 
             for block in blocks:
