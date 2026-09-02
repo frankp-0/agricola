@@ -23,8 +23,13 @@ from numpy.typing import NDArray
 from pandas import DataFrame, Index
 from tqdm import tqdm
 
-from ..models.logistic import logistic_ridge, logistic_ridge_loo
-from ..models.ridge import ridge
+from ..models.logistic import (
+    logistic_ridge,
+    logistic_ridge_loo,
+    logistic_ridge_loo_lowmem,
+    logistic_ridge_lowmem,
+)
+from ..models.ridge import ridge, ridge_lowmem
 from ..numerical.linear_algebra import stdize
 from ..types import TraitType
 from ..validation.inputs import validate_level1_inputs
@@ -37,13 +42,16 @@ logger = logging.getLogger(__name__)
 
 
 _fit_ridge = jax.jit(ridge)
+_fit_ridge_lowmem = jax.jit(ridge_lowmem)
 _fit_logistic_ridge = jax.vmap(
     jax.vmap(jax.jit(logistic_ridge), in_axes=(None, None, None, 1, None)),
     in_axes=(None, None, None, None, 0),
 )
+_fit_logistic_ridge_lowmem = jax.jit(logistic_ridge_lowmem)
 _fit_logistic_ridge_loo = jax.jit(
     jax.vmap(jax.jit(logistic_ridge_loo), in_axes=(None, None, None, 0)),
 )
+_fit_logistic_ridge_loo_lowmem = jax.jit(logistic_ridge_loo_lowmem)
 
 
 def _ridge_cv_qt(
@@ -53,6 +61,7 @@ def _ridge_cv_qt(
     test_mask: Array,
     h2_prior: Array,
     n_blocks: list[int],
+    lowmem: bool = False,
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a quantitative trait
 
@@ -73,7 +82,8 @@ def _ridge_cv_qt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    beta = _fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
+    fit_ridge = _fit_ridge_lowmem if lowmem else _fit_ridge
+    beta = fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
     for c in range(C):
@@ -104,6 +114,7 @@ def _ridge_cv_bt(
     offset: Array,
     h2_prior: Array,
     n_blocks: list[int],
+    lowmem: bool = False,
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a single binary trait
 
@@ -126,7 +137,11 @@ def _ridge_cv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    beta = _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)  # AKB
+    beta = (
+        _fit_logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
+        if lowmem
+        else _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)
+    )  # AKB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
     for c in range(C):
@@ -150,7 +165,12 @@ def _ridge_cv_bt(
 
 
 def _ridge_loocv_bt(
-    Z: Array, Y: Array, offset: Array, h2_prior: Array, n_blocks: list[int]
+    Z: Array,
+    Y: Array,
+    offset: Array,
+    h2_prior: Array,
+    n_blocks: list[int],
+    lowmem: bool = False,
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO LOOCV predictions for a single binary trait
 
@@ -171,7 +191,11 @@ def _ridge_loocv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    beta = _fit_logistic_ridge_loo(Z, Y, offset, alphas)  # ABN
+    beta = (
+        _fit_logistic_ridge_loo_lowmem(Z, Y, offset, alphas)
+        if lowmem
+        else _fit_logistic_ridge_loo(Z, Y, offset, alphas)
+    )  # ABN
     beta = jnp.moveaxis(beta, (0, 1, 2), (0, 2, 1))  # ANB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
@@ -206,6 +230,7 @@ def level1(
     h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
+    lowmem: bool = False,
 ) -> dict[str, DataFrame]:
     """Perform level 1 ridge regressions
 
@@ -256,13 +281,24 @@ def level1(
 
                 if not loocv:
                     loco_p, all_p = _ridge_cv_bt(
-                        Z, Y[:, p], train_mask, test_mask, offset, h2_prior, n_blocks
+                        Z,
+                        Y[:, p],
+                        train_mask,
+                        test_mask,
+                        offset,
+                        h2_prior,
+                        n_blocks,
+                        lowmem,
                     )
                 else:
-                    loco_p, all_p = _ridge_loocv_bt(Z, Y[:, p], offset, h2_prior, n_blocks)
+                    loco_p, all_p = _ridge_loocv_bt(
+                        Z, Y[:, p], offset, h2_prior, n_blocks, lowmem
+                    )
 
             else:
-                loco_p, all_p = _ridge_cv_qt(Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks)
+                loco_p, all_p = _ridge_cv_qt(
+                    Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks, lowmem
+                )
 
             loco_arr[:, p, :] = loco_p
             all_arr[:, p] = all_p

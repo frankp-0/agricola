@@ -25,4 +25,21 @@ def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     return cho_solve(cho_factor(XTXs), XTY)
 
 
-__all__ = ["ridge"]
+def ridge_lowmem(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
+    """Perform ridge regression with low peak memory by solving one alpha at a time."""
+    _, b = X.shape
+    _, p = Y.shape
+    _, k = train_mask.shape
+
+    Xm = X[:, :, None] * train_mask[:, None, :]
+    XTY = jnp.einsum("nbk,np->kbp", Xm, Y)
+    XTX = jnp.einsum("nbk,nck->kbc", Xm, Xm)
+    identity = jnp.eye(b, dtype=XTY.dtype)
+
+    beta = []
+    for alpha in alphas:
+        beta.append(cho_solve(cho_factor(XTX + alpha * identity), XTY))
+    return jnp.stack(beta, axis=0)
+
+
+__all__ = ["ridge", "ridge_lowmem"]

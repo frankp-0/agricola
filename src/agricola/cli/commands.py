@@ -148,6 +148,10 @@ def step1(
         None,
         help=("Log file"),
     ),
+    lowmem: bool = typer.Option(
+        False,
+        help="Use the low-memory sequential ridge solve instead of the larger broadcasted solve.",
+    ),
     verbose: bool = typer.Option(False),
 ) -> None:
     setup_logging(log, verbose)
@@ -206,6 +210,7 @@ def step1(
         level0_dir,
         prune_blocks,
         key_step1,
+        lowmem,
     )
 
     for _, i in enumerate(step1_predictions):
@@ -539,6 +544,10 @@ def all_steps(
         None,
         help=("Log file"),
     ),
+    lowmem: bool = typer.Option(
+        False,
+        help="Use the low-memory sequential ridge solve instead of the larger broadcasted solve.",
+    ),
     verbose: bool = typer.Option(False),
 ) -> None:
     setup_logging(log, verbose)
@@ -603,6 +612,7 @@ def all_steps(
         level0_dir,
         prune_blocks,
         key_step1,
+        lowmem,
     )
 
     step2(

@@ -59,6 +59,20 @@ def logistic_ridge(
     return beta
 
 
+def logistic_ridge_lowmem(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    alphas: Array,
+    max_iter: int = 20,
+    tol: float = 1e-6,
+) -> Array:
+    """Fit logistic ridge regression for many alphas with lower peak memory."""
+    betas = [logistic_ridge(X, y, offset, train_mask, alpha, max_iter, tol) for alpha in alphas]
+    return jnp.stack(betas, axis=0)
+
+
 def logistic_ridge_with_convergence(
     X: Array,
     y: Array,
@@ -124,8 +138,23 @@ def logistic_ridge_loo(
     return beta[:, None] - ((h_inv @ X.T) * (y - mu) / (1 - gamma))
 
 
+def logistic_ridge_loo_lowmem(
+    X: Array,
+    y: Array,
+    offset: Array,
+    alphas: Array,
+    max_iter: int = 50,
+    tol: float = 1e-6,
+) -> Array:
+    """Fit leave-one-out logistic ridge regression for many alphas with low memory."""
+    betas = [logistic_ridge_loo(X, y, offset, alpha, max_iter, tol) for alpha in alphas]
+    return jnp.stack(betas, axis=0)
+
+
 __all__ = [
     "logistic_ridge",
+    "logistic_ridge_lowmem",
     "logistic_ridge_loo",
+    "logistic_ridge_loo_lowmem",
     "logistic_ridge_with_convergence",
 ]

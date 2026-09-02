@@ -37,6 +37,7 @@ def step1(
     level0_dir: str | None = None,
     prune_blocks: bool = True,
     key: ArrayLike | None = None,
+    lowmem: bool = False,
 ) -> dict[str, DataFrame]:
     """Perform agricola step 1
 
@@ -72,7 +73,7 @@ def step1(
         level0_path = Path(working_dir)
         level0_path.mkdir(parents=True, exist_ok=True)
 
-        level0_files = level0(
+        level0_files =         level0_files = level0(
             datasets,
             Y,
             X,
@@ -86,6 +87,7 @@ def step1(
             str(level0_path),
             prune_blocks,
             key,
+            lowmem,
         )
 
         return level1(
@@ -98,4 +100,5 @@ def step1(
             h2_prior,
             trait_type,
             loocv,
+            lowmem,
         )
