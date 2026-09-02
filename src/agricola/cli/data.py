@@ -101,8 +101,8 @@ def load_pheno_and_covars(
     import pandas as pd
 
     df_pheno = _read_pheno_covar(pheno_file)
-    samples_pheno = df_pheno["IID"].astype(str).to_list()
-    samples = [sample for sample in samples_sub if sample in samples_pheno]
+    sample_intersection = set(samples_sub) & set(df_pheno["IID"].astype(str))
+    samples = [sample for sample in samples_sub if sample in sample_intersection]
 
     if pheno_list is not None and pheno is not None:
         raise ValueError("Only one of pheno and pheno_list may be provided")
@@ -134,16 +134,31 @@ def load_pheno_and_covars(
         catcovariates = None
 
     if covar_file:
-        df_covar = _read_pheno_covar(covar_file).dropna()
-        samples_covar = df_covar["IID"].astype(str).to_list()
-        samples = [sample for sample in samples if sample in samples_covar]
-        df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]
+        df_covar = _read_pheno_covar(covar_file)
+        covar_cols = ["IID"]
+        if "FID" in df_covar.columns:
+            covar_cols.append("FID")
+        if covariates is not None:
+            missing = [cov for cov in covariates if cov not in df_covar.columns]
+            if missing:
+                raise ValueError(f"Requested covariates missing from covar file: {missing}")
+            covar_cols.extend(covariates)
+        else:
+            covar_cols.extend(col for col in df_covar.columns if col not in {"IID", "FID"})
+        df_covar = df_covar[covar_cols]
+
+        sample_intersection = set(samples) & set(df_covar["IID"].astype(str))
+        samples = [sample for sample in samples if sample in sample_intersection]
+        df_covar = df_covar[df_covar["IID"].astype(str).isin(samples)]  # pyright: ignore
+        df_covar = df_covar.dropna()  # pyright: ignore
+
+        sample_intersection = set(df_covar["IID"].astype(str))
+        samples = [sample for sample in samples if sample in sample_intersection]
+
         df_covar["IID"] = pd.Categorical(
             df_covar["IID"].astype(str), categories=samples, ordered=True
         )
         df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore[reportCallIssue]
-        if covariates is not None:
-            df_covar = df_covar[["IID", *covariates]]
         df_covar_noid = df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore")
         X = jnp.asarray(
             pd.get_dummies(df_covar_noid, columns=catcovariates, dtype=float).to_numpy()
