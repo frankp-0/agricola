@@ -17,9 +17,8 @@ def stdize(X: Array) -> Array:
     return (X - mean) / std
 
 
-def assert_covar_full_rank(X: Array, rtol: float = 1e-8) -> None:
+def assert_covar_full_rank(X: Array) -> None:
     """Raise ``ValueError`` if a covariate matrix lacks full column rank."""
-    singular_values = jnp.linalg.svd(X, compute_uv=False)
-    rank = jnp.sum(singular_values > rtol * singular_values[0])
+    rank = jnp.linalg.matrix_rank(X)
     if rank < X.shape[1]:
         raise ValueError(f"Collinearity detected in : rank={rank}, n_features={X.shape[1]}")
