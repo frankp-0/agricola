@@ -2,6 +2,20 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.23.0] - 2026-09-02
+
+[v0.23.0]: https://github.com/frankp-0/agricola/compare/v0.22.0...v0.23.0>
+
+### Added
+
+- Introduced "lowest" memory mode, sequential of penalties in folds in step 1
+- Specify memory option with memory-mode (standard, low, lowest)
+
+### Fixed
+
+- Broadcasting errors in step 1 for binary traits
+- Treat lowmem options as static argnames in JAX
+
 ## [v0.22.0] - 2026-09-01
 
 [v0.22.0]: https://github.com/frankp-0/agricola/compare/v0.21.1...v0.22.0>
