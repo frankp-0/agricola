@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.21.1] - 2026-09-01
+
+[v0.21.1]: https://github.com/frankp-0/agricola/compare/v0.21.0...v0.21.1>
+
+### Fixed
+
+- Drop NAs from covariates after selecting columns.
+
 ## [v0.21.0] - 2026-08-26
 
 [v0.21.0]: https://github.com/frankp-0/agricola/compare/v0.20.0...v0.21.0>
