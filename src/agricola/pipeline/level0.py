@@ -44,14 +44,16 @@ def _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, lowmem: bool = Fa
     ## Calculate penalties based on prior heritability
     alphas = M * (1 - h2_prior) / h2_prior
 
-    ridge_beta = ridge_lowmem(G, Y, train_mask, alphas) if lowmem else ridge(G, Y, train_mask, alphas)
+    ridge_beta = (
+        ridge_lowmem(G, Y, train_mask, alphas) if lowmem else ridge(G, Y, train_mask, alphas)
+    )
 
     ridge_Z = jnp.einsum("nb,akbp->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
     Z_block = stdize(jnp.sum(ridge_Z, axis=1))
     return Z_block
 
 
-_level0_ridge_jit = jax.jit(_level0_ridge)
+_level0_ridge_jit = jax.jit(_level0_ridge, static_argnames=("lowmem",))
 
 
 def _level0_block(

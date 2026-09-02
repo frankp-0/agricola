@@ -28,8 +28,8 @@ def ridge(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
 def ridge_lowmem(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     """Perform ridge regression with low peak memory by solving one alpha at a time."""
     _, b = X.shape
-    _, p = Y.shape
-    _, k = train_mask.shape
+    _, _ = Y.shape
+    _, _ = train_mask.shape
 
     Xm = X[:, :, None] * train_mask[:, None, :]
     XTY = jnp.einsum("nbk,np->kbp", Xm, Y)

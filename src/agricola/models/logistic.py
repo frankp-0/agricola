@@ -153,8 +153,8 @@ def logistic_ridge_loo_lowmem(
 
 __all__ = [
     "logistic_ridge",
-    "logistic_ridge_lowmem",
     "logistic_ridge_loo",
     "logistic_ridge_loo_lowmem",
+    "logistic_ridge_lowmem",
     "logistic_ridge_with_convergence",
 ]
