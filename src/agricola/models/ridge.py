@@ -42,4 +42,22 @@ def ridge_lowmem(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
     return jnp.stack(beta, axis=0)
 
 
-__all__ = ["ridge", "ridge_lowmem"]
+def ridge_lowmem_folds(X: Array, Y: Array, train_mask: Array, alphas: Array) -> Array:
+    """Perform ridge regression sequentially over penalties and training masks."""
+    _, b = X.shape
+    _, k = train_mask.shape
+    identity = jnp.eye(b, dtype=X.dtype)
+
+    beta = []
+    for alpha in alphas:
+        beta_alpha = []
+        for fold in range(k):
+            X_fold = X * train_mask[:, fold, None]
+            XTX = X_fold.T @ X_fold
+            XTY = X_fold.T @ Y
+            beta_alpha.append(cho_solve(cho_factor(XTX + alpha * identity), XTY))
+        beta.append(jnp.stack(beta_alpha, axis=0))
+    return jnp.stack(beta, axis=0)
+
+
+__all__ = ["ridge", "ridge_lowmem", "ridge_lowmem_folds"]

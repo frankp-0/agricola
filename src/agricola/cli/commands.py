@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import pickle
+from enum import Enum
 
 import typer
 
@@ -28,6 +29,13 @@ from .runtime import (
 DEFAULT_H2_PRIORS = "0.01,0.255,0.5,0.745,0.99"
 
 app = typer.Typer(help="agricola CLI")
+
+
+class MemoryMode(str, Enum):
+    STANDARD = "standard"
+    LOW = "low"
+    LOWEST = "lowest"
+
 
 ### ─────────────────────────────────────────────────────────────
 ### App
@@ -148,9 +156,9 @@ def step1(
         None,
         help=("Log file"),
     ),
-    lowmem: bool = typer.Option(
-        False,
-        help="Use the low-memory sequential ridge solve instead of the larger broadcasted solve.",
+    memory_mode: MemoryMode = typer.Option(
+        MemoryMode.STANDARD,
+        help="Ridge memory strategy: standard, low, or lowest.",
     ),
     verbose: bool = typer.Option(False),
 ) -> None:
@@ -210,7 +218,7 @@ def step1(
         level0_dir,
         prune_blocks,
         key_step1,
-        lowmem,
+        memory_mode.value,
     )
 
     for _, i in enumerate(step1_predictions):
@@ -544,9 +552,9 @@ def all_steps(
         None,
         help=("Log file"),
     ),
-    lowmem: bool = typer.Option(
-        False,
-        help="Use the low-memory sequential ridge solve instead of the larger broadcasted solve.",
+    memory_mode: MemoryMode = typer.Option(
+        MemoryMode.STANDARD,
+        help="Ridge memory strategy: standard, low, or lowest.",
     ),
     verbose: bool = typer.Option(False),
 ) -> None:
@@ -612,7 +620,7 @@ def all_steps(
         level0_dir,
         prune_blocks,
         key_step1,
-        lowmem,
+        memory_mode.value,
     )
 
     step2(

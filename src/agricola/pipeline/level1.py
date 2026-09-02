@@ -28,8 +28,9 @@ from ..models.logistic import (
     logistic_ridge_loo,
     logistic_ridge_loo_lowmem,
     logistic_ridge_lowmem,
+    logistic_ridge_lowmem_folds,
 )
-from ..models.ridge import ridge, ridge_lowmem
+from ..models.ridge import ridge, ridge_lowmem, ridge_lowmem_folds
 from ..numerical.linear_algebra import stdize
 from ..types import TraitType
 from ..validation.inputs import validate_level1_inputs
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 _fit_ridge = jax.jit(ridge)
 _fit_ridge_lowmem = jax.jit(ridge_lowmem)
+_fit_ridge_lowmem_folds = jax.jit(ridge_lowmem_folds)
 _fit_logistic_ridge = jax.vmap(
     jax.vmap(jax.jit(logistic_ridge), in_axes=(None, None, None, 1, None)),
     in_axes=(None, None, None, None, 0),
@@ -59,7 +61,7 @@ def _ridge_cv_qt(
     test_mask: Array,
     h2_prior: Array,
     n_blocks: list[int],
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a quantitative trait
 
@@ -80,7 +82,12 @@ def _ridge_cv_qt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    fit_ridge = _fit_ridge_lowmem if lowmem else _fit_ridge
+    if memory_mode == "lowest":
+        fit_ridge = _fit_ridge_lowmem_folds
+    elif memory_mode == "low":
+        fit_ridge = _fit_ridge_lowmem
+    else:
+        fit_ridge = _fit_ridge
     beta = fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
@@ -112,7 +119,7 @@ def _ridge_cv_bt(
     offset: Array,
     h2_prior: Array,
     n_blocks: list[int],
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO predictions for a single binary trait
 
@@ -135,11 +142,12 @@ def _ridge_cv_bt(
     ## Calculate penalties based on prior heritability
     alphas = B * (1 - h2_prior) / h2_prior
 
-    beta = (
-        logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
-        if lowmem
-        else _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)
-    )  # AKB
+    if memory_mode == "lowest":
+        beta = logistic_ridge_lowmem_folds(Z, Y, offset, train_mask, alphas)
+    elif memory_mode == "low":
+        beta = logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
+    else:
+        beta = _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)  # AKB
     beta_mask = np.zeros(shape=(B, C))
     col0 = 0
     for c in range(C):
@@ -168,7 +176,7 @@ def _ridge_loocv_bt(
     offset: Array,
     h2_prior: Array,
     n_blocks: list[int],
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> tuple[NDArray, NDArray]:
     """Get level 1 LOCO LOOCV predictions for a single binary trait
 
@@ -191,7 +199,7 @@ def _ridge_loocv_bt(
 
     beta = (
         logistic_ridge_loo_lowmem(Z, Y, offset, alphas)
-        if lowmem
+        if memory_mode != "standard"
         else _fit_logistic_ridge_loo(Z, Y, offset, alphas)
     )  # ABN
     beta = jnp.moveaxis(beta, (0, 1, 2), (0, 2, 1))  # ANB
@@ -228,7 +236,7 @@ def level1(
     h2_prior: ArrayLike,
     trait_type: str,
     loocv: bool = False,
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> dict[str, DataFrame]:
     """Perform level 1 ridge regressions
 
@@ -286,14 +294,22 @@ def level1(
                         offset,
                         h2_prior,
                         n_blocks,
-                        lowmem,
+                        memory_mode,
                     )
                 else:
-                    loco_p, all_p = _ridge_loocv_bt(Z, Y[:, p], offset, h2_prior, n_blocks, lowmem)
+                    loco_p, all_p = _ridge_loocv_bt(
+                        Z, Y[:, p], offset, h2_prior, n_blocks, memory_mode
+                    )
 
             else:
                 loco_p, all_p = _ridge_cv_qt(
-                    Z, Y[:, p], train_mask, test_mask, h2_prior, n_blocks, lowmem
+                    Z,
+                    Y[:, p],
+                    train_mask,
+                    test_mask,
+                    h2_prior,
+                    n_blocks,
+                    memory_mode,
                 )
 
             loco_arr[:, p, :] = loco_p

@@ -25,7 +25,7 @@ from numpy.typing import NDArray
 from tqdm import tqdm
 
 from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
-from ..models.ridge import ridge, ridge_lowmem
+from ..models.ridge import ridge, ridge_lowmem, ridge_lowmem_folds
 from ..numerical.linear_algebra import stdize
 from ..validation.inputs import validate_level0_inputs
 
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 ### ─────────────────────────────────────────────────────────────
 
 
-def _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, lowmem: bool = False):
+def _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, memory_mode: str = "standard"):
     ## Standardize genotype block and residualize by covariates
     G = G[:, :, 0] + G[:, :, 1]
     G = stdize(G - (Q @ (Q.T @ G)))
@@ -44,16 +44,19 @@ def _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, lowmem: bool = Fa
     ## Calculate penalties based on prior heritability
     alphas = M * (1 - h2_prior) / h2_prior
 
-    ridge_beta = (
-        ridge_lowmem(G, Y, train_mask, alphas) if lowmem else ridge(G, Y, train_mask, alphas)
-    )
+    if memory_mode == "lowest":
+        ridge_beta = ridge_lowmem_folds(G, Y, train_mask, alphas)
+    elif memory_mode == "low":
+        ridge_beta = ridge_lowmem(G, Y, train_mask, alphas)
+    else:
+        ridge_beta = ridge(G, Y, train_mask, alphas)
 
     ridge_Z = jnp.einsum("nb,akbp->nkpa", G, ridge_beta) * test_mask[:, :, None, None]
     Z_block = stdize(jnp.sum(ridge_Z, axis=1))
     return Z_block
 
 
-_level0_ridge_jit = jax.jit(_level0_ridge, static_argnames=("lowmem",))
+_level0_ridge_jit = jax.jit(_level0_ridge, static_argnames=("memory_mode",))
 
 
 def _level0_block(
@@ -67,7 +70,7 @@ def _level0_block(
     h2_prior: Array,
     M: int,
     B: int,
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> NDArray:
     """Get level 0 predictions for a single block
 
@@ -91,9 +94,9 @@ def _level0_block(
         G = G[idx_sample]
 
     if block.shape[0] == B:
-        Z_block = _level0_ridge_jit(G, Y, Q, train_mask, test_mask, M, h2_prior, lowmem)
+        Z_block = _level0_ridge_jit(G, Y, Q, train_mask, test_mask, M, h2_prior, memory_mode)
     else:
-        Z_block = _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, lowmem)
+        Z_block = _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, memory_mode)
 
     Z_block = np.asarray(Z_block)
     return Z_block
@@ -113,7 +116,7 @@ def level0(
     level0_dir: str | None = None,
     prune_blocks: bool | None = True,
     key: ArrayLike | None = None,
-    lowmem: bool = False,
+    memory_mode: str = "standard",
 ) -> dict[str, dict[str, str]]:
     """Perform level 0 ridge regressions
 
@@ -211,7 +214,7 @@ def level0(
                         h2_prior,
                         M,
                         B,
-                        lowmem,
+                        memory_mode,
                     )
                     Zs[:, :, col0 : col0 + K] = Z_block
                     col0 += K

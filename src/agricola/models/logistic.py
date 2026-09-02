@@ -72,10 +72,32 @@ def logistic_ridge_lowmem(
     betas = []
     for alpha in alphas:
         beta = jax.vmap(
-            lambda mask: logistic_ridge(X, y, offset, mask, alpha, max_iter, tol),
+            lambda mask, alpha=alpha: logistic_ridge(X, y, offset, mask, alpha, max_iter, tol),
             in_axes=(1,),
         )(train_mask)
         betas.append(beta)
+    return jnp.stack(betas, axis=0)
+
+
+def logistic_ridge_lowmem_folds(
+    X: Array,
+    y: Array,
+    offset: Array,
+    train_mask: Array,
+    alphas: Array,
+    max_iter: int = 20,
+    tol: float = 1e-6,
+) -> Array:
+    """Fit logistic ridge sequentially over penalties and training masks."""
+    _, k = train_mask.shape
+    betas = []
+    for alpha in alphas:
+        beta_alpha = []
+        for fold in range(k):
+            beta_alpha.append(
+                logistic_ridge(X, y, offset, train_mask[:, fold], alpha, max_iter, tol)
+            )
+        betas.append(jnp.stack(beta_alpha, axis=0))
     return jnp.stack(betas, axis=0)
 
 
@@ -162,5 +184,6 @@ __all__ = [
     "logistic_ridge_loo",
     "logistic_ridge_loo_lowmem",
     "logistic_ridge_lowmem",
+    "logistic_ridge_lowmem_folds",
     "logistic_ridge_with_convergence",
 ]
