@@ -88,7 +88,16 @@ def _level0_block(
     Returns:
         Z_block: A (N, P, len(h2_prior)) numpy array of predictions
     """
-    G = jnp.asarray(dataset.get_geno(block))
+    block_start = time.perf_counter()
+
+    load_start = time.perf_counter()
+    geno = dataset.get_geno(block)
+    load_elapsed = time.perf_counter() - load_start
+
+    transfer_start = time.perf_counter()
+    G = jnp.asarray(geno)
+    G.block_until_ready()
+    transfer_elapsed = time.perf_counter() - transfer_start
 
     if idx_sample is not None:
         G = G[idx_sample]
@@ -106,10 +115,15 @@ def _level0_block(
     conversion_start = time.perf_counter()
     Z_block = np.asarray(Z_block)
     conversion_elapsed = time.perf_counter() - conversion_start
+    block_elapsed = time.perf_counter() - block_start
     logger.debug(
-        "Level 0 block (%d variants): %s execution=%.6fs, "
+        "Level 0 block (%d variants): total=%.6fs, get_geno=%.6fs, "
+        "genotype transfer=%.6fs, %s execution=%.6fs, "
         "Z_block conversion to NumPy=%.6fs",
         block.shape[0],
+        block_elapsed,
+        load_elapsed,
+        transfer_elapsed,
         ridge_name,
         ridge_elapsed,
         conversion_elapsed,
