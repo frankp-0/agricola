@@ -2,15 +2,15 @@
 
 ## Global Options
 
-These options are common to the `step1`, `step2`, and `all-steps` commands.
+These options are shared by the commands where applicable.
 
 | Option | Argument | Type | Description |
 | --- | --- | --- | --- |
 | `--plink` | TEXT | optional | Plink2 file prefix. This option can be repeated to specify multiple files |
 | `--plink-list` | TEXT | optional | File containing plink2 prefixes, one per line |
-| `--lanc` | TEXT | optional | Local ancestry .lanc file. This option can be repeated to specify multiple files |
-| `--lanc-list` | TEXT | optional | File containing .lanc file paths, one per line |
-| `--ancestries` | TEXT | optional | Ancestry names, comma-separated and ordered as in .lanc files |
+| `--lanc` | TEXT | optional | Local ancestry .lanc file for step 2 and all-steps. This option can be repeated to specify multiple files |
+| `--lanc-list` | TEXT | optional | File containing .lanc file paths for step 2 and all-steps, one per line |
+| `--ancestries` | TEXT | optional | Ancestry names for step 2 and all-steps, comma-separated and ordered as in .lanc files |
 | `--pheno-file` | TEXT | required | Phenotype file |
 | `--pheno` | TEXT | optional | Phenotype to include in the analysis. This option can be repeated to specify multiple phenotypes or omitted to use all phenotypes |
 | `--pheno-list` | TEXT | optional | File containing phenotypes to include in the analysis, one per line. This option can be omitted to use all phenotypes |
@@ -28,18 +28,18 @@ These options are common to the `step1`, `step2`, and `all-steps` commands.
 
 !!! info
 
-    `--plink` and `--lanc` can be repeated to specify multiple files.
+    `--plink` and, for step 2/all-steps, `--lanc` can be repeated to specify multiple files.
     E.g., `--plink tests/data/chr20 --plink tests/data/chr21 --plink tests/data/chr22`
 
 !!! warning
 
-    Plink2 and .lanc files must match, meaning you must provide the same number
-    of plink2/.lanc files in the same order.
+    For step 2 and all-steps, Plink2 and .lanc files must match, meaning you must
+    provide the same number of plink2/.lanc files in the same order.
 
 !!! warning
 
-    Either `--plink` or `--plink-list` must be provided, but not both.
-    The same applies to `--lanc` and `--lanc-list`. For `--pheno` and
+    Either `--plink` or `--plink-list` must be provided, but not both. For step 2
+    and all-steps, the same applies to `--lanc` and `--lanc-list`. For `--pheno` and
     `--pheno-list` and `--covar` and `--covar-list`, either one may be provided
     or neither (to use all phenotypes/covariates).
 

@@ -20,10 +20,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, ArrayLike
-from lanctools import LancData
 from numpy.typing import NDArray
 from tqdm import tqdm
 
+from ..io.genotypes import PgenData
 from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
 from ..models.ridge import ridge, ridge_lowmem, ridge_lowmem_folds
 from ..numerical.linear_algebra import stdize
@@ -60,7 +60,7 @@ _level0_ridge_jit = jax.jit(_level0_ridge, static_argnames=("memory_mode",))
 
 
 def _level0_block(
-    dataset: LancData,
+    dataset: PgenData,
     Y: Array,
     Q: Array,
     train_mask: Array,
@@ -132,7 +132,7 @@ def _level0_block(
 
 
 def level0(
-    datasets: list[LancData],
+    datasets: list[PgenData],
     Y: ArrayLike,
     X: ArrayLike | None,
     phenotypes: list[str],

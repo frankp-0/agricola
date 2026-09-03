@@ -35,7 +35,6 @@ Alternatively, steps 0/1 and 2 can be performed separately:
 ```bash
 agricola step1 \
   --plink-list tests/data/plinks.txt \
-  --lanc-list tests/data/lancs.txt  \
   --pheno-file tests/data/pheno.tsv \
   --covar-file tests/data/covar.tsv \
   --output step1_preds \

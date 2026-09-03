@@ -13,6 +13,7 @@ import typer
 
 from .data import (
     load_lanc_data,
+    load_pgen_data,
     load_pheno_and_covars,
     load_samples,
     load_variants,
@@ -76,27 +77,10 @@ def step1(
             "This option OR --plink-prefix must be provided (not both). "
         ),
     ),
-    lanc: list[str] | None = typer.Option(
-        None,
-        help=(
-            "Local ancestry .lanc file. "
-            "This option can be repeated to specify multiple files. "
-            "This option OR --lanc-list must be provided (not both). "
-            "Example: --lanc-file chr1.lanc --plink-prefix chr2.lanc"
-        ),
-    ),
-    lanc_list: str | None = typer.Option(
-        None,
-        help=(
-            "File containing .lanc file paths, one per line. "
-            "This option OR --lanc-file must be provided (not both). "
-        ),
-    ),
     level0_dir: str | None = typer.Option(
         None,
         help=("Directory to save level 0 files to"),
     ),
-    ancestries: str | None = typer.Option(None, help="Ordered ancestry names, comma-separated"),
     output: str = typer.Option(
         ...,
         help="Output prefix. Step 1 predictions will be serialized and written to {output}.pkl",
@@ -178,8 +162,7 @@ def step1(
     from ..pipeline.step1 import step1
 
     ## Load data
-    ancestries_list = list_from_csv(ancestries)
-    datasets, plinks, _ = load_lanc_data(plink, plink_list, lanc, lanc_list, ancestries_list)
+    datasets, plinks = load_pgen_data(plink, plink_list)
     variants = load_variants(variant_file)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
     samples, samples_psam = load_samples(plinks, samples_file)
@@ -365,7 +348,7 @@ def step2(
 
     ## Load data
     ancestries_list = list_from_csv(ancestries)
-    datasets, plinks, _ = load_lanc_data(plink, plink_list, lanc, lanc_list, ancestries_list)
+    lanc_datasets, plinks, _ = load_lanc_data(plink, plink_list, lanc, lanc_list, ancestries_list)
 
     variants = load_variants(variant_file)
     samples, samples_psam = load_samples(plinks, samples_file)
@@ -398,7 +381,7 @@ def step2(
 
     ## Run step 2
     step2(
-        datasets,
+        lanc_datasets,
         Y,
         X,
         step1_predictions,
@@ -581,6 +564,7 @@ def all_steps(
     ## Load data
     ancestries_list = list_from_csv(ancestries)
     datasets, plinks, _ = load_lanc_data(plink, plink_list, lanc, lanc_list, ancestries_list)
+    pgen_datasets, _ = load_pgen_data(plink, plink_list)
     variants1 = load_variants(variant_file1)
     variants2 = load_variants(variant_file2)
     h2_prior_arr = jnp.asarray([float(x) for x in h2_prior.split(",")])
@@ -605,7 +589,7 @@ def all_steps(
 
     ## Run step 1
     step1_predictions = step1(
-        datasets,
+        pgen_datasets,
         Y,
         X,
         phenotypes,

@@ -5,11 +5,12 @@
 """Variant selection and chromosome grouping helpers."""
 
 import numpy as np
-from lanctools import LancData
 from numpy.typing import NDArray
 
+from .genotypes import PgenData
 
-def get_variant_indices(dataset: LancData, variants: list[str] | None = None) -> NDArray[np.uint32]:
+
+def get_variant_indices(dataset: PgenData, variants: list[str] | None = None) -> NDArray[np.uint32]:
     """Return dataset variant indices, optionally restricted to variant IDs."""
     indices = np.arange(dataset.pvar.get_variant_ct(), dtype=np.uint32)
     if variants is None:
@@ -27,7 +28,7 @@ def get_variant_indices(dataset: LancData, variants: list[str] | None = None) ->
 
 
 def group_variant_indices_by_chromosome(
-    dataset: LancData, indices: NDArray[np.uint32]
+    dataset: PgenData, indices: NDArray[np.uint32]
 ) -> dict[str, NDArray[np.uint32]]:
     """Group variant indices by chromosome while preserving dataset order."""
     grouped: dict[str, list[np.uint32]] = {}

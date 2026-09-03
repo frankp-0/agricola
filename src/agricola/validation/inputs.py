@@ -10,16 +10,17 @@ import pandas as pd
 from jaxtyping import Array, ArrayLike
 from lanctools import LancData
 
+from ..io.genotypes import PgenData
 from ..numerical.linear_algebra import assert_covar_full_rank, stdize
 from ..types import TestType, TraitType
 
 
-def _validate_datasets(datasets: list[LancData]) -> None:
+def _validate_datasets(datasets: list[PgenData], dataset_type: type) -> None:
     if not isinstance(datasets, (list, tuple)):
-        raise TypeError(f"datasets must be a list of LancData, got {type(datasets)}")
+        raise TypeError(f"datasets must be a list of {dataset_type.__name__}, got {type(datasets)}")
     for i, ds in enumerate(datasets):
-        if not isinstance(ds, LancData):
-            raise TypeError(f"datasets[{i}] must be LancData, got {type(ds)}")
+        if not isinstance(ds, dataset_type):
+            raise TypeError(f"datasets[{i}] must be {dataset_type.__name__}, got {type(ds)}")
 
 
 def _prepare_y(Y: ArrayLike) -> tuple[Array, int]:
@@ -105,7 +106,7 @@ def validate_level0_inputs(
 ) -> tuple[Array, Array, Array, Array, Array, Array | None]:
     """Validate input data for level0"""
     ## genotype/lanc data
-    _validate_datasets(datasets)
+    _validate_datasets(datasets, PgenData)
 
     ## Y
     Y, N = _prepare_y(Y)
@@ -182,7 +183,7 @@ def validate_step2_inputs(
     X = _prepare_x(X, N)
 
     # datasets
-    _validate_datasets(datasets)
+    _validate_datasets(datasets, LancData)
     N_pred = None
     P_pred = None
     step1_predictions_np = None

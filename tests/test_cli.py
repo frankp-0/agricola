@@ -67,8 +67,6 @@ def test_step1_toy(toy_data):
             "step1",
             "--plink-list",
             toy_data["plink_list"],
-            "--lanc-list",
-            toy_data["lanc_list"],
             "--output",
             toy_data["step1_prefix"],
             "--pheno-file",

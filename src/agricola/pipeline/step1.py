@@ -13,16 +13,16 @@ from contextlib import nullcontext
 from pathlib import Path
 
 from jaxtyping import ArrayLike
-from lanctools import LancData
 from pandas import DataFrame
 
+from ..io.genotypes import PgenData
 from ..types import TraitType
 from .level0 import level0
 from .level1 import level1
 
 
 def step1(
-    datasets: list[LancData],
+    datasets: list[PgenData],
     Y: ArrayLike,
     X: ArrayLike | None,
     phenotypes: list[str],
@@ -42,7 +42,7 @@ def step1(
     """Perform agricola step 1
 
     Args:
-        datasets: A list of LancData objects (either single object or one
+        datasets: A list of PgenData objects (either single object or one
             per-chromosome)
         Y: A (N, P) jax array of phenotypes
         X: A (N, C) jax array of covariates (no intercept)

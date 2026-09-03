@@ -9,6 +9,33 @@ import numpy as np
 from jaxtyping import Array
 from lanctools import LancData
 from numpy.typing import NDArray
+from pgenlib import PgenReader, PvarReader
+
+
+class PgenData:
+    """Genotype and variant data backed directly by a PLINK2 fileset."""
+
+    def __init__(self, plink_prefix: str):
+        self.pgen = PgenReader(bytes(plink_prefix + ".pgen", "utf8"))
+        self.pvar = PvarReader(bytes(plink_prefix + ".pvar", "utf8"))
+        self.plink_prefix = plink_prefix
+        self._closed = False
+
+    def close(self) -> None:
+        """Release the underlying PLINK readers."""
+        if not self._closed:
+            self.pgen.close()
+            self.pvar.close()
+            self._closed = True
+
+    def get_geno(self, indices: NDArray[np.uint32]) -> NDArray[np.int32]:
+        """Query phased genotypes for a set of variants."""
+        if self._closed:
+            raise RuntimeError("PgenData is closed")
+        n_samples = self.pgen.get_raw_sample_ct()
+        alleles = np.empty((len(indices), 2 * n_samples), dtype=np.int32)
+        self.pgen.read_alleles_list(indices, alleles)
+        return alleles.reshape(len(indices), n_samples, 2).transpose(1, 0, 2)
 
 
 def _get_lanc_masks(dataset: LancData, indices: NDArray[np.uint32]) -> tuple[Array, Array]:

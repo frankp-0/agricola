@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 
 import typer
 
+from ..io.genotypes import PgenData
+
 if TYPE_CHECKING:
     from jaxtyping import Array
     from lanctools import LancData
@@ -214,3 +216,21 @@ def load_lanc_data(
     ]
     logger.info("Local ancestry data loaded\n")
     return datasets, plinks, lancs
+
+
+def load_pgen_data(
+    plink_prefix: list[str] | None,
+    plink_list: str | None,
+) -> tuple[list[PgenData], list[str]]:
+    """Load PLINK2 genotype readers without requiring local ancestry files."""
+    if plink_prefix and plink_list:
+        raise typer.BadParameter("Specify either --plink OR --plink-list, not both")
+    if plink_prefix is None:
+        if plink_list is None:
+            raise typer.BadParameter("Specify one of --plink or --plink-list")
+        with Path(plink_list).open() as file:
+            plinks = [line.strip() for line in file if line.strip()]
+    else:
+        plinks = plink_prefix
+
+    return [PgenData(plink) for plink in plinks], plinks

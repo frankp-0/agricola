@@ -9,21 +9,15 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from jax.scipy.special import expit
-from lanctools import LancData
 
+from agricola.io.genotypes import PgenData
 from agricola.pipeline.level0 import level0
 from agricola.pipeline.level1 import level1
 
 
 @pytest.fixture
 def toy_data():
-    data = [
-        LancData(
-            plink_prefix="tests/data/chr" + str(chr),
-            lanc_file="tests/data/chr" + str(chr) + ".lanc",
-        )
-        for chr in range(20, 23)
-    ]
+    data = [PgenData("tests/data/chr" + str(chr)) for chr in range(20, 23)]
     return data
 
 
@@ -66,7 +60,7 @@ def valid_inputs_1(P=3, C=1, H=4):
 def test_step0_dataset_elements_type_error():
     """Check that bad datasets throws error"""
     Y, X, phenotypes, train_mask, test_mask, h2 = valid_inputs_0()
-    with pytest.raises(TypeError, match="must be LancData"):
+    with pytest.raises(TypeError, match="must be PgenData"):
         level0([object()], Y, X, phenotypes, train_mask, test_mask, h2)  # pyright: ignore
 
 
