@@ -26,7 +26,7 @@ def logistic(
     offset: Array,
     train_mask: Array,
     X_mask: Array,
-    max_iter: int = 10,
+    max_iter: int = 30,
     tol: float = 1e-6,
 ) -> Array:
     beta0 = jnp.zeros(X.shape[1])
@@ -59,7 +59,7 @@ def logistic_with_convergence(
     offset: Array,
     train_mask: Array,
     X_mask: Array,
-    max_iter: int = 10,
+    max_iter: int = 30,
     tol: float = 1e-6,
 ) -> tuple[Array, Array]:
     beta0 = jnp.zeros(X.shape[1])
@@ -110,8 +110,8 @@ def _project_and_mask_collinear(X: Array, QL: Array) -> tuple[Array, ...]:
     Xl = qr_resid(X, QL)
     Xl_norm = jnp.sum(Xl**2, axis=0)
     X_norm = jnp.sum(X**2, axis=0)
-    r2_Xl = 1 - Xl_norm / X_norm
-    X_mask = r2_Xl < 0.99
+    rank_tol = jnp.finfo(X.dtype).eps * max(X.shape[0], QL.shape[1])
+    X_mask = Xl_norm > rank_tol * X_norm
     X_mask_shaped = jnp.reshape(X_mask, X_mask.shape + (1,) * (X.ndim - 1)).T
     Xl = Xl * X_mask_shaped
     X = X * X_mask_shaped
