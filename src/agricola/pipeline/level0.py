@@ -93,12 +93,27 @@ def _level0_block(
     if idx_sample is not None:
         G = G[idx_sample]
 
+    ridge_start = time.perf_counter()
     if block.shape[0] == B:
+        ridge_name = "_level0_ridge_jit"
         Z_block = _level0_ridge_jit(G, Y, Q, train_mask, test_mask, M, h2_prior, memory_mode)
     else:
+        ridge_name = "_level0_ridge"
         Z_block = _level0_ridge(G, Y, Q, train_mask, test_mask, M, h2_prior, memory_mode)
+    Z_block.block_until_ready()
+    ridge_elapsed = time.perf_counter() - ridge_start
 
+    conversion_start = time.perf_counter()
     Z_block = np.asarray(Z_block)
+    conversion_elapsed = time.perf_counter() - conversion_start
+    logger.debug(
+        "Level 0 block (%d variants): %s execution=%.6fs, "
+        "Z_block conversion to NumPy=%.6fs",
+        block.shape[0],
+        ridge_name,
+        ridge_elapsed,
+        conversion_elapsed,
+    )
     return Z_block
 
 
@@ -202,7 +217,7 @@ def level0(
 
             col0 = 0
             with tqdm(total=n_blocks, desc=f"chr{chrom}", unit="block") as pbar:
-                for block in blocks:
+                for block_index, block in enumerate(blocks):
                     Z_block = _level0_block(
                         ds,
                         Y,
@@ -216,7 +231,15 @@ def level0(
                         B,
                         memory_mode,
                     )
+                    update_start = time.perf_counter()
                     Zs[:, :, col0 : col0 + K] = Z_block
+                    update_elapsed = time.perf_counter() - update_start
+                    logger.debug(
+                        "Level 0 block %d/%d: Zs update=%.6fs",
+                        block_index + 1,
+                        n_blocks,
+                        update_elapsed,
+                    )
                     col0 += K
                     pbar.update(1)
 
