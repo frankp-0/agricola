@@ -2,6 +2,19 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
+## [v0.24.2] - 2026-09-02
+
+[v0.24.2]: https://github.com/frankp-0/agricola/compare/v0.23.1...v0.24.2>
+
+### Added
+
+- Decouple step 1 from local ancestry data
+
+### Fixed
+
+- Base collinearity masking on machine tolerance
+- Preserve orthonormality of covariate projection in step 2
+
 ## [v0.23.1] - 2026-09-02
 
 [v0.23.1]: https://github.com/frankp-0/agricola/compare/v0.23.0...v0.23.1>
