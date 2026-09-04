@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from jax import jit, vmap
-from jax.numpy.linalg import pinv
 from jax.scipy.linalg import qr
 from jax.scipy.special import expit
 from jaxtyping import Array, ArrayLike
@@ -390,11 +389,11 @@ def _step2_dataset(
             ## Adjust covariates for per-phenotype missingness
             Xm = X[:, :, None] - jnp.sum(X[:, :, None] * M[:, None, :], axis=0) / jnp.sum(M, axis=0)
             Xm = Xm * M[:, None, :]
-            Q, R, _ = qr(Xm.transpose(2, 0, 1), mode="economic", pivoting=True)  # QR decomp
-            R_proj = jnp.einsum("pcd,ped->pce", pinv(R), R)  # R^+R projects onto the row space of R
-            # RR^+ is an orthogonal projector; its matrix square root is itself.
-            R_proj = 0.5 * (R_proj + R_proj.transpose(0, 2, 1))
-            Q = jnp.einsum("pnc,pcd->pnd", Q, R_proj)
+            Q, R, _ = qr(Xm.transpose(2, 0, 1), mode="economic", pivoting=True)
+            r_diag = jnp.abs(jnp.diagonal(R, axis1=1, axis2=2))
+            rank_tol = jnp.finfo(R.dtype).eps * max(Xm.shape[1], Xm.shape[2])
+            rank_mask = r_diag > rank_tol * jnp.max(r_diag, axis=1, keepdims=True)
+            Q = Q * rank_mask[:, None, :]
             Q = Q.transpose(1, 2, 0)
 
             for block in blocks:
