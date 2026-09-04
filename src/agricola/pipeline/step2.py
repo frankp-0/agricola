@@ -270,7 +270,7 @@ def _step2_block(
     result_arr = np.concatenate(result_components, axis=1)
     converged = None
     if trait_type == TraitType.BT and test_converged is not None:
-        converged = np.asarray(test_converged) & np.asarray(extra_args["converged"])[None, :]
+        converged = np.asarray(test_converged)
 
     ## Get info on variants in block
     block_info = dataset.get_info(block)  # all variants
@@ -378,12 +378,18 @@ def _step2_dataset(
                     logistic_ridge_with_convergence,
                     in_axes=(None, 1, 1, 1, None),
                 )(X, Y, jnp.asarray(step1_pred_chr), M, 0)
+                failed_offset = np.flatnonzero(~np.asarray(offset_converged))
+                if failed_offset.size:
+                    failed_phenotypes = [phenotypes[i] for i in failed_offset]
+                    logger.warning(
+                        "Offset model did not converge for phenotype(s): %s",
+                        ", ".join(failed_phenotypes),
+                    )
                 offset = X @ beta_offset.T + step1_pred_chr
                 mu = expit(offset)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
                 extra_args["W_sqrt"] = W_sqrt
                 extra_args["offset"] = offset
-                extra_args["converged"] = offset_converged
 
             Yc = Yc * M
             ## Adjust covariates for per-phenotype missingness
