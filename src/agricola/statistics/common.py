@@ -39,7 +39,7 @@ def logistic(
         w = mu * (1 - mu) * train_mask
         XW = X * w[:, None]
         XT_r = X.T @ r
-        delta = _masked_solve(X.T @ XW, X_mask, XT_r)
+        delta = masked_solve(X.T @ XW, X_mask, XT_r)
         beta_new = _naninf_to_0(beta + delta)
         return i + 1, beta_new
 
@@ -78,7 +78,7 @@ def logistic_with_convergence(
         mu = expit(eta)
         w = mu * (1 - mu) * train_mask
         XW = X * w[:, None]
-        delta = _masked_solve(X.T @ XW, X_mask, current_gradient)
+        delta = masked_solve(X.T @ XW, X_mask, current_gradient)
         beta_new = _naninf_to_0(beta + delta)
         gradient_new = gradient(beta_new)
         max_gradient = jnp.max(jnp.abs(gradient_new)) / jnp.maximum(total_weight, 1)
@@ -127,7 +127,7 @@ def masked_inv(A: Array, mask: Array) -> Array:
     return inv(A + jnp.diag((~mask).astype(A.dtype)))
 
 
-def _masked_solve(A: Array, mask: Array, x: Array) -> Array:
+def masked_solve(A: Array, mask: Array, x: Array) -> Array:
     return solve(A + jnp.diag((~mask).astype(A.dtype)), x)
 
 
@@ -142,7 +142,11 @@ def prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, ...]:
 
 
 def adj_by_lanc(G: Array, H: Array, L: Array) -> tuple[Array, ...]:
-    QL, _ = qr(L, mode="reduced")
+    QL, R = qr(L, mode="reduced")
+    r_diag = jnp.abs(jnp.diagonal(R))
+    rank_tol = jnp.finfo(L.dtype).eps * max(L.shape) * jnp.max(r_diag)
+    L_mask = r_diag > rank_tol
+    QL = QL * L_mask
     G, Gl, G_mask = _project_and_mask_collinear(G, QL)
     H, Hl, H_mask = _project_and_mask_collinear(H, QL)
     return QL, G, Gl, G_mask, H, Hl, H_mask
@@ -151,12 +155,14 @@ def adj_by_lanc(G: Array, H: Array, L: Array) -> tuple[Array, ...]:
 def het_score(
     U: Array, covariance: Array, mask: Array, scale: Array = DEFAULT_SCALE
 ) -> tuple[Array, ...]:
-    inv_cov = masked_inv(covariance, mask)
-    diag = jnp.diagonal(covariance)
+    solved_U = masked_solve(covariance, mask, U)
+    covariance_of_beta = masked_solve(
+        covariance, mask, jnp.eye(covariance.shape[0], dtype=covariance.dtype)
+    )
 
-    beta_het = U / diag[..., None]
-    chisq_anc = U**2 / diag[..., None] / scale
-    chisq_het = jnp.einsum("kp,kl,lp->p", U, inv_cov, U) / scale
+    beta_het = solved_U
+    chisq_anc = beta_het**2 / jnp.diagonal(covariance_of_beta)[..., None] / scale
+    chisq_het = jnp.sum(U * solved_U, axis=0) / scale
 
     return beta_het, chisq_anc, chisq_het
 

@@ -19,6 +19,7 @@ from .common import (
     mask_score,
     mask_wald,
     masked_inv,
+    masked_solve,
     prep_geno,
     prep_lanc_geno,
 )
@@ -33,24 +34,35 @@ def _bt_score_lanc(
     G, L, H = prep_lanc_geno(G, L, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    _, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
+    QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L)
+    L_mask = jnp.sum(QL**2, axis=0) > 0
+    L = L * L_mask
 
     ## Fit null model L + offset
-    L_mask = jnp.sum(L**2, axis=0) > 0
     beta_L, converged = logistic_with_convergence(L, Y, offset, M, L_mask)
     mu = expit(L @ beta_L + offset)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
 
-    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Adjust for L using the logistic-information Schur complement.
+    Lw = L * W_L_sqrt[:, None]
+    I_LL = Lw.T @ Lw
+
+    I_GL = G.T @ (L * (mu * (1.0 - mu) * M)[:, None])
+    G = G - L @ masked_solve(I_LL, L_mask, I_GL.T)
     U = G.T @ R
-    Glw = Gl * M[:, None] * W_L_sqrt[:, None]
+
+    I_HL = H.T @ (L * (mu * (1.0 - mu) * M)[:, None])
+    H = H - L @ masked_solve(I_LL, L_mask, I_HL.T)
+    UH = H.T @ R
+
+    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    Glw = G * W_L_sqrt[:, None]
     GltGl = Glw.T @ Glw
     beta_het, chisq_anc, chisq_het = het_score(U[:, None], GltGl, G_mask)
 
     ## Score test for genotypes (homogeneous test)
-    UH = H.T @ R
-    Hlw = Hl * M * W_L_sqrt
+    Hlw = H * W_L_sqrt
     HtH = Hlw.T @ Hlw
     beta_hom, chisq_hom = hom_score(UH, HtH)
 
@@ -102,9 +114,10 @@ def _bt_wald_lanc(
     G, L, H = prep_lanc_geno(G, L, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    _, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L)
+    QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L)
     H = H[:, None]
-    L_mask = jnp.sum(L**2, axis=0) > 0
+    L_mask = jnp.sum(QL**2, axis=0) > 0
+    L = L * L_mask
 
     ## Wald test for anc-deconvoluted genotypes
     Xg_mask = jnp.concatenate([G_mask, L_mask])
