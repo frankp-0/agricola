@@ -20,7 +20,6 @@ from .common import (
     mask_score,
     mask_wald,
     masked_inv,
-    masked_solve,
     prep_geno,
     prep_lanc_geno,
 )
@@ -46,16 +45,27 @@ def _bt_score_lanc(
 
     ## Use the logistic-information projection for the efficient score.
     Lw = L * W_L_sqrt[:, None]
-    I_LL = Lw.T @ Lw
+    Qw, Rw = jnp.linalg.qr(Lw, mode="reduced")
+    Lw_mask = jnp.abs(jnp.diagonal(Rw)) > jnp.finfo(L.dtype).eps * max(L.shape)
+    Qw = Qw * Lw_mask
+    inv_W_L_sqrt = jnp.where(W_L_sqrt > 0, 1.0 / W_L_sqrt, 0.0)
 
-    I_GL = G.T @ (L * (mu * (1.0 - mu) * M)[:, None])
-    G = G - L @ masked_solve(I_LL, L_mask, I_GL.T)
-    G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
+    # Project in the logistic-information metric using a QR basis rather than
+    # normal equations, which avoids platform-sensitive cancellation.
+    G_scale = jnp.sum((G * W_L_sqrt[:, None]) ** 2, axis=0)
+    Gw = G * W_L_sqrt[:, None]
+    G = (Gw - Qw @ (Qw.T @ Gw)) * inv_W_L_sqrt[:, None]
+    G_norm = jnp.sum((G * W_L_sqrt[:, None]) ** 2, axis=0)
+    G_mask = G_norm > jnp.finfo(G.dtype).eps * max(G.shape) * G_scale
+    G = G * G_mask
     U = G.T @ R
 
-    I_HL = H.T @ (L * (mu * (1.0 - mu) * M)[:, None])
-    H = H - L @ masked_solve(I_LL, L_mask, I_HL.T)
-    H_mask = jnp.sum((H * M) ** 2) > 0
+    H_scale = jnp.sum((H * W_L_sqrt) ** 2)
+    Hw = H * W_L_sqrt
+    H = (Hw - Qw @ (Qw.T @ Hw)) * inv_W_L_sqrt
+    H_norm = jnp.sum((H * W_L_sqrt) ** 2)
+    H_mask = H_norm > jnp.finfo(H.dtype).eps * max(H.shape) * H_scale
+    H = H * H_mask
     UH = H.T @ R
 
     ## Score test for the joint ancestry-specific effects.
