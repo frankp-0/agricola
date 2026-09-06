@@ -1,6 +1,6 @@
 [project]
 name = "agricola"
-version = "0.25.7"
+version = "0.25.8"
 license = "MIT"
 description = "Admixed GWAS for Related Individuals Conditioning On Local Ancestry"
 readme = "README.md"
