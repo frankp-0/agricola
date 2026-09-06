@@ -375,7 +375,9 @@ def _step2_dataset(
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
                 beta_offset, offset_converged = vmap(
-                    logistic_ridge_with_convergence,
+                    lambda X, y, offset, train_mask, alpha: logistic_ridge_with_convergence(
+                        X, y, offset, train_mask, alpha, max_iter=50
+                    ),
                     in_axes=(None, 1, 1, 1, None),
                 )(X, Y, jnp.asarray(step1_pred_chr), M, 0)
                 failed_offset = np.flatnonzero(~np.asarray(offset_converged))
