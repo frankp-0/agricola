@@ -18,6 +18,7 @@ from agricola.statistics.binary import (
     bt_wald_lanc,
     bt_wald_nolanc,
 )
+from agricola.statistics.common import het_score, lanc_basis
 from agricola.statistics.quantitative import (
     _qt_score_lanc,
     _qt_score_nolanc,
@@ -351,3 +352,48 @@ def test_bt_nolanc_wald_edge(toy_bt_edge):
             rtol=1e-4,
             atol=1e-5,
         )
+
+
+def test_het_score_uses_joint_coefficients_and_variances():
+    score = jnp.array([[2.0], [1.0]])
+    information = jnp.array([[4.0, 1.0], [1.0, 1.0]])
+
+    beta, chisq_anc, chisq_het = het_score(score, information, jnp.array([True, True]))
+    covariance = np.linalg.inv(np.asarray(information))
+    expected_beta = covariance @ np.asarray(score)
+    expected_anc = expected_beta[:, 0] ** 2 / np.diag(covariance)
+    expected_het = np.asarray(score[:, 0]) @ expected_beta[:, 0]
+
+    np.testing.assert_allclose(beta[:, 0], expected_beta[:, 0])
+    np.testing.assert_allclose(chisq_anc[:, 0], expected_anc, rtol=1e-6)
+    np.testing.assert_allclose(chisq_het, expected_het, rtol=1e-6)
+
+
+def test_lanc_basis_uses_observed_rows_for_rank():
+    ancestry = jnp.array(
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [2.0, 2.0],
+        ]
+    )
+    mask = jnp.array([1.0, 1.0, 0.0, 0.0])
+
+    _, rank_mask = lanc_basis(ancestry, mask)
+
+    np.testing.assert_array_equal(np.asarray(rank_mask), np.array([True, True]))
+
+
+def test_bt_nolanc_masks_genotype_variation_only_in_missing_rows():
+    G = jnp.array([[0.0], [0.0], [1.0], [2.0]])
+    Y = jnp.array([0.0, 1.0, 0.0, 1.0])
+    Q = jnp.empty((4, 0))
+    offset = jnp.zeros(4)
+    mask = jnp.array([1.0, 1.0, 0.0, 0.0])
+
+    result = _bt_score_nolanc(G, Y, Q, offset, mask)
+
+    assert np.isnan(np.asarray(result[0]))
+    assert np.isnan(np.asarray(result[1]))
+    assert np.isnan(np.asarray(result[3])).all()

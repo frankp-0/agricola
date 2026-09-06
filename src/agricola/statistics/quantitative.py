@@ -79,8 +79,6 @@ def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array,
 def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
-    K = G.shape[1]
-
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
 

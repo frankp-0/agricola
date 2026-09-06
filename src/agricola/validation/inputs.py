@@ -51,11 +51,11 @@ def _prepare_masks(train_mask: ArrayLike, test_mask: ArrayLike, N: int):
         train_mask = jnp.asarray(train_mask)
     if test_mask is not None:
         test_mask = jnp.asarray(test_mask)
-    if not (train_mask is None or test_mask is None):
-        if train_mask.ndim != 2 or test_mask.ndim != 2 or train_mask.shape != test_mask.shape:
-            raise ValueError("train_mask and test_mask must be 2D (N, K) with the same shape")
-        if train_mask.shape[0] != N or test_mask.shape[0] != N:
-            raise ValueError("train_mask/test_mask must match N of Y")
+    for name, mask in (("train_mask", train_mask), ("test_mask", test_mask)):
+        if mask is not None and (mask.ndim != 2 or mask.shape[0] != N):
+            raise ValueError(f"{name} must be 2D (N, K) with N matching Y")
+    if train_mask is not None and test_mask is not None and train_mask.shape != test_mask.shape:
+        raise ValueError("train_mask and test_mask must be 2D (N, K) with the same shape")
     return train_mask, test_mask
 
 

@@ -126,6 +126,34 @@ def test_step2_X_matches_N_error(tmp_path, toy_data):
             "qt",
         )  # pyright: ignore
 
+
+def test_step2_phenotype_and_prediction_validation(tmp_path, toy_data):
+    Y, X, step1_predictions = valid_inputs()
+    outdir = tmp_path / "result"
+
+    with pytest.raises(ValueError, match="phenotype has length"):
+        step2(toy_data, Y, X, step1_predictions, outdir, ["0"], "qt")
+
+    missing = dict(step1_predictions)
+    missing["20"] = missing["20"].drop(columns=["1"])
+    with pytest.raises(KeyError):
+        step2(toy_data, Y, X, missing, outdir, ["0", "1", "2"], "qt")
+
+
+def test_step2_enum_batch_and_variant_validation(tmp_path, toy_data):
+    Y, X, step1_predictions = valid_inputs()
+    phenotypes = [str(i) for i in range(3)]
+    outdir = tmp_path / "result"
+
+    with pytest.raises(ValueError):
+        step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "invalid")
+    with pytest.raises(ValueError):
+        step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", test_type="invalid")
+    with pytest.raises(ValueError, match="B must be a positive integer"):
+        step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", B=0)
+    with pytest.raises(TypeError, match="variants must be a list of strings"):
+        step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", variants=[1])
+
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="must match Y\\.shape"):
         step2(

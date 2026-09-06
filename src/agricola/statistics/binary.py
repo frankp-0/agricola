@@ -13,8 +13,8 @@ from jaxtyping import Array
 from .common import (
     adj_by_lanc,
     het_score,
-    lanc_basis,
     hom_score,
+    lanc_basis,
     logistic_with_convergence,
     make_blockwise,
     mask_score,

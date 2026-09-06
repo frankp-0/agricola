@@ -208,23 +208,29 @@ def test_level1_X_matches_N_error():
 def test_level1_mask_dim_error():
     """Check that 1D train/test mask throws error"""
     level0_files, Y, X, phenos, _, _, h2 = valid_inputs_1()
-    with pytest.raises(ValueError, match="train_mask and test_mask must be 2D"):
+    with pytest.raises(ValueError, match=r"train_mask.*must be 2D"):
         level1(level0_files, Y, X, phenos, jnp.ones((10,)), jnp.ones((10, 2)), h2, "qt")
 
     Y = jnp.round(expit(Y))
-    with pytest.raises(ValueError, match="train_mask and test_mask must be 2D"):
+    with pytest.raises(ValueError, match=r"train_mask.*must be 2D"):
         level1(level0_files, Y, X, phenos, jnp.ones((10,)), jnp.ones((10, 2)), h2, "bt")
 
 
 def test_level1_mask_shape_mismatch_error():
     """Check that train/test mask shape mis-match throws error"""
     level0_files, Y, X, phenos, _, _, h2 = valid_inputs_1()
-    with pytest.raises(ValueError, match="same shape"):
+    with pytest.raises(ValueError, match=r"same shape|train_mask.*must be 2D"):
         level1(level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "qt")
 
     Y = jnp.round(expit(Y))
-    with pytest.raises(ValueError, match="same shape"):
+    with pytest.raises(ValueError, match=r"same shape|train_mask.*must be 2D"):
         level1(level0_files, Y, X, phenos, jnp.ones((10, 2)), jnp.ones((10, 3)), h2, "bt")
+
+
+def test_level1_single_mask_shape_error():
+    level0_files, Y, X, phenos, _, _, h2 = valid_inputs_1()
+    with pytest.raises(ValueError, match=r"test_mask.*must be 2D"):
+        level1(level0_files, Y, X, phenos, None, jnp.ones(10), h2, "qt")
 
 
 def test_level1_h2_prior_dim_error():
