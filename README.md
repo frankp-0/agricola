@@ -20,7 +20,7 @@ improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
-Tools like Tractor this gap by performing single-variant association tests with explicit local ancestry
+Tools like Tractor address this gap by performing single-variant association tests with explicit local ancestry
 adjustment. **agricola** follows the same conceptual approach but uses whole genome
 regression to correct for sample relatedness. Other features include:
 
