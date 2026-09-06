@@ -29,6 +29,7 @@ def logistic(
     max_iter: int = 30,
     tol: float = 1e-6,
 ) -> Array:
+    """Fit masked logistic regression by iteratively reweighted least squares."""
     beta0 = jnp.zeros(X.shape[1])
 
     def _body_fun(state):
@@ -62,6 +63,7 @@ def logistic_with_convergence(
     max_iter: int = 30,
     tol: float = 1e-6,
 ) -> tuple[Array, Array]:
+    """Fit masked logistic regression and report convergence status."""
     beta0 = jnp.zeros(X.shape[1])
     total_weight = jnp.sum(train_mask)
 
@@ -124,10 +126,12 @@ def _masked_nan(X: Array, mask: Array) -> Array:
 
 
 def masked_inv(A: Array, mask: Array) -> Array:
+    """Invert a matrix after replacing inactive diagonal entries with one."""
     return inv(A + jnp.diag((~mask).astype(A.dtype)))
 
 
 def masked_solve(A: Array, mask: Array, x: Array) -> Array:
+    """Solve a masked linear system without changing its compiled shape."""
     return solve(A + jnp.diag((~mask).astype(A.dtype)), x)
 
 
@@ -141,12 +145,25 @@ def prep_lanc_geno(G: Array, L: Array, Q: Array) -> tuple[Array, ...]:
     return (qr_resid(G, Q), qr_resid(L, Q), qr_resid(H, Q))
 
 
-def adj_by_lanc(G: Array, H: Array, L: Array) -> tuple[Array, ...]:
-    QL, R = qr(L, mode="reduced")
+def lanc_basis(L: Array, mask: Array | None = None) -> tuple[Array, Array]:
+    """Return a fixed-width, rank-aware QR basis for local ancestry.
+
+    ``mask`` restricts rank detection to observed samples while retaining all
+    rows in the returned basis for JAX shape stability.
+    """
+    L_for_rank = L if mask is None else L * mask[:, None]
+    QL, R = qr(L_for_rank, mode="reduced")
     r_diag = jnp.abs(jnp.diagonal(R))
     rank_tol = jnp.finfo(L.dtype).eps * max(L.shape) * jnp.max(r_diag)
     L_mask = r_diag > rank_tol
-    QL = QL * L_mask
+    return QL * L_mask, L_mask
+
+
+def adj_by_lanc(
+    G: Array, H: Array, L: Array, mask: Array | None = None
+) -> tuple[Array, ...]:
+    """Residualize genotype designs against a rank-aware ancestry basis."""
+    QL, _ = lanc_basis(L, mask)
     G, Gl, G_mask = _project_and_mask_collinear(G, QL)
     H, Hl, H_mask = _project_and_mask_collinear(H, QL)
     return QL, G, Gl, G_mask, H, Hl, H_mask
@@ -155,6 +172,7 @@ def adj_by_lanc(G: Array, H: Array, L: Array) -> tuple[Array, ...]:
 def het_score(
     U: Array, covariance: Array, mask: Array, scale: Array = DEFAULT_SCALE
 ) -> tuple[Array, ...]:
+    """Return joint, ancestry-specific, and scaled heterogeneous score results."""
     solved_U = masked_solve(covariance, mask, U)
     covariance_of_beta = masked_solve(
         covariance, mask, jnp.eye(covariance.shape[0], dtype=covariance.dtype)
@@ -168,6 +186,7 @@ def het_score(
 
 
 def hom_score(UH: Array, HtH: Array, scale: Array = DEFAULT_SCALE):
+    """Return the homogeneous coefficient and its scaled score statistic."""
     beta_hom = UH / HtH
     chisq = UH**2 / HtH / scale
     return beta_hom, chisq
@@ -182,6 +201,7 @@ def mask_score(
     G_mask: Array,
     H_mask: Array,
 ) -> tuple[Array, ...]:
+    """Apply genotype-variation masks to score-test outputs."""
     df_het = jnp.sum(G_mask)
     return (
         _masked_nan(chisq_hom, H_mask),
@@ -203,6 +223,7 @@ def mask_wald(
     G_mask: Array,
     H_mask: Array,
 ) -> tuple[Array, ...]:
+    """Apply genotype-variation masks and degrees of freedom to Wald outputs."""
     df_het = jnp.sum(G_mask)
     df_hom = jnp.sum(H_mask)
     df_lrt = df_het - df_hom

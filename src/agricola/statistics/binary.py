@@ -13,6 +13,7 @@ from jaxtyping import Array
 from .common import (
     adj_by_lanc,
     het_score,
+    lanc_basis,
     hom_score,
     logistic_with_convergence,
     make_blockwise,
@@ -33,35 +34,36 @@ def _bt_score_lanc(
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
 
-    ## Fit G,H ~ L and mask out collinear columns
-    QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L)
-    L_mask = jnp.sum(QL**2, axis=0) > 0
+    ## Detect ancestry rank on observed samples but retain fixed-size arrays.
+    _, L_mask = lanc_basis(L, M)
     L = L * L_mask
 
-    ## Fit null model L + offset
+    ## Null model
     beta_L, converged = logistic_with_convergence(L, Y, offset, M, L_mask)
     mu = expit(L @ beta_L + offset)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
 
-    ## Adjust for L using the logistic-information Schur complement.
+    ## Use the logistic-information projection for the efficient score.
     Lw = L * W_L_sqrt[:, None]
     I_LL = Lw.T @ Lw
 
     I_GL = G.T @ (L * (mu * (1.0 - mu) * M)[:, None])
     G = G - L @ masked_solve(I_LL, L_mask, I_GL.T)
+    G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
     U = G.T @ R
 
     I_HL = H.T @ (L * (mu * (1.0 - mu) * M)[:, None])
     H = H - L @ masked_solve(I_LL, L_mask, I_HL.T)
+    H_mask = jnp.sum((H * M) ** 2) > 0
     UH = H.T @ R
 
-    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Score test for the joint ancestry-specific effects.
     Glw = G * W_L_sqrt[:, None]
     GltGl = Glw.T @ Glw
     beta_het, chisq_anc, chisq_het = het_score(U[:, None], GltGl, G_mask)
 
-    ## Score test for genotypes (homogeneous test)
+    ## Score test for the common homogeneous effect.
     Hlw = H * W_L_sqrt
     HtH = Hlw.T @ Hlw
     beta_hom, chisq_hom = hom_score(UH, HtH)
@@ -85,13 +87,13 @@ def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> t
     R = (Y - mu) * M
     W_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
 
-    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Score test for the joint ancestry-specific effects.
     U = G.T @ R
     Gw = G * M[:, None] * W_sqrt[:, None]
     GtG = Gw.T @ Gw
     beta_het, chisq_anc, chisq_het = het_score(U[:, None], GtG, G_mask)
 
-    ## Score test for genotypes (homogeneous test)
+    ## Score test for the common homogeneous effect.
     UH = H.T @ R
     Hw = H * M * W_sqrt
     HtH = Hw.T @ Hw
@@ -114,12 +116,12 @@ def _bt_wald_lanc(
     G, L, H = prep_lanc_geno(G, L, Q)
 
     ## Fit G,H ~ L and mask out collinear columns
-    QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L)
+    QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L, M)
     H = H[:, None]
     L_mask = jnp.sum(QL**2, axis=0) > 0
     L = L * L_mask
 
-    ## Wald test for anc-deconvoluted genotypes
+    ## Wald test for the joint ancestry-specific effects.
     Xg_mask = jnp.concatenate([G_mask, L_mask])
     Xg = jnp.concatenate([G, L], axis=1)
     beta_het, converged_het = logistic_with_convergence(Xg, Y, offset, M, Xg_mask)
@@ -132,7 +134,7 @@ def _bt_wald_lanc(
     chisq_anc = beta_het[:K] ** 2 / jnp.diagonal(XtXw_inv[:K, :K])
     chisq_het = beta_het[:K].T @ solve(XtXw_inv[:K, :K], beta_het[:K])
 
-    ## Wald test for genotypes
+    ## Wald test for the common homogeneous effect.
     Xh_mask = jnp.concatenate([H_mask[None], L_mask])
     Xh = jnp.concatenate([H, L], axis=1)
     beta_hom, converged_hom = logistic_with_convergence(Xh, Y, offset, M, Xh_mask)
@@ -169,7 +171,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     G, H = prep_geno(G, Q)
     H = H[:, None]
 
-    ## Wald test for anc-deconvoluted genotypes
+    ## Wald test for the joint ancestry-specific effects.
     G_mask = jnp.sum(G**2, axis=0) > 0
     beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask)
     etag = G @ beta_het + offset
@@ -181,7 +183,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     chisq_anc = beta_het[:K] ** 2 / jnp.diagonal(GtGw_inv[:K, :K])
     chisq_het = beta_het[:K].T @ solve(GtGw_inv[:K, :K], beta_het[:K])
 
-    ## Wald test for genotypes
+    ## Wald test for the common homogeneous effect.
     H_mask = jnp.sum(H**2, axis=0) > 0
     beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask)
     etah = H @ beta_hom + offset

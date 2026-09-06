@@ -30,19 +30,20 @@ def _qt_score_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tupl
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
 
-    ## Fit G,H ~ L and mask out collinear columns
+    ## Residualize genotypes against a rank-aware ancestry basis.
     QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
+    rank_L = jnp.sum(jnp.sum(QL**2, axis=0) > 0)
 
     ## Fit null model: Y ~ L
     r_L = qr_resid(Y, QL)
-    mse_null = jnp.sum(r_L**2, axis=0) / (N_eff - (G.shape[1] - 1))
+    mse_null = jnp.sum(r_L**2, axis=0) / (N_eff - rank_L)
 
-    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Score test for the joint ancestry-specific effects.
     U = G.T @ r_L
     GltGl = Gl.T @ Gl
     beta_het, chisq_anc, chisq_het = het_score(U, GltGl, G_mask, mse_null)
 
-    ## Score test for genotypes (homogeneous test)
+    ## Score test for the common homogeneous effect.
     beta_hom, chisq_hom = hom_score(H.T @ r_L, jnp.sum(Hl**2), mse_null)
 
     return mask_score(beta_het, beta_hom, chisq_anc, chisq_het, chisq_hom, G_mask[:, None], H_mask)
@@ -62,12 +63,12 @@ def _qt_score_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array,
     H_mask = jnp.sum(H**2, axis=0) > 0
     H = H * H_mask
 
-    ## Score test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Score test for the joint ancestry-specific effects.
     U = G.T @ Y
     GtG = G.T @ G
     beta_het, chisq_anc, chisq_het = het_score(U, GtG, G_mask, mse_null)
 
-    ## Score test for genotypes (homogeneous test)
+    ## Score test for the common homogeneous effect.
     UH = H.T @ Y
     HtH = jnp.sum(H**2)
     beta_hom, chisq_hom = hom_score(UH, HtH, mse_null)
@@ -83,32 +84,34 @@ def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
 
-    ## Fit G,H ~ L and mask out collinear columns
+    ## Residualize genotypes against a rank-aware ancestry basis.
     QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
+    rank_L = jnp.sum(jnp.sum(QL**2, axis=0) > 0)
     H = H[:, None]
     Hl = Hl[:, None]
 
     ## Fit null model: Y ~ L
     r_L = qr_resid(Y, QL)
 
-    ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Wald test for the joint ancestry-specific effects.
     Gtr = Gl.T @ r_L
     GltGl = Gl.T @ Gl
     GltGl_inv = masked_inv(GltGl, G_mask)
     beta_het = GltGl_inv @ Gtr
     r_G = r_L - Gl @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
-    mse_het = sse_het / (N_eff - (2 * K - 1))
-    chisq_anc = Gtr**2 / jnp.diagonal(GltGl)[:, None] / mse_het
+    ## Use the effective fitted rank for the residual variance estimate.
+    mse_het = sse_het / (N_eff - rank_L - jnp.sum(G_mask))
+    chisq_anc = beta_het**2 / jnp.diagonal(GltGl_inv)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GltGl_inv, Gtr) / mse_het
 
-    ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Wald test for the common homogeneous effect.
     Htr = Hl.T @ r_L
     HltHl = Hl.T @ Hl
     beta_hom = Htr / HltHl
     r_H = r_L - (Hl @ beta_hom)
     sse_hom = jnp.sum(r_H**2, axis=0)
-    mse_hom = sse_hom / (N_eff - K)
+    mse_hom = sse_hom / (N_eff - rank_L - jnp.sum(H_mask))
     chisq_hom = (Htr**2) / HltHl / mse_hom
 
     ## LRT
@@ -141,7 +144,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     H = H * H_mask
     H = H[:, None]
 
-    ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Wald test for the joint ancestry-specific effects.
     Gtr = G.T @ Y
     GtG = G.T @ G
     GtG_inv = masked_inv(GtG, G_mask)
@@ -149,10 +152,10 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     r_G = Y - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
     mse_het = sse_het / (N_eff - K)
-    chisq_anc = Gtr**2 / jnp.diagonal(GtG)[:, None] / mse_het
+    chisq_anc = beta_het**2 / jnp.diagonal(GtG_inv)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GtG_inv, Gtr) / mse_het
 
-    ## Wald test for anc-deconvoluted genotypes (heterogeneous test)
+    ## Wald test for the common homogeneous effect.
     Htr = H.T @ Y
     HtH = H.T @ H
     beta_hom = Htr / HtH
