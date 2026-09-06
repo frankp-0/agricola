@@ -48,3 +48,9 @@ jobs:
           enable-cache: true
       - run: uv sync --locked --dev
       - run: uv build
+      - name: Install and smoke-test wheel
+        run: |
+          python -m venv /tmp/agricola-release-venv
+          /tmp/agricola-release-venv/bin/python -m pip install dist/*.whl
+          /tmp/agricola-release-venv/bin/agricola --version
+          /tmp/agricola-release-venv/bin/python -c "import agricola; assert agricola.__all__"

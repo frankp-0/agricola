@@ -6,6 +6,7 @@ from pathlib import Path
 
 import jax
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 from typer.testing import CliRunner
 
@@ -118,3 +119,45 @@ def test_allsteps_toy(toy_data):
         ],
     )
     assert result.exit_code == 0
+
+    parquet_files = sorted(Path(toy_data["outdir"]).glob("trait*/*.parquet"))
+    assert len(parquet_files) == 4
+    for parquet_file in parquet_files:
+        table = pq.read_table(parquet_file)
+        assert table.num_rows > 0
+        assert {"CHR", "BP", "ID", "N"} <= set(table.column_names)
+        assert "phenotype" not in table.column_names
+        assert set(table.column("CHR").to_pylist()) == {"20", "21", "22"}
+
+
+def test_step2_binary_release_smoke(toy_data):
+    pheno = pd.read_csv(toy_data["pheno_file"], sep="\t")
+    pheno["trait0"] = (pheno["trait0"] > pheno["trait0"].median()).astype(int)
+    pheno.to_csv(toy_data["pheno_file"], sep="\t", index=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "step2",
+            "--plink-list",
+            toy_data["plink_list"],
+            "--lanc-list",
+            toy_data["lanc_list"],
+            "--outdir",
+            toy_data["outdir"],
+            "--pheno-file",
+            toy_data["pheno_file"],
+            "--covar-file",
+            toy_data["covar_file"],
+            "--pheno",
+            "trait0",
+            "--trait-type",
+            "bt",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    parquet_files = sorted(Path(toy_data["outdir"]).glob("trait0/*.parquet"))
+    assert parquet_files
+    table = pq.read_table(parquet_files[0])
+    assert table.num_rows > 0

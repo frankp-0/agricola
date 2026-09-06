@@ -29,7 +29,7 @@ regression to correct for sample relatedness. Other features include:
 
 ## Installation
 
-**Requirements:** Python 3.10+
+**Requirements:** Python 3.12+
 
 Install via pip:
 
