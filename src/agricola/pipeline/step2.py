@@ -374,19 +374,12 @@ def _step2_dataset(
                 Yc = Yc - step1_pred_chr
                 Yc = Yc - jnp.sum(Yc * M, axis=0) / jnp.sum(M, axis=0)
             else:
-                beta_offset, offset_converged = vmap(
+                beta_offset, _ = vmap(
                     lambda X, y, offset, train_mask, alpha: logistic_ridge_with_convergence(
                         X, y, offset, train_mask, alpha, max_iter=50, tol=1e-5
                     ),
                     in_axes=(None, 1, 1, 1, None),
                 )(X, Y, jnp.asarray(step1_pred_chr), M, 0)
-                failed_offset = np.flatnonzero(~np.asarray(offset_converged))
-                if failed_offset.size:
-                    failed_phenotypes = [phenotypes[i] for i in failed_offset]
-                    logger.warning(
-                        "Offset model did not converge for phenotype(s): %s",
-                        ", ".join(failed_phenotypes),
-                    )
                 offset = X @ beta_offset.T + step1_pred_chr
                 mu = expit(offset)
                 W_sqrt = jnp.sqrt(mu * (1 - mu))
