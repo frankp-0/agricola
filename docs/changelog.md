@@ -2,9 +2,25 @@
 
 Notable changes to agricola (starting with v0.9.0) will be documented here.
 
-## [v0.24.2] - 2026-09-02
+## [v0.25.1] - 2026-09-05
 
-[v0.24.2]: https://github.com/frankp-0/agricola/compare/v0.23.1...v0.24.2>
+[v0.25.1]: https://github.com/frankp-0/agricola/compare/v0.24.2...v0.25.1>
+
+### Fixed
+
+- Corrected local ancestry-conditioned binary score test to use the covariate-only weights for projecting against covariates
+- Corrected heterogeneous score-test effect estimates to account for covariance
+- Corrected ancestry-specific score statistics to account for covariance
+- Made local-ancestry rank detection aware of phenotype missingness
+- Made quantitative residual variance estimates use effective rank
+- Improved handling of zero-variation ancestry and genotype columns
+
+### Changed
+
+- Use masked linear solves in place of explicit inversions
+- Clarified behavior with docstrings and comments
+
+## [v0.24.2] - 2026-09-02
 
 ### Added
 
