@@ -12,7 +12,6 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 
 from rich.console import Console
-from rich.text import Text
 
 logger = logging.getLogger("agricola")
 logging.getLogger("jax").setLevel(logging.WARNING)
@@ -29,19 +28,6 @@ def get_version() -> str:
 
 
 def print_welcome() -> None:
-    art = r"""
-                               ░██                      ░██            
-                                                        ░██            
- ░██████    ░████████ ░██░████ ░██ ░███████   ░███████  ░██  ░██████   
-      ░██  ░██    ░██ ░███     ░██░██    ░██ ░██    ░██ ░██       ░██  
- ░███████  ░██    ░██ ░██      ░██░██        ░██    ░██ ░██  ░███████  
-░██   ░██  ░██   ░███ ░██      ░██░██    ░██ ░██    ░██ ░██ ░██   ░██  
- ░█████░██  ░█████░██ ░██      ░██ ░███████   ░███████  ░██  ░█████░██ 
-                  ░██                                                  
-            ░███████                                                   
-                                                                       
-"""
-    console.print(Text(art, style="bold"))
     console.print(
         f"[bold]agricola[/bold] v{get_version()}\n"
         "[dim]Run --help to see available commands.[/dim]\n"
@@ -70,14 +56,20 @@ def setup_logging(log_file: str | None, verbose: bool = False) -> None:
 
 
 def report_devices(backend: str | None = None):
-    if backend is not None:
-        os.environ["JAX_PLATFORMS"] = backend
     import jax
 
-    devices = jax.devices()
+    if backend is not None:
+        try:
+            devices = jax.devices(backend)
+        except RuntimeError:
+            logger.warning(f"backend {backend} not available; using {jax.default_backend()}.\n")
+            devices = jax.devices()
+        else:
+            jax.config.update("jax_platform_name", backend)
+    else:
+        devices = jax.devices()
+
     backend_default = jax.default_backend()
-    if backend is not None and backend != backend_default:
-        logger.warning(f"backend {backend} not available.\n")
     logger.info(f"Using JAX backend: {backend_default}\n")
     for device in devices:
         logger.info(f"Using device: {device}")
