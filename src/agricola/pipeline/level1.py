@@ -282,7 +282,7 @@ def level1(
             Z = jnp.concatenate(Zs, axis=1)
 
             if trait == TraitType.BT:
-                beta_covar = logistic_ridge(X, Y[:, p], jnp.zeros(N), jnp.ones(N), 0)
+                beta_covar = logistic_ridge(X, Y[:, p], jnp.zeros(N), jnp.ones(N), 0, max_iter=50)
                 offset = X @ beta_covar
 
                 if not loocv:
