@@ -159,9 +159,7 @@ def lanc_basis(L: Array, mask: Array | None = None) -> tuple[Array, Array]:
     return QL * L_mask, L_mask
 
 
-def adj_by_lanc(
-    G: Array, H: Array, L: Array, mask: Array | None = None
-) -> tuple[Array, ...]:
+def adj_by_lanc(G: Array, H: Array, L: Array, mask: Array | None = None) -> tuple[Array, ...]:
     """Residualize genotype designs against a rank-aware ancestry basis."""
     QL, _ = lanc_basis(L, mask)
     G, Gl, G_mask = _project_and_mask_collinear(G, QL)
