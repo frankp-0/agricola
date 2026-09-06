@@ -376,7 +376,7 @@ def _step2_dataset(
             else:
                 beta_offset, offset_converged = vmap(
                     lambda X, y, offset, train_mask, alpha: logistic_ridge_with_convergence(
-                        X, y, offset, train_mask, alpha, max_iter=50
+                        X, y, offset, train_mask, alpha, max_iter=50, tol=1e-5
                     ),
                     in_axes=(None, 1, 1, 1, None),
                 )(X, Y, jnp.asarray(step1_pred_chr), M, 0)
