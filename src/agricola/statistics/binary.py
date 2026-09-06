@@ -79,8 +79,8 @@ def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> t
     G, H = prep_geno(G, Q)
 
     ## Mask out low variation columns
-    G_mask = jnp.sum(G**2, axis=0) > 0
-    H_mask = jnp.sum(H**2, axis=0) > 0
+    G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
+    H_mask = jnp.sum((H * M) ** 2) > 0
 
     ## Null model
     mu = expit(offset)
@@ -172,7 +172,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     H = H[:, None]
 
     ## Wald test for the joint ancestry-specific effects.
-    G_mask = jnp.sum(G**2, axis=0) > 0
+    G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
     beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask)
     etag = G @ beta_het + offset
     mu = expit(etag)
@@ -184,7 +184,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     chisq_het = beta_het[:K].T @ solve(GtGw_inv[:K, :K], beta_het[:K])
 
     ## Wald test for the common homogeneous effect.
-    H_mask = jnp.sum(H**2, axis=0) > 0
+    H_mask = jnp.sum((H * M[:, None]) ** 2, axis=0) > 0
     beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask)
     etah = H @ beta_hom + offset
     mu = expit(etah)
