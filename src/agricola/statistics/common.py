@@ -108,10 +108,17 @@ def qr_resid(X: Array, Q: Array) -> Array:
     return X - Q @ (Q.T @ X)
 
 
-def _project_and_mask_collinear(X: Array, QL: Array) -> tuple[Array, ...]:
+def _project_and_mask_collinear(
+    X: Array, QL: Array, mask: Array | None = None
+) -> tuple[Array, ...]:
     Xl = qr_resid(X, QL)
-    Xl_norm = jnp.sum(Xl**2, axis=0)
-    X_norm = jnp.sum(X**2, axis=0)
+    if mask is not None:
+        mask_shaped = jnp.reshape(mask, mask.shape + (1,) * (X.ndim - 1))
+        Xl_norm = jnp.sum((Xl * mask_shaped) ** 2, axis=0)
+        X_norm = jnp.sum((X * mask_shaped) ** 2, axis=0)
+    else:
+        Xl_norm = jnp.sum(Xl**2, axis=0)
+        X_norm = jnp.sum(X**2, axis=0)
     rank_tol = jnp.finfo(X.dtype).eps * max(X.shape[0], QL.shape[1])
     X_mask = Xl_norm > rank_tol * X_norm
     X_mask_shaped = jnp.reshape(X_mask, X_mask.shape + (1,) * (X.ndim - 1)).T
@@ -162,8 +169,8 @@ def lanc_basis(L: Array, mask: Array | None = None) -> tuple[Array, Array]:
 def adj_by_lanc(G: Array, H: Array, L: Array, mask: Array | None = None) -> tuple[Array, ...]:
     """Residualize genotype designs against a rank-aware ancestry basis."""
     QL, _ = lanc_basis(L, mask)
-    G, Gl, G_mask = _project_and_mask_collinear(G, QL)
-    H, Hl, H_mask = _project_and_mask_collinear(H, QL)
+    G, Gl, G_mask = _project_and_mask_collinear(G, QL, mask)
+    H, Hl, H_mask = _project_and_mask_collinear(H, QL, mask)
     return QL, G, Gl, G_mask, H, Hl, H_mask
 
 
