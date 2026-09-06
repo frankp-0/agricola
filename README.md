@@ -1,10 +1,11 @@
 # agricola
 
-**agricola** is a Python package and command-line tool for conducting **genome-wide
+**agricola** is a command-line tool and Python package for conducting **genome-wide
 association studies (GWAS) in admixed populations**. Inspired by [regenie](https://rgcgithub.github.io/regenie)
 and [Tractor](https://atkinson-lab.github.io/Tractor-tutorial/), **agricola**
 provides a scalable, local-ancestry–aware framework that handles relatedness, population
-structure, and ancestry effect heterogeneity.
+structure, and ancestry effect heterogeneity. Agricola
+is highly computationally efficient and can be run on GPU, CPU, or TPU compute environments.
 
 ---
 
@@ -19,12 +20,34 @@ improve power for population-specific causal variants. However, standard GWAS
 tools fail to adjust for local ancestry or model effect heterogeneity in admixed
 individuals.
 
-Tools like Tractor and SAIGE-Tractor address this gap. **agricola** follows the same
-conceptual approach-performing single-variant association tests with explicit
-local ancestry adjustment-but combines it with:
+Tools like Tractor this gap by performing single-variant association tests with explicit local ancestry
+adjustment. **agricola** follows the same conceptual approach but uses whole genome
+regression to correct for sample relatedness. Other features include:
 
 - **Accelerated linear algebra** via [JAX](https://docs.jax.dev)
 - **CUDA GPU, TPU, or CPU support** for flexible compute environments
-- **Efficient local ancestry queries** using [lanctools](https://github.com/frankp-0/lanctools)
-- **Multi-phenotype** modeling
-- **Adjustment for sample relatedness**
+- **Fast local ancestry queries** using [lanctools](https://frankp-0.github.io/lanctools/)
+- **Efficient multi-phenotype** modeling
+- **Hypothesis testing** for ancestry effect heterogeneity
+
+---
+
+## Installation
+
+**Requirements:** Python 3.12+
+
+Install via pip:
+
+```bash
+pip install agricola
+```
+
+For GPU or TPU support:
+
+```bash
+pip install agricola[cuda]
+```
+
+```bash
+pip install agricola[tpu]
+```
