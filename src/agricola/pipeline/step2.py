@@ -165,6 +165,7 @@ def _step2_block(
         test_func = _BT_FUNCTIONS[(test_type, adjust_lanc)]
 
     log10p_lrt: np.ndarray | None = None
+    test_converged: Array | None = None
 
     if test_type == TestType.WALD:
         if trait_type == TraitType.BT:
@@ -195,7 +196,7 @@ def _step2_block(
             df_lrt = df_lrt[:, None]
         log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
     else:
-        if trait_type == TraitType.BT:
+        if trait_type == TraitType.BT and not adjust_lanc:
             (
                 chisq_hom,
                 beta_hom,

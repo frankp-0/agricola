@@ -38,7 +38,7 @@ def _bt_score_lanc(
     L = L * L_mask
 
     ## Null model
-    beta_L, converged = logistic_with_convergence(L, Y, offset, M, L_mask)
+    beta_L, _ = logistic_with_convergence(L, Y, offset, M, L_mask, max_iter=1, tol=1e-5)
     mu = expit(L @ beta_L + offset)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
@@ -81,7 +81,7 @@ def _bt_score_lanc(
     result = mask_score(
         beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
     )
-    return (*result, converged)
+    return result
 
 
 def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tuple[Array, ...]:
@@ -134,7 +134,7 @@ def _bt_wald_lanc(
     ## Wald test for the joint ancestry-specific effects.
     Xg_mask = jnp.concatenate([G_mask, L_mask])
     Xg = jnp.concatenate([G, L], axis=1)
-    beta_het, converged_het = logistic_with_convergence(Xg, Y, offset, M, Xg_mask)
+    beta_het, converged_het = logistic_with_convergence(Xg, Y, offset, M, Xg_mask, tol=1e-5)
     etag = Xg @ beta_het + offset
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -147,7 +147,7 @@ def _bt_wald_lanc(
     ## Wald test for the common homogeneous effect.
     Xh_mask = jnp.concatenate([H_mask[None], L_mask])
     Xh = jnp.concatenate([H, L], axis=1)
-    beta_hom, converged_hom = logistic_with_convergence(Xh, Y, offset, M, Xh_mask)
+    beta_hom, converged_hom = logistic_with_convergence(Xh, Y, offset, M, Xh_mask, tol=1e-5)
     etah = Xh @ beta_hom + offset
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -183,7 +183,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
     ## Wald test for the joint ancestry-specific effects.
     G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
-    beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask)
+    beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask, tol=1e-5)
     etag = G @ beta_het + offset
     mu = expit(etag)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
@@ -195,7 +195,7 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
     ## Wald test for the common homogeneous effect.
     H_mask = jnp.sum((H * M[:, None]) ** 2, axis=0) > 0
-    beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask)
+    beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask, tol=1e-5)
     etah = H @ beta_hom + offset
     mu = expit(etah)
     W_sqrt = jnp.sqrt(mu * (1 - mu))
