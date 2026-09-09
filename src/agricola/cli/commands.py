@@ -295,13 +295,9 @@ def step2(
         False,
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
-    het_vs_hom_test: bool = typer.Option(
-        True,
-        "--het-vs-hom-test/--no-het-vs-hom-test",
-        help=(
-            "Perform the test for whether the heteorgeneous model fits the data "
-            "better than the homogeneous model."
-        ),
+    p_het_threshold: float = typer.Option(
+        1.0,
+        help="Only report the heterogeneous-versus-homogeneous test when P_HET is at most this value.",
     ),
     double_precision: bool = typer.Option(
         False,
@@ -407,7 +403,7 @@ def step2(
         overwrite,
         partition_phenotypes,
         max_rows,
-        het_vs_hom_test,
+        p_het_threshold,
     )
 
 
@@ -502,13 +498,9 @@ def all_steps(
         False,
         help="Impute quantitative traits in step 2 (must be --no-impute for binary traits)",
     ),
-    het_vs_hom_test: bool = typer.Option(
-        True,
-        "--het-vs-hom-test/--no-het-vs-hom-test",
-        help=(
-            "Perform the test for whether the heteorgeneous model fits the data "
-            "better than the homogeneous model."
-        ),
+    p_het_threshold: float = typer.Option(
+        1.0,
+        help="Only report the heterogeneous-versus-homogeneous test when P_HET is at most this value.",
     ),
     double_precision: bool = typer.Option(
         False,
@@ -643,7 +635,7 @@ def all_steps(
         overwrite,
         partition_phenotypes,
         max_rows,
-        het_vs_hom_test,
+        p_het_threshold,
     )
 
 
