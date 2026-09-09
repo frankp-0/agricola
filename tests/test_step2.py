@@ -151,6 +151,17 @@ def test_step2_enum_batch_and_variant_validation(tmp_path, toy_data):
         step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", test_type="invalid")
     with pytest.raises(ValueError, match="B must be a positive integer"):
         step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", B=0)
+    with pytest.raises(ValueError, match=r"p_het_threshold must be in \[0, 1\]"):
+        step2(
+            toy_data,
+            Y,
+            X,
+            step1_predictions,
+            outdir,
+            phenotypes,
+            "qt",
+            p_het_threshold=-0.1,
+        )
     with pytest.raises(TypeError, match="variants must be a list of strings"):
         step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", variants=[1])
 
@@ -188,6 +199,29 @@ def test_step2_valid_input_qt(tmp_path, toy_data):
         "qt",
         adjust_lanc=True,
     )
+
+
+def test_step2_zero_p_het_threshold(tmp_path, toy_data):
+    """Check that a zero heterogeneity threshold suppresses difference tests."""
+    Y, X, step1_predictions = valid_inputs()
+    phenotypes = [str(i) for i in range(3)]
+    outdir = tmp_path / "result"
+
+    step2(
+        toy_data,
+        Y,
+        X,
+        step1_predictions,
+        outdir,
+        phenotypes,
+        "qt",
+        p_het_threshold=0,
+    )
+
+    output_files = list(outdir.glob("*/*.parquet"))
+    assert output_files
+    result = pd.read_parquet(output_files[0])
+    assert result["LOG10P_HET_VS_HOM"].isna().all()
 
 
 def test_step2_valid_input_bt(tmp_path, toy_data):

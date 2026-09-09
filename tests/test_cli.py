@@ -96,6 +96,8 @@ def test_step2_toy(toy_data):
             toy_data["pheno_file"],
             "--covar-file",
             toy_data["covar_file"],
+            "--p-het-threshold",
+            "0",
         ],
     )
     assert result.exit_code == 0

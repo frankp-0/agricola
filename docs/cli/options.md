@@ -90,9 +90,10 @@ These are the non-global options for `step2`:
 
 !!! info
 
-    It is recommended to either use p-het-threshold=1.0 (always perform the het vs. hom test)
-    or to use a strict threshold (e.g. 5e-8). Intermediate values will be extremely 
-    computationally expensive.
+    Set `p-het-threshold=0` to never report the heterogeneity-versus-homogeneity
+    test. Otherwise, it is recommended to either use `p-het-threshold=1.0`
+    (always perform the test) or a strict threshold (e.g. `5e-8`). Intermediate
+    values will be extremely computationally expensive.
 
 !!! warning
 
@@ -142,9 +143,10 @@ These are the non-global options for `all-steps`
 
 !!! info
 
-    It is recommended to either use p-het-threshold=1.0 (always perform the het vs. hom test)
-    or to use a strict threshold (e.g. 5e-8). Intermediate values will be extremely 
-    computationally expensive.
+    Set `p-het-threshold=0` to never report the heterogeneity-versus-homogeneity
+    test. Otherwise, it is recommended to either use `p-het-threshold=1.0`
+    (always perform the test) or a strict threshold (e.g. `5e-8`). Intermediate
+    values will be extremely computationally expensive.
 
 !!! warning
 

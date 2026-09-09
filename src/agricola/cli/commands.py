@@ -297,7 +297,10 @@ def step2(
     ),
     p_het_threshold: float = typer.Option(
         1.0,
-        help="Only report the heterogeneous-versus-homogeneous test when P_HET is at most this value.",
+        help=(
+            "Only report the heterogeneous-versus-homogeneous test when P_HET is at "
+            "most this value; set to 0 to never report it."
+        ),
     ),
     double_precision: bool = typer.Option(
         False,
@@ -500,7 +503,10 @@ def all_steps(
     ),
     p_het_threshold: float = typer.Option(
         1.0,
-        help="Only report the heterogeneous-versus-homogeneous test when P_HET is at most this value.",
+        help=(
+            "Only report the heterogeneous-versus-homogeneous test when P_HET is at "
+            "most this value; set to 0 to never report it."
+        ),
     ),
     double_precision: bool = typer.Option(
         False,

@@ -318,7 +318,11 @@ def _step2_block(
     log10p_het = chi2.logsf(chisq_het, df_het) / np.log(10)
     log10p_hom = chi2.logsf(chisq_hom, 1) / np.log(10)
     if selective_score_diff:
-        selected = np.asarray(log10p_het <= np.log10(p_het_threshold))
+        selected = (
+            np.zeros((B, P), dtype=bool)
+            if p_het_threshold == 0
+            else np.asarray(log10p_het <= np.log10(p_het_threshold))
+        )
         log10p_het_vs_hom = np.full((B, P), np.nan)
         if trait_type == TraitType.BT:
             convergence = np.asarray(test_converged)
@@ -368,7 +372,11 @@ def _step2_block(
                     -1
                 )
     if p_het_threshold < 1 and not selective_score_diff:
-        selected = log10p_het <= np.log10(p_het_threshold)
+        selected = (
+            jnp.zeros((B, P), dtype=bool)
+            if p_het_threshold == 0
+            else log10p_het <= np.log10(p_het_threshold)
+        )
         log10p_het_vs_hom = jnp.where(selected, log10p_het_vs_hom, jnp.nan)
     if test_converged is not None and np.issubdtype(np.asarray(test_converged).dtype, np.number):
         if np.isnan(np.asarray(test_converged)).all():
@@ -489,8 +497,8 @@ def _step2_dataset(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
     """
-    if not 0 < p_het_threshold <= 1:
-        raise ValueError("p_het_threshold must be in (0, 1].")
+    if not 0 <= p_het_threshold <= 1:
+        raise ValueError("p_het_threshold must be in [0, 1].")
 
     idx_variant = get_variant_indices(dataset, variants)
 
@@ -614,13 +622,14 @@ def step2(
             for qt traits. If all phenotypes are non-missing, this is ignored.
         p_het_threshold: Only report the heterogeneous-versus-homogeneous
             difference test for pairs with P_HET at or below this threshold.
+            Set to zero to never report the test.
         overwrite: Whether to overwrite the outdir if it already exists
         partition_phenotype: Whether to partition output parquet files by phenotype
         max_rows: Max number of rows/variants per phenotype to keep in memory
             before writing an output file. Defaults to 5000000 / len(phenotypes)
     """
-    if not 0 < p_het_threshold <= 1:
-        raise ValueError("p_het_threshold must be in (0, 1].")
+    if not 0 <= p_het_threshold <= 1:
+        raise ValueError("p_het_threshold must be in [0, 1].")
 
     ## Create writer
     outdir_path = Path(outdir)
