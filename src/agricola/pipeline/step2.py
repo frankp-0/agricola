@@ -370,9 +370,7 @@ def _step2_block(
                 diff_chisq, diff_df
             ) / np.log(10)
             if trait_type == TraitType.BT:
-                test_converged[variant_idx, phenotype_idx] = np.asarray(diff_result[8]).reshape(
-                    -1
-                )
+                test_converged[variant_idx, phenotype_idx] = np.asarray(diff_result[8]).reshape(-1)
     if p_het_threshold < 1 and not selective_score_diff:
         selected = (
             jnp.zeros((B, P), dtype=bool)
