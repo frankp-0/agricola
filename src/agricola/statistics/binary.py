@@ -95,8 +95,15 @@ def _bt_score_lanc(
     ## Fit the joint homogeneous null for the heterogeneity score test.
     X_hom = jnp.concatenate([L, H[:, None]], axis=1)
     X_hom_mask = jnp.concatenate([Lw_mask, jnp.atleast_1d(H_mask)])
+    beta_hom_init = jnp.concatenate([beta_L, jnp.zeros(1, dtype=beta_L.dtype)])
     beta_hom_null, converged_hom = logistic_with_convergence(
-        X_hom, Y, offset, M, X_hom_mask, tol=1e-5
+        X_hom,
+        Y,
+        offset,
+        M,
+        X_hom_mask,
+        tol=1e-5,
+        beta_init=beta_hom_init,
     )
     mu_hom = expit(X_hom @ beta_hom_null + offset)
     R_hom = (Y - mu_hom) * M

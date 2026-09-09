@@ -62,9 +62,10 @@ def logistic_with_convergence(
     X_mask: Array,
     max_iter: int = 30,
     tol: float = 1e-6,
+    beta_init: Array | None = None,
 ) -> tuple[Array, Array]:
     """Fit masked logistic regression and report convergence status."""
-    beta0 = jnp.zeros(X.shape[1])
+    beta0 = jnp.zeros(X.shape[1]) if beta_init is None else beta_init
     total_weight = jnp.sum(train_mask)
 
     def gradient(beta):
