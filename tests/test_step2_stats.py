@@ -207,6 +207,16 @@ def test_bt_nolanc_wald(toy_bt):
     bt_wald_nolanc(*args)
 
 
+def test_bt_score_diff_is_scalar_for_single_phenotype(toy_bt_edge):
+    score_lanc = _bt_score_lanc(*toy_bt_edge)
+    score_nolanc = _bt_score_nolanc(*(toy_bt_edge[:1] + toy_bt_edge[2:]))
+
+    assert np.asarray(score_lanc[6]).shape == ()
+    assert np.asarray(score_nolanc[6]).shape == ()
+    assert np.asarray(score_lanc[8]).shape == ()
+    assert np.asarray(score_nolanc[8]).shape == ()
+
+
 ### ─────────────────────────────────────────────────────────────
 ### Correct behavior: All core functions return accurate results
 ### ─────────────────────────────────────────────────────────────

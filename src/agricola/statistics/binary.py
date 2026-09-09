@@ -39,7 +39,7 @@ def _bt_score_lanc(
     L = L * L_mask
 
     ## Null model
-    beta_L, _ = logistic_with_convergence(L, Y, offset, M, L_mask, max_iter=1, tol=1e-5)
+    beta_L, _ = logistic_with_convergence(L, Y, offset, M, L_mask, tol=1e-5)
     mu = expit(L @ beta_L + offset)
     R = (Y - mu) * M
     W_L_sqrt = jnp.sqrt(mu * (1.0 - mu)) * M
@@ -92,15 +92,27 @@ def _bt_score_lanc(
         )
         return (*result, jnp.asarray(jnp.nan))
 
+    ## Fit the joint homogeneous null for the heterogeneity score test.
+    X_hom = jnp.concatenate([L, H[:, None]], axis=1)
+    X_hom_mask = jnp.concatenate([Lw_mask, jnp.atleast_1d(H_mask)])
     beta_hom_null, converged_hom = logistic_with_convergence(
-        H[:, None], Y, offset, M, jnp.atleast_1d(H_mask), tol=1e-5
+        X_hom, Y, offset, M, X_hom_mask, tol=1e-5
     )
-    mu_hom = expit(H[:, None] @ beta_hom_null + offset)
+    mu_hom = expit(X_hom @ beta_hom_null + offset)
     R_hom = (Y - mu_hom) * M
     W_hom = jnp.sqrt(mu_hom * (1.0 - mu_hom)) * M
-    G_diff = G - H[:, None] * ((G * W_hom[:, None] ** 2).T @ H / jnp.sum((H * W_hom) ** 2)).T
-    G_diff = G_diff[:, :-1]
+    G_diff = G[:, :-1] - G[:, -1, None]
     G_diff_w = G_diff * W_hom[:, None]
+    X_hom_w = X_hom * W_hom[:, None]
+    Q_hom, R_hom_design = jnp.linalg.qr(X_hom_w, mode="reduced")
+    hom_rank_tol = (
+        jnp.finfo(X_hom_w.dtype).eps
+        * max(X_hom_w.shape)
+        * jnp.max(jnp.abs(jnp.diagonal(R_hom_design)), initial=0)
+    )
+    hom_rank = jnp.abs(jnp.diagonal(R_hom_design)) > hom_rank_tol
+    Q_hom = Q_hom * hom_rank
+    G_diff_w = G_diff_w - Q_hom @ (Q_hom.T @ G_diff_w)
     Q_diff, R_diff = jnp.linalg.qr(G_diff_w, mode="reduced")
     rank_tol = (
         jnp.finfo(G_diff_w.dtype).eps
@@ -109,7 +121,7 @@ def _bt_score_lanc(
     )
     diff_rank = jnp.abs(jnp.diagonal(R_diff)) > rank_tol
     score_design = Q_diff / jnp.where(W_hom[:, None] > 0, W_hom[:, None], 1)
-    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank[:, None], axis=0)
+    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank)
     chisq_diff = jnp.where(jnp.sum(diff_rank) > 0, chisq_diff, jnp.nan)
 
     result = mask_result(
@@ -183,7 +195,7 @@ def _bt_score_nolanc(
     )
     diff_rank = jnp.abs(jnp.diagonal(R_diff)) > rank_tol
     score_design = Q_diff / jnp.where(W_hom[:, None] > 0, W_hom[:, None], 1)
-    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank[:, None], axis=0)
+    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank)
     chisq_diff = jnp.where(jnp.sum(diff_rank) > 0, chisq_diff, jnp.nan)
 
     result = mask_result(
