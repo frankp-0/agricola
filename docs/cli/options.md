@@ -70,6 +70,7 @@ These are the non-global options for `step2`:
 | `--chrom` | TEXT | optional | Specify a single chromosome for step 2 |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
 | `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
+| `--het-vs-hom-test` | | optional | If True, perform a test for whether the heterogeneous model fits the data better than the homogeneous model. For binary traits, this test will add computational time. Either `--het-vs-hom-test` or `--no-het-vs-hom-test` [default: `--het-vs-hom-test`] |
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
 | `--min-ac` | INTEGER | optional | Minimum allele count threshold [default: 1] |
@@ -111,6 +112,7 @@ These are the non-global options for `all-steps`
 | `--variant-file2` | TEXT | optional | File with variants to include for step 2, one per line |
 | `--test-type` | TEXT | optional | Either "score" or "wald [default: score] |
 | `--adjust-lanc` | | optional | Either `--adjust-lanc` or `--no-adjust-lanc` [default: `--adjust-lanc`] |
+| `--het-vs-hom-test` | | optional | If True, perform a test for whether the heterogeneous model fits the data better than the homogeneous model. For binary traits, this test will add computational time. Either `--het-vs-hom-test` or `--no-het-vs-hom-test` [default: `--het-vs-hom-test`] |
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
 | `--block-size0` | INTEGER | optional | Number of variants per block in step 0 [default: 2000] |
 | `--block-size2` | INTEGER | optional | Number of variants per block in step 2 [default: 1000] |

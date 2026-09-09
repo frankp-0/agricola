@@ -32,15 +32,21 @@ from ..models.logistic import logistic_ridge_with_convergence
 from ..numerical.linear_algebra import stdize
 from ..statistics.binary import (
     bt_score_lanc,
+    bt_score_lanc_no_diff,
     bt_score_nolanc,
+    bt_score_nolanc_no_diff,
     bt_wald_lanc,
     bt_wald_nolanc,
 )
 from ..statistics.quantitative import (
     qt_score_lanc,
     qt_score_lanc_impute,
+    qt_score_lanc_impute_no_diff,
+    qt_score_lanc_no_diff,
     qt_score_nolanc,
     qt_score_nolanc_impute,
+    qt_score_nolanc_impute_no_diff,
+    qt_score_nolanc_no_diff,
     qt_wald_lanc,
     qt_wald_lanc_impute,
     qt_wald_nolanc,
@@ -111,6 +117,7 @@ def _step2_block(
     extra_args: dict,
     adjust_lanc: bool,
     impute: bool,
+    het_vs_hom_test: bool,
 ) -> pa.Table:
     """Run step 2 for a single block of variants
 
@@ -157,18 +164,27 @@ def _step2_block(
         else:
             test_args = (G_qt, Y, Q_qt, N_eff_qt)
         test_func = _QT_FUNCTIONS[(test_type, adjust_lanc, impute)]
+        if test_type == TestType.SCORE and not het_vs_hom_test:
+            test_func = {
+                (True, False): qt_score_lanc_no_diff,
+                (True, True): qt_score_lanc_impute_no_diff,
+                (False, False): qt_score_nolanc_no_diff,
+                (False, True): qt_score_nolanc_impute_no_diff,
+            }[(adjust_lanc, impute)]
     else:
         if adjust_lanc:
             test_args = (G, L, Y, Q, extra_args["offset"], M)
         else:
             test_args = (G, Y, Q, extra_args["offset"], M)
         test_func = _BT_FUNCTIONS[(test_type, adjust_lanc)]
+        if test_type == TestType.SCORE and not het_vs_hom_test:
+            test_func = {True: bt_score_lanc_no_diff, False: bt_score_nolanc_no_diff}[adjust_lanc]
 
-    log10p_lrt: np.ndarray | None = None
-    test_converged: Array | None = None
+    log10p_het_vs_hom: np.ndarray | None = None
+    test_converged = None
 
     if test_type == TestType.WALD:
-        if trait_type == TraitType.BT:
+        if trait_type == TraitType.QT:
             (
                 chisq_hom,
                 beta_hom,
@@ -176,9 +192,8 @@ def _step2_block(
                 beta_het,
                 df_het,
                 chisq_anc,
-                chisq_lrt,
-                df_lrt,
-                test_converged,
+                chisq_diff,
+                df_diff,
             ) = test_func(*test_args)
         else:
             (
@@ -188,15 +203,16 @@ def _step2_block(
                 beta_het,
                 df_het,
                 chisq_anc,
-                chisq_lrt,
-                df_lrt,
+                chisq_diff,
+                df_diff,
+                test_converged,
             ) = test_func(*test_args)
-        chisq_lrt = jnp.reshape(chisq_lrt, (B, P))
-        if df_lrt.ndim == 1:
-            df_lrt = df_lrt[:, None]
-        log10p_lrt = chi2.logsf(chisq_lrt, df_lrt) / np.log(10)
+        chisq_diff = jnp.reshape(chisq_diff, (B, P))
+        if df_diff.ndim == 1:
+            df_diff = df_diff[:, None]
+        log10p_het_vs_hom = chi2.logsf(chisq_diff, df_diff) / np.log(10)
     else:
-        if trait_type == TraitType.BT and not adjust_lanc:
+        if trait_type == TraitType.QT:
             (
                 chisq_hom,
                 beta_hom,
@@ -204,7 +220,8 @@ def _step2_block(
                 beta_het,
                 df_het,
                 chisq_anc,
-                test_converged,
+                chisq_diff,
+                df_diff,
             ) = test_func(*test_args)
         else:
             (
@@ -214,7 +231,21 @@ def _step2_block(
                 beta_het,
                 df_het,
                 chisq_anc,
+                chisq_diff,
+                df_diff,
+                test_converged,
             ) = test_func(*test_args)
+        chisq_diff = jnp.reshape(chisq_diff, (B, P))
+        if df_diff.ndim == 1:
+            df_diff = df_diff[:, None]
+        log10p_het_vs_hom = chi2.logsf(chisq_diff, df_diff) / np.log(10)
+    if not het_vs_hom_test:
+        log10p_het_vs_hom = None
+
+    if trait_type == TraitType.QT:
+        test_converged = None
+    elif test_type == TestType.SCORE and not het_vs_hom_test:
+        test_converged = None
 
     chisq_hom = jnp.reshape(chisq_hom, (B, P))
     beta_hom = jnp.reshape(beta_hom, (B, P))
@@ -264,13 +295,14 @@ def _step2_block(
         *["LOG10P_" + anc for anc in ancs],
     ]
 
-    if log10p_lrt is not None:
-        result_components.append(log10p_lrt[:, None, :])
-        colnames.append("LOG10P_LRT")
+    if log10p_het_vs_hom is not None:
+        result_components.append(log10p_het_vs_hom[:, None, :])
+        result_components.append(log10p_het_vs_hom[:, None, :])
+        colnames.extend(["LOG10P_HET_VS_HOM", "LOG10P_LRT"])
 
     result_arr = np.concatenate(result_components, axis=1)
     converged = None
-    if trait_type == TraitType.BT and test_converged is not None:
+    if test_converged is not None:
         converged = np.asarray(test_converged)
 
     ## Get info on variants in block
@@ -321,6 +353,7 @@ def _step2_dataset(
     variants: list[str] | None = None,
     adjust_lanc: bool = True,
     impute: bool = False,
+    het_vs_hom_test: bool = True,
 ) -> None:
     """Run step 2 for a single dataset
 
@@ -413,6 +446,7 @@ def _step2_dataset(
                     extra_args,
                     adjust_lanc,
                     impute,
+                    het_vs_hom_test,
                 )
 
                 writer.write(result_table)
@@ -438,6 +472,7 @@ def step2(
     overwrite: bool = True,
     partition_phenotype: bool = True,
     max_rows: int | None = None,
+    het_vs_hom_test: bool = True,
 ) -> None:
     """Perform agricola step 2
 
@@ -460,6 +495,8 @@ def step2(
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available
             for qt traits. If all phenotypes are non-missing, this is ignored.
+        het_vs_hom_test: Whether to compute the homogeneous-versus-heterogeneous
+            difference test and write ``LOG10P_HET_VS_HOM``.
         overwrite: Whether to overwrite the outdir if it already exists
         partition_phenotype: Whether to partition output parquet files by phenotype
         max_rows: Max number of rows/variants per phenotype to keep in memory
@@ -528,6 +565,7 @@ def step2(
                 variants,
                 adjust_lanc,
                 impute,
+                het_vs_hom_test,
             )
             time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
             logger.info("Elapsed time: %s", time_ds)

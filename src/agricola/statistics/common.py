@@ -197,41 +197,20 @@ def hom_score(UH: Array, HtH: Array, scale: Array = DEFAULT_SCALE):
     return beta_hom, chisq
 
 
-def mask_score(
+def mask_result(
     beta_het: Array,
     beta_hom: Array,
     chisq_anc: Array,
     chisq_het: Array,
     chisq_hom: Array,
-    G_mask: Array,
-    H_mask: Array,
-) -> tuple[Array, ...]:
-    """Apply genotype-variation masks to score-test outputs."""
-    df_het = jnp.sum(G_mask)
-    return (
-        _masked_nan(chisq_hom, H_mask),
-        _masked_nan(beta_hom, H_mask),
-        _masked_nan(chisq_het, df_het != 0),
-        _masked_nan(beta_het, G_mask),
-        df_het,
-        _masked_nan(chisq_anc, G_mask),
-    )
-
-
-def mask_wald(
-    beta_het: Array,
-    beta_hom: Array,
-    chisq_anc: Array,
-    chisq_het: Array,
-    chisq_hom: Array,
-    chisq_lrt: Array,
+    chisq_diff: Array,
     G_mask: Array,
     H_mask: Array,
 ) -> tuple[Array, ...]:
     """Apply genotype-variation masks and degrees of freedom to Wald outputs."""
     df_het = jnp.sum(G_mask)
     df_hom = jnp.sum(H_mask)
-    df_lrt = df_het - df_hom
+    df_diff = df_het - df_hom
     return (
         _masked_nan(chisq_hom, H_mask),
         _masked_nan(beta_hom, H_mask),
@@ -239,8 +218,8 @@ def mask_wald(
         _masked_nan(beta_het, G_mask),
         df_het,
         _masked_nan(chisq_anc, G_mask),
-        _masked_nan(chisq_lrt, df_lrt != 0),
-        df_lrt,
+        _masked_nan(chisq_diff, df_diff != 0),
+        df_diff,
     )
 
 

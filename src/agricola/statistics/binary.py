@@ -4,6 +4,8 @@
 
 """Binary-trait step-2 association statistic kernels."""
 
+from functools import partial
+
 import jax.numpy as jnp
 from jax.nn import softplus
 from jax.numpy.linalg import solve
@@ -17,8 +19,7 @@ from .common import (
     lanc_basis,
     logistic_with_convergence,
     make_blockwise,
-    mask_score,
-    mask_wald,
+    mask_result,
     masked_inv,
     prep_geno,
     prep_lanc_geno,
@@ -28,7 +29,7 @@ from .common import (
 
 
 def _bt_score_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, offset: Array, M: Array
+    G: Array, L: Array, Y: Array, Q: Array, offset: Array, M: Array, perform_diff: bool = True
 ) -> tuple[Array, ...]:
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
@@ -77,14 +78,56 @@ def _bt_score_lanc(
     Hlw = H * W_L_sqrt
     HtH = Hlw.T @ Hlw
     beta_hom, chisq_hom = hom_score(UH, HtH)
+    if not perform_diff:
+        chisq_diff = jnp.broadcast_to(jnp.nan, chisq_hom.shape)
+        result = mask_result(
+            beta_het[:, 0],
+            beta_hom,
+            chisq_anc[:, 0],
+            chisq_het,
+            chisq_hom,
+            chisq_diff,
+            G_mask,
+            H_mask,
+        )
+        return (*result, jnp.asarray(jnp.nan))
 
-    result = mask_score(
-        beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
+    beta_hom_null, converged_hom = logistic_with_convergence(
+        H[:, None], Y, offset, M, jnp.atleast_1d(H_mask), tol=1e-5
     )
-    return result
+    mu_hom = expit(H[:, None] @ beta_hom_null + offset)
+    R_hom = (Y - mu_hom) * M
+    W_hom = jnp.sqrt(mu_hom * (1.0 - mu_hom)) * M
+    G_diff = G - H[:, None] * ((G * W_hom[:, None] ** 2).T @ H / jnp.sum((H * W_hom) ** 2)).T
+    G_diff = G_diff[:, :-1]
+    G_diff_w = G_diff * W_hom[:, None]
+    Q_diff, R_diff = jnp.linalg.qr(G_diff_w, mode="reduced")
+    rank_tol = (
+        jnp.finfo(G_diff_w.dtype).eps
+        * max(G_diff_w.shape)
+        * jnp.max(jnp.abs(jnp.diagonal(R_diff)), initial=0)
+    )
+    diff_rank = jnp.abs(jnp.diagonal(R_diff)) > rank_tol
+    score_design = Q_diff / jnp.where(W_hom[:, None] > 0, W_hom[:, None], 1)
+    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank[:, None], axis=0)
+    chisq_diff = jnp.where(jnp.sum(diff_rank) > 0, chisq_diff, jnp.nan)
+
+    result = mask_result(
+        beta_het[:, 0],
+        beta_hom,
+        chisq_anc[:, 0],
+        chisq_het,
+        chisq_hom,
+        chisq_diff,
+        G_mask,
+        H_mask,
+    )
+    return (*result, converged_hom)
 
 
-def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tuple[Array, ...]:
+def _bt_score_nolanc(
+    G: Array, Y: Array, Q: Array, offset: Array, M: Array, perform_diff: bool = True
+) -> tuple[Array, ...]:
     ## Get H and residualize all by covariates
     G, H = prep_geno(G, Q)
 
@@ -108,13 +151,52 @@ def _bt_score_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> t
     Hw = H * M * W_sqrt
     HtH = Hw.T @ Hw
     beta_hom, chisq_hom = hom_score(UH, HtH)
-
-    return (
-        *mask_score(
-            beta_het[:, 0], beta_hom, chisq_anc[:, 0], chisq_het, chisq_hom, G_mask, H_mask
-        ),
-        jnp.array(True),
+    if not perform_diff:
+        chisq_diff = jnp.broadcast_to(jnp.nan, chisq_hom.shape)
+        result = mask_result(
+            beta_het[:, 0],
+            beta_hom,
+            chisq_anc[:, 0],
+            chisq_het,
+            chisq_hom,
+            chisq_diff,
+            G_mask,
+            H_mask,
+        )
+        return (*result, jnp.asarray(jnp.nan))
+    H_design = H[:, None]
+    H_mask = jnp.atleast_1d(H_mask)
+    beta_hom_null, converged_hom = logistic_with_convergence(
+        H_design, Y, offset, M, H_mask, tol=1e-5
     )
+    mu_hom = expit(H_design @ beta_hom_null + offset)
+    R_hom = (Y - mu_hom) * M
+    W_hom = jnp.sqrt(mu_hom * (1.0 - mu_hom)) * M
+    G_diff = G - H_design * ((G * W_hom[:, None] ** 2).T @ H / jnp.sum((H * W_hom) ** 2)).T
+    G_diff = G_diff[:, :-1]
+    G_diff_w = G_diff * W_hom[:, None]
+    Q_diff, R_diff = jnp.linalg.qr(G_diff_w, mode="reduced")
+    rank_tol = (
+        jnp.finfo(G_diff_w.dtype).eps
+        * max(G_diff_w.shape)
+        * jnp.max(jnp.abs(jnp.diagonal(R_diff)), initial=0)
+    )
+    diff_rank = jnp.abs(jnp.diagonal(R_diff)) > rank_tol
+    score_design = Q_diff / jnp.where(W_hom[:, None] > 0, W_hom[:, None], 1)
+    chisq_diff = jnp.sum((score_design.T @ R_hom) ** 2 * diff_rank[:, None], axis=0)
+    chisq_diff = jnp.where(jnp.sum(diff_rank) > 0, chisq_diff, jnp.nan)
+
+    result = mask_result(
+        beta_het[:, 0],
+        beta_hom,
+        chisq_anc[:, 0],
+        chisq_het,
+        chisq_hom,
+        chisq_diff,
+        G_mask,
+        H_mask,
+    )
+    return (*result, converged_hom)
 
 
 def _bt_wald_lanc(
@@ -159,15 +241,15 @@ def _bt_wald_lanc(
     ## LRT
     l_het = (Y * etag - softplus(etag)) * M
     l_hom = (Y * etah - softplus(etah)) * M
-    chisq_lrt = 2 * jnp.sum(l_het - l_hom)
+    chisq_diff = 2 * jnp.sum(l_het - l_hom)
 
-    result = mask_wald(
+    result = mask_result(
         beta_het[:K],
         beta_hom[0],
         chisq_anc,
         chisq_het,
         chisq_hom,
-        chisq_lrt,
+        chisq_diff,
         G_mask,
         H_mask,
     )
@@ -206,15 +288,15 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     ## LRT
     l_het = (Y * etag - softplus(etag)) * M
     l_hom = (Y * etah - softplus(etah)) * M
-    chisq_lrt = 2 * jnp.sum(l_het - l_hom)
+    chisq_diff = 2 * jnp.sum(l_het - l_hom)
 
-    result = mask_wald(
+    result = mask_result(
         beta_het[:K],
         beta_hom[0],
         chisq_anc,
         chisq_het,
         chisq_hom,
-        chisq_lrt,
+        chisq_diff,
         G_mask,
         H_mask,
     )
@@ -230,9 +312,19 @@ bt_score_lanc = make_blockwise(
     (1, 1, None, None, None, None),
     (3, 3, 1, 2, 1, 1),
 )
+bt_score_lanc_no_diff = make_blockwise(
+    partial(_bt_score_lanc, perform_diff=False),
+    (1, 1, None, None, None, None),
+    (3, 3, 1, 2, 1, 1),
+)
 
 bt_score_nolanc = make_blockwise(
     _bt_score_nolanc,
+    (1, None, None, None, None),
+    (3, 1, 2, 1, 1),
+)
+bt_score_nolanc_no_diff = make_blockwise(
+    partial(_bt_score_nolanc, perform_diff=False),
     (1, None, None, None, None),
     (3, 1, 2, 1, 1),
 )
