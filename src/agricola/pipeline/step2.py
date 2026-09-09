@@ -323,6 +323,8 @@ def _step2_block(
             if p_het_threshold == 0
             else np.asarray(log10p_het <= np.log10(p_het_threshold))
         )
+        if trait_type == TraitType.BT and adjust_lanc:
+            selected &= np.asarray(test_converged, dtype=bool)
         log10p_het_vs_hom = np.full((B, P), np.nan)
         if trait_type == TraitType.BT:
             convergence = np.asarray(test_converged)

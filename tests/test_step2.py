@@ -2,6 +2,8 @@
 # Copyright (c) 2026 Franklin Ockerman
 # See LICENSE.txt file for full license text
 
+from importlib import import_module
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -221,6 +223,46 @@ def test_step2_zero_p_het_threshold(tmp_path, toy_data):
     output_files = list(outdir.glob("*/*.parquet"))
     assert output_files
     result = pd.read_parquet(output_files[0])
+    assert result["LOG10P_HET_VS_HOM"].isna().all()
+
+
+def test_step2_skips_diff_for_unconverged_binary_first_pass(tmp_path, toy_data, monkeypatch):
+    """Check that failed first-pass binary fits do not run difference tests."""
+    step2_module = import_module("agricola.pipeline.step2")
+    original_no_diff = step2_module.bt_score_lanc_no_diff
+
+    def unconverged_first_pass(*args):
+        result = original_no_diff(*args)
+        return (*result[:-1], jnp.zeros_like(result[-1], dtype=bool))
+
+    def unexpected_diff_test(*args):
+        raise AssertionError("difference test ran after first-pass non-convergence")
+
+    monkeypatch.setattr(step2_module, "bt_score_lanc_no_diff", unconverged_first_pass)
+    monkeypatch.setitem(
+        step2_module._BT_FUNCTIONS,
+        (step2_module.TestType.SCORE, True),
+        unexpected_diff_test,
+    )
+
+    Y, X, step1_predictions = valid_inputs()
+    phenotypes = [str(i) for i in range(3)]
+    outdir = tmp_path / "result"
+    step2(
+        toy_data,
+        jnp.round(expit(Y)),
+        X,
+        step1_predictions,
+        outdir,
+        phenotypes,
+        "bt",
+        p_het_threshold=0.999999,
+    )
+
+    output_files = list(outdir.glob("*/*.parquet"))
+    assert output_files
+    result = pd.read_parquet(output_files[0])
+    assert not result["CONVERGED"].any()
     assert result["LOG10P_HET_VS_HOM"].isna().all()
 
 
