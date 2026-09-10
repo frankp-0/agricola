@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.3.1] - 2026-09-10
+
+[v1.3.1]: https://github.com/frankp-0/agricola/compare/v1.3.0...v1.3.1>
+
+### Fixed
+
+- Use minor instead of coded allele for allele count thresholds
+
 ## [v1.3.0] - 2026-09-10
 
 [v1.3.0]: https://github.com/frankp-0/agricola/compare/v1.2.0...v1.3.0>
