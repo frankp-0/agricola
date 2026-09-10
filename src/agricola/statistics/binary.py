@@ -67,7 +67,6 @@ def _bt_score_lanc(
     G = (Gw - Qw @ (Qw.T @ Gw)) * inv_W_L_sqrt[:, None]
     G_norm = jnp.sum((G * W_L_sqrt[:, None]) ** 2, axis=0)
     G_mask = G_norm > jnp.finfo(G.dtype).eps * max(G.shape) * G_scale
-    U = G.T @ R
 
     H_scale = jnp.sum((H * W_L_sqrt) ** 2)
     Hw = H * W_L_sqrt
@@ -75,6 +74,7 @@ def _bt_score_lanc(
     H_norm = jnp.sum((H * W_L_sqrt) ** 2)
     H_mask = H_norm > jnp.finfo(H.dtype).eps * max(H.shape) * H_scale
     G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
+    U = G.T @ R
     UH = H.T @ R
 
     ## Score test for the joint ancestry-specific effects.

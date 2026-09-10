@@ -444,3 +444,87 @@ def test_bt_nolanc_applies_allele_masks_to_fitted_designs():
 
     assert np.isfinite(np.asarray(result[3])[0])
     assert np.isnan(np.asarray(result[3])[1])
+
+
+def test_bt_lanc_joint_score_excludes_masked_ancestries():
+    key = jax.random.key(123)
+    G = jax.random.normal(key, (100, 2))
+    L = jnp.ones((100, 1))
+    Y = jnp.tile(jnp.array([0.0, 1.0]), 50)
+    Q = jnp.empty((100, 0))
+    offset = jnp.zeros(100)
+    M = jnp.ones(100)
+
+    result = _bt_score_lanc(
+        G,
+        L,
+        Y,
+        Q,
+        offset,
+        M,
+        allele_G_mask=jnp.array([True, False]),
+        allele_H_mask=jnp.array(True),
+    )
+
+    chisq_het = np.asarray(result[2])
+    chisq_anc = np.asarray(result[5])
+    assert chisq_het == pytest.approx(chisq_anc[0])
+    assert np.isnan(chisq_anc[1])
+
+
+@pytest.mark.parametrize(
+    ("test_func", "uses_lanc"),
+    [
+        (_qt_score_lanc, True),
+        (_qt_score_nolanc, False),
+        (_qt_wald_lanc, True),
+        (_qt_wald_nolanc, False),
+        (_bt_score_lanc, True),
+        (_bt_score_nolanc, False),
+        (_bt_wald_lanc, True),
+        (_bt_wald_nolanc, False),
+    ],
+)
+def test_all_statistics_kernels_exclude_masked_g_and_h_columns(test_func, uses_lanc):
+    key = jax.random.key(456)
+    key_g, key_l, key_y = jax.random.split(key, 3)
+    G = jax.random.normal(key_g, (100, 2))
+    L = jax.random.normal(key_l, (100, 1))
+    Y_qt = jax.random.normal(key_y, (100, 1))
+    Y_bt = jnp.tile(jnp.array([0.0, 1.0]), 50)
+    Q_qt = jnp.ones((100, 1)) / jnp.sqrt(100)
+    Q_bt = jnp.empty((100, 0))
+    offset = jnp.zeros(100)
+    M = jnp.ones(100)
+    g_mask = jnp.array([True, False])
+    h_mask = jnp.array(False)
+
+    if test_func.__name__.startswith("_qt"):
+        args = (G, L, Y_qt, Q_qt, 100, g_mask, h_mask) if uses_lanc else (
+            G,
+            Y_qt,
+            Q_qt,
+            100,
+            g_mask,
+            h_mask,
+        )
+    else:
+        args = (G, L, Y_bt, Q_bt, offset, M, g_mask, h_mask) if uses_lanc else (
+            G,
+            Y_bt,
+            Q_bt,
+            offset,
+            M,
+            g_mask,
+            h_mask,
+        )
+
+    chisq_hom, beta_hom, chisq_het, beta_het, _, chisq_anc, *_ = test_func(*args)
+
+    assert np.isnan(np.asarray(chisq_hom)).all()
+    assert np.isnan(np.asarray(beta_hom)).all()
+    assert np.isnan(np.asarray(beta_het)[1]).all()
+    assert np.isnan(np.asarray(chisq_anc)[1]).all()
+    np.testing.assert_allclose(
+        np.asarray(chisq_het), np.asarray(chisq_anc)[0], rtol=1e-6
+    )
