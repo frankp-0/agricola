@@ -500,23 +500,31 @@ def test_all_statistics_kernels_exclude_masked_g_and_h_columns(test_func, uses_l
     h_mask = jnp.array(False)
 
     if test_func.__name__.startswith("_qt"):
-        args = (G, L, Y_qt, Q_qt, 100, g_mask, h_mask) if uses_lanc else (
-            G,
-            Y_qt,
-            Q_qt,
-            100,
-            g_mask,
-            h_mask,
+        args = (
+            (G, L, Y_qt, Q_qt, 100, g_mask, h_mask)
+            if uses_lanc
+            else (
+                G,
+                Y_qt,
+                Q_qt,
+                100,
+                g_mask,
+                h_mask,
+            )
         )
     else:
-        args = (G, L, Y_bt, Q_bt, offset, M, g_mask, h_mask) if uses_lanc else (
-            G,
-            Y_bt,
-            Q_bt,
-            offset,
-            M,
-            g_mask,
-            h_mask,
+        args = (
+            (G, L, Y_bt, Q_bt, offset, M, g_mask, h_mask)
+            if uses_lanc
+            else (
+                G,
+                Y_bt,
+                Q_bt,
+                offset,
+                M,
+                g_mask,
+                h_mask,
+            )
         )
 
     chisq_hom, beta_hom, chisq_het, beta_het, _, chisq_anc, *_ = test_func(*args)
@@ -525,6 +533,4 @@ def test_all_statistics_kernels_exclude_masked_g_and_h_columns(test_func, uses_l
     assert np.isnan(np.asarray(beta_hom)).all()
     assert np.isnan(np.asarray(beta_het)[1]).all()
     assert np.isnan(np.asarray(chisq_anc)[1]).all()
-    np.testing.assert_allclose(
-        np.asarray(chisq_het), np.asarray(chisq_anc)[0], rtol=1e-6
-    )
+    np.testing.assert_allclose(np.asarray(chisq_het), np.asarray(chisq_anc)[0], rtol=1e-6)
