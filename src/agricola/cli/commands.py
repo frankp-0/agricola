@@ -290,14 +290,16 @@ def step2(
     min_ac: int = typer.Option(
         50,
         help=(
-            "Legacy minimum allele count for both G (ancestry-deconvoluted "
+            "Legacy minimum minor allele count for both G (ancestry-deconvoluted "
             "genotype) and H (genotype)"
         ),
     ),
     min_ac_g: int | None = typer.Option(
-        None, help="Minimum allele count for ancestry-deconvoluted genotypes"
+        None, help="Minimum minor allele count for ancestry-deconvoluted genotypes"
     ),
-    min_ac_h: int | None = typer.Option(None, help="Minimum allele count for the total genotype"),
+    min_ac_h: int | None = typer.Option(
+        None, help="Minimum minor allele count for the total genotype"
+    ),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),
     adjust_lanc: bool = typer.Option(True, help="Adjust single variant tests for local ancestry"),
@@ -504,14 +506,16 @@ def all_steps(
     min_ac: int = typer.Option(
         50,
         help=(
-            "Legacy minimum allele count for both G (ancestry-deconvoluted "
+            "Legacy minimum minor allele count for both G (ancestry-deconvoluted "
             "genotype) and H (genotype)"
         ),
     ),
     min_ac_g: int | None = typer.Option(
-        None, help="Minimum allele count for ancestry-deconvoluted genotypes"
+        None, help="Minimum minor allele count for ancestry-deconvoluted genotypes"
     ),
-    min_ac_h: int | None = typer.Option(None, help="Minimum allele count for the total genotype"),
+    min_ac_h: int | None = typer.Option(
+        None, help="Minimum minor allele count for the total genotype"
+    ),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),

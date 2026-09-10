@@ -173,8 +173,10 @@ def _prep_block(G, L, M, min_ac_g, min_ac_h):
     LM = LM[:, :, 1:, :]
     G = G[:, :, :, None] - GM.sum(axis=0) / N_eff
     L = L[:, :, :, None] - LM.sum(axis=0) / N_eff
-    allele_G_mask = ac >= min_ac_g
-    allele_H_mask = ac.sum(axis=1) >= min_ac_h
+    minor_ac = jnp.minimum(ac, lac - ac)
+    minor_ac_hom = jnp.minimum(ac.sum(axis=1), lac.sum(axis=1) - ac.sum(axis=1))
+    allele_G_mask = minor_ac >= min_ac_g
+    allele_H_mask = minor_ac_hom >= min_ac_h
     return G, L, M, N_eff, af_lanc, prop_lanc, allele_G_mask, allele_H_mask
 
 
@@ -212,8 +214,8 @@ def _step2_block(
         block: A (B,) jax array of variant indices
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
-        min_ac_g: minimum allele count for ancestry-specific genotype columns
-        min_ac_h: minimum allele count for the homogeneous genotype column
+        min_ac_g: minimum minor allele count for ancestry-specific genotype columns
+        min_ac_h: minimum minor allele count for the homogeneous genotype column
         extra_args: A dict containing extra arguments needed for trait_type="bt"
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
@@ -532,8 +534,8 @@ def _step2_dataset(
         trait_type: either qt or bt
         test_type: either score or wald
         B: The block size (max number of variants to read at once)
-        min_ac_g: minimum allele count for ancestry-specific genotype columns
-        min_ac_h: minimum allele count for the homogeneous genotype column
+        min_ac_g: minimum minor allele count for ancestry-specific genotype columns
+        min_ac_h: minimum minor allele count for the homogeneous genotype column
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
@@ -657,11 +659,11 @@ def step2(
         trait_type: either "qt" or "bt"
         test_type: Either "score" or "wald"
         B: The block size (max number of variants to read at once)
-        min_ac: legacy minimum allele count used for both models when the
+        min_ac: legacy minimum minor allele count used for both models when the
             model-specific thresholds are not supplied
-        min_ac_g: minimum allele count for ancestry-specific genotype columns.
+        min_ac_g: minimum minor allele count for ancestry-specific genotype columns.
             Defaults to min_ac.
-        min_ac_h: minimum allele count for the homogeneous genotype column.
+        min_ac_h: minimum minor allele count for the homogeneous genotype column.
             Defaults to min_ac.
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain

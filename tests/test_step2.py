@@ -13,6 +13,7 @@ from jax.scipy.special import expit
 from lanctools import LancData
 
 from agricola import step2
+from agricola.pipeline.step2 import _prep_block
 
 
 @pytest.fixture
@@ -260,6 +261,20 @@ def test_step2_applies_independent_g_and_h_allele_thresholds(tmp_path, toy_data)
     assert not result.empty
     assert result["BETA_HOM"].isna().all()
     assert result["LOG10P_HOM"].isna().all()
+
+
+def test_prep_block_filters_on_minor_allele_count():
+    """Major-allele counts must not bypass G or H allele-count filters."""
+    G = jnp.array([[[1, 1]], [[1, 1]], [[1, 1]], [[0, 0]]])
+    L = jnp.ones_like(G)
+    M = jnp.ones((4, 1))
+
+    *_, allele_G_mask, allele_H_mask = _prep_block(G, L, M, 2, 3)
+
+    # The coded allele counts are 3 (per ancestry) and 6 (total), but their
+    # corresponding minor allele counts are 1 and 2.
+    np.testing.assert_array_equal(allele_G_mask, [[[False], [False]]])
+    np.testing.assert_array_equal(allele_H_mask, [[False]])
 
 
 def test_step2_skips_diff_for_unconverged_binary_first_pass(tmp_path, toy_data, monkeypatch):
