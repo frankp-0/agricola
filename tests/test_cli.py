@@ -98,6 +98,8 @@ def test_step2_toy(toy_data):
             toy_data["covar_file"],
             "--p-het-threshold",
             "0",
+            "--min-ac",
+            "1",
         ],
     )
     assert result.exit_code == 0
@@ -118,6 +120,8 @@ def test_allsteps_toy(toy_data):
             toy_data["pheno_file"],
             "--covar-file",
             toy_data["covar_file"],
+            "--min-ac",
+            "1",
         ],
     )
     assert result.exit_code == 0
@@ -155,6 +159,8 @@ def test_step2_binary_release_smoke(toy_data):
             "trait0",
             "--trait-type",
             "bt",
+            "--min-ac",
+            "1",
         ],
     )
     assert result.exit_code == 0, result.stdout
