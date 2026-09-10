@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.3.0] - 2026-09-10
+
+[v1.3.0]: https://github.com/frankp-0/agricola/compare/v1.2.0...v1.3.0>
+
+### Added
+
+- Option to specify allele count threshold for genotype (min-ac-h) and ancestry-deconvoluted genotype (min-ac-g)
+
 ## [v1.2.0] - 2026-09-09
 
 [v1.2.0]: https://github.com/frankp-0/agricola/compare/v1.1.0...v1.2.0>
