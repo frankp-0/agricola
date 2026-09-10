@@ -289,14 +289,15 @@ def step2(
     block_size: int = typer.Option(1000, help="Number of variants per block"),
     min_ac: int = typer.Option(
         50,
-        help="Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype)",
+        help=(
+            "Legacy minimum allele count for both G (ancestry-deconvoluted "
+            "genotype) and H (genotype)"
+        ),
     ),
     min_ac_g: int | None = typer.Option(
         None, help="Minimum allele count for ancestry-deconvoluted genotypes"
     ),
-    min_ac_h: int | None = typer.Option(
-        None, help="Minimum allele count for the total genotype"
-    ),
+    min_ac_h: int | None = typer.Option(None, help="Minimum allele count for the total genotype"),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),
     adjust_lanc: bool = typer.Option(True, help="Adjust single variant tests for local ancestry"),
@@ -502,14 +503,15 @@ def all_steps(
     block_size2: int = typer.Option(500, help="Number of variants per block in step 2"),
     min_ac: int = typer.Option(
         50,
-        help="Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype)",
+        help=(
+            "Legacy minimum allele count for both G (ancestry-deconvoluted "
+            "genotype) and H (genotype)"
+        ),
     ),
     min_ac_g: int | None = typer.Option(
         None, help="Minimum allele count for ancestry-deconvoluted genotypes"
     ),
-    min_ac_h: int | None = typer.Option(
-        None, help="Minimum allele count for the total genotype"
-    ),
+    min_ac_h: int | None = typer.Option(None, help="Minimum allele count for the total genotype"),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),
