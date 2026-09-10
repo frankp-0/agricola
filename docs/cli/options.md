@@ -73,7 +73,9 @@ These are the non-global options for `step2`:
 | `--p-het-threshold` | FLOAT | optional | Report the heterogeneous-versus-homogeneous test only when `P_HET` is at most this value. [default: `1.0`] |
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
 | `--block-size` | INTEGER | optional | Number of variants per block [default: 1000] |
-| `--min-ac` | INTEGER | optional | Minimum allele count threshold [default: 1] |
+| `--min-ac` | INTEGER | optional | Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype) [default: 1] |
+| `--min-ac-g` | INTEGER | optional | Minimum allele count for ancestry-deconvoluted genotypes |
+| `--min-ac-h` | INTEGER | optional | Minimum allele count for the total genotype |
 | `--partition_phenotypes` | | optional | Whether to partition output parquet files by phenotyp. If True, output files are written to e.g. outdir/trait0/part-0_0.parquet [default: --partition-phenotypes] |
 | `--max-rows` | INTEGER | optional | Max number of rows/variants per phenotype to keep in memory before writing an output file. If unspecified, agricola will use 5000000 / len(phenotypes) |
 
@@ -123,7 +125,9 @@ These are the non-global options for `all-steps`
 | `--impute` | | optional | Either `--impute` or `--no-impute`. This must be `--no-impute` for binary traits. [default: `--no-impute`] |
 | `--block-size0` | INTEGER | optional | Number of variants per block in step 0 [default: 2000] |
 | `--block-size2` | INTEGER | optional | Number of variants per block in step 2 [default: 1000] |
-| `--min-ac` | INTEGER | optional | Minimum allele count [default: 1] |
+| `--min-ac` | INTEGER | optional | Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype) [default: 1] |
+| `--min-ac-g` | INTEGER | optional | Minimum allele count for ancestry-deconvoluted genotypes |
+| `--min-ac-h` | INTEGER | optional | Minimum allele count for the total genotype |
 | `--seed` | INTEGER | optional | Random seed [default: 100] |
 | `--loocv` | | optional | Use leave-one-out cross-validation (only for rare binary traits) [default: no-loocv] |
 | `--memory-mode` | TEXT | optional | Ridge memory strategy for step 1: `standard` (broadcasted), `low` (sequential over alphas), or `lowest` (sequential over alphas and folds) [default: `standard`] |

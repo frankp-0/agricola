@@ -166,6 +166,17 @@ def test_step2_enum_batch_and_variant_validation(tmp_path, toy_data):
         )
     with pytest.raises(TypeError, match="variants must be a list of strings"):
         step2(toy_data, Y, X, step1_predictions, outdir, phenotypes, "qt", variants=[1])
+    with pytest.raises(ValueError, match="min_ac_g and min_ac_h must be non-negative"):
+        step2(
+            toy_data,
+            Y,
+            X,
+            step1_predictions,
+            outdir,
+            phenotypes,
+            "qt",
+            min_ac_g=-1,
+        )
 
     Y = jnp.round(expit(Y))
     with pytest.raises(ValueError, match="must match Y\\.shape"):
@@ -224,6 +235,31 @@ def test_step2_zero_p_het_threshold(tmp_path, toy_data):
     assert output_files
     result = pd.read_parquet(output_files[0])
     assert result["LOG10P_HET_VS_HOM"].isna().all()
+
+
+def test_step2_applies_independent_g_and_h_allele_thresholds(tmp_path, toy_data):
+    Y, X, step1_predictions = valid_inputs()
+    phenotypes = [str(i) for i in range(3)]
+    outdir = tmp_path / "result"
+
+    step2(
+        toy_data,
+        Y,
+        X,
+        step1_predictions,
+        outdir,
+        phenotypes,
+        "qt",
+        min_ac_g=0,
+        min_ac_h=10_000,
+    )
+
+    output_files = list(outdir.glob("*/*.parquet"))
+    assert output_files
+    result = pd.read_parquet(output_files[0])
+    assert not result.empty
+    assert result["BETA_HOM"].isna().all()
+    assert result["LOG10P_HOM"].isna().all()
 
 
 def test_step2_skips_diff_for_unconverged_binary_first_pass(tmp_path, toy_data, monkeypatch):

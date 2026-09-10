@@ -35,6 +35,14 @@ from agricola.statistics.quantitative import (
 )
 
 
+def allele_masks(G):
+    if G.ndim == 4:
+        B, K, P = G.shape[1:]
+        return jnp.ones((B, K, P), dtype=bool), jnp.ones((B, P), dtype=bool)
+    B, K = G.shape[1:]
+    return jnp.ones((B, K), dtype=bool), jnp.ones(B, dtype=bool)
+
+
 @pytest.fixture
 def toy_qt():
     N = 100
@@ -154,57 +162,57 @@ def toy_bt_edge():
 
 
 def test_qt_lanc_score(toy_qt):
-    qt_score_lanc(*toy_qt)
+    qt_score_lanc(*toy_qt, *allele_masks(toy_qt[0]))
 
 
 def test_qt_lanc_wald(toy_qt):
-    qt_wald_lanc(*toy_qt)
+    qt_wald_lanc(*toy_qt, *allele_masks(toy_qt[0]))
 
 
 def test_qt_nolanc_score(toy_qt):
     args = toy_qt[:1] + toy_qt[2:]
-    qt_score_nolanc(*args)
+    qt_score_nolanc(*args, *allele_masks(toy_qt[0]))
 
 
 def test_qt_nolanc_wald(toy_qt):
     args = toy_qt[:1] + toy_qt[2:]
-    qt_wald_nolanc(*args)
+    qt_wald_nolanc(*args, *allele_masks(toy_qt[0]))
 
 
 def test_qt_lanc_score_impute(toy_qt_impute):
-    qt_score_lanc_impute(*toy_qt_impute)
+    qt_score_lanc_impute(*toy_qt_impute, *allele_masks(toy_qt_impute[0]))
 
 
 def test_qt_lanc_wald_impute(toy_qt_impute):
-    qt_wald_lanc_impute(*toy_qt_impute)
+    qt_wald_lanc_impute(*toy_qt_impute, *allele_masks(toy_qt_impute[0]))
 
 
 def test_qt_nolanc_score_impute(toy_qt_impute):
     args = toy_qt_impute[:1] + toy_qt_impute[2:]
-    qt_score_nolanc_impute(*args)
+    qt_score_nolanc_impute(*args, *allele_masks(toy_qt_impute[0]))
 
 
 def test_qt_nolanc_wald_impute(toy_qt_impute):
     args = toy_qt_impute[:1] + toy_qt_impute[2:]
-    qt_wald_nolanc_impute(*args)
+    qt_wald_nolanc_impute(*args, *allele_masks(toy_qt_impute[0]))
 
 
 def test_bt_lanc_score(toy_bt):
-    bt_score_lanc(*toy_bt)
+    bt_score_lanc(*toy_bt, *allele_masks(toy_bt[0]))
 
 
 def test_bt_lanc_wald(toy_bt):
-    bt_wald_lanc(*toy_bt)
+    bt_wald_lanc(*toy_bt, *allele_masks(toy_bt[0]))
 
 
 def test_bt_nolanc_score(toy_bt):
     args = toy_bt[:1] + toy_bt[2:]
-    bt_score_nolanc(*args)
+    bt_score_nolanc(*args, *allele_masks(toy_bt[0]))
 
 
 def test_bt_nolanc_wald(toy_bt):
     args = toy_bt[:1] + toy_bt[2:]
-    bt_wald_nolanc(*args)
+    bt_wald_nolanc(*args, *allele_masks(toy_bt[0]))
 
 
 def test_bt_score_diff_is_scalar_for_single_phenotype(toy_bt_edge):
@@ -415,3 +423,24 @@ def test_bt_nolanc_masks_genotype_variation_only_in_missing_rows():
     assert np.isnan(np.asarray(result[0]))
     assert np.isnan(np.asarray(result[1]))
     assert np.isnan(np.asarray(result[3])).all()
+
+
+def test_bt_nolanc_applies_allele_masks_to_fitted_designs():
+    G = jnp.array([[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]])
+    Y = jnp.array([0.0, 1.0, 0.0, 1.0])
+    Q = jnp.empty((4, 0))
+    offset = jnp.zeros(4)
+    M = jnp.ones(4)
+
+    result = _bt_score_nolanc(
+        G,
+        Y,
+        Q,
+        offset,
+        M,
+        allele_G_mask=jnp.array([True, False]),
+        allele_H_mask=jnp.array(True),
+    )
+
+    assert np.isfinite(np.asarray(result[3])[0])
+    assert np.isnan(np.asarray(result[3])[1])

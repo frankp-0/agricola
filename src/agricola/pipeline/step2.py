@@ -85,6 +85,8 @@ def _selected_diff_args(
     N_eff: Array,
     offset: Array | None,
     M: Array | None,
+    allele_G_mask: Array,
+    allele_H_mask: Array,
     variant_idx: np.ndarray,
     phenotype_idx: int,
     trait_type: TraitType,
@@ -102,8 +104,17 @@ def _selected_diff_args(
                     Y[:, phenotype],
                     Q,
                     N_eff,
+                    allele_G_mask[variant_idx],
+                    allele_H_mask[variant_idx],
                 )
-            return G[:, variant_idx, :], Y[:, phenotype], Q, N_eff
+            return (
+                G[:, variant_idx, :],
+                Y[:, phenotype],
+                Q,
+                N_eff,
+                allele_G_mask[variant_idx],
+                allele_H_mask[variant_idx],
+            )
         if adjust_lanc:
             return (
                 G[:, variant_idx, :, phenotype],
@@ -111,12 +122,16 @@ def _selected_diff_args(
                 Y[:, phenotype],
                 Q[:, :, phenotype],
                 N_eff[phenotype],
+                allele_G_mask[variant_idx, :, phenotype],
+                allele_H_mask[variant_idx, phenotype],
             )
         return (
             G[:, variant_idx, :, phenotype],
             Y[:, phenotype],
             Q[:, :, phenotype],
             N_eff[phenotype],
+            allele_G_mask[variant_idx, :, phenotype],
+            allele_H_mask[variant_idx, phenotype],
         )
     if adjust_lanc:
         return (
@@ -126,6 +141,8 @@ def _selected_diff_args(
             Q[:, :, phenotype],
             offset[:, phenotype],
             M[:, phenotype],
+            allele_G_mask[variant_idx, :, phenotype],
+            allele_H_mask[variant_idx, phenotype],
         )
     return (
         G[:, variant_idx, :, phenotype],
@@ -133,6 +150,8 @@ def _selected_diff_args(
         Q[:, :, phenotype],
         offset[:, phenotype],
         M[:, phenotype],
+        allele_G_mask[variant_idx, :, phenotype],
+        allele_H_mask[variant_idx, phenotype],
     )
 
 
@@ -142,7 +161,7 @@ def _selected_diff_args(
 
 
 @jit
-def _prep_block(G, L, M, min_ac):
+def _prep_block(G, L, M, min_ac_g, min_ac_h):
     N_eff = jnp.sum(M, axis=0)
     GM = G[:, :, :, None] * M[:, None, None, :]
     LM = L[:, :, :, None] * M[:, None, None, :]
@@ -154,8 +173,9 @@ def _prep_block(G, L, M, min_ac):
     LM = LM[:, :, 1:, :]
     G = G[:, :, :, None] - GM.sum(axis=0) / N_eff
     L = L[:, :, :, None] - LM.sum(axis=0) / N_eff
-    ac_variant_mask = ac.sum(axis=1) >= min_ac
-    return G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask
+    allele_G_mask = ac >= min_ac_g
+    allele_H_mask = ac.sum(axis=1) >= min_ac_h
+    return G, L, M, N_eff, af_lanc, prop_lanc, allele_G_mask, allele_H_mask
 
 
 ### ─────────────────────────────────────────────────────────────
@@ -173,7 +193,8 @@ def _step2_block(
     test_type: TestType,
     block: np.ndarray,
     idx_sample: Array | None,
-    min_ac: int,
+    min_ac_g: int,
+    min_ac_h: int,
     extra_args: dict,
     adjust_lanc: bool,
     impute: bool,
@@ -191,7 +212,8 @@ def _step2_block(
         block: A (B,) jax array of variant indices
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
-        min_ac: the minimum allele count threshold
+        min_ac_g: minimum allele count for ancestry-specific genotype columns
+        min_ac_h: minimum allele count for the homogeneous genotype column
         extra_args: A dict containing extra arguments needed for trait_type="bt"
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
@@ -203,12 +225,14 @@ def _step2_block(
 
     if impute:
         M = M[:, 0][:, None]
-    G, L, M, N_eff, af_lanc, prop_lanc, ac_variant_mask = _prep_block(G, L, M, min_ac)
+    G, L, M, N_eff, af_lanc, prop_lanc, allele_G_mask, allele_H_mask = _prep_block(
+        G, L, M, min_ac_g, min_ac_h
+    )
 
     _, B, K, _ = G.shape
     _, P = Y.shape
     N_eff = jnp.broadcast_to(N_eff, (Y.shape[1]))
-    valid_idx = np.broadcast_to(np.asarray(ac_variant_mask), (B, P))
+    valid_idx = np.broadcast_to(np.asarray(allele_G_mask.any(axis=1) | allele_H_mask), (B, P))
 
     if trait_type == TraitType.QT:
         if impute:
@@ -216,19 +240,30 @@ def _step2_block(
             L_qt = L[:, :, :, 0]
             Q_qt = Q[:, :, 0]
             N_eff_qt = N_eff[0]
+            allele_G_mask_qt = allele_G_mask[:, :, 0]
+            allele_H_mask_qt = allele_H_mask[:, 0]
         else:
             G_qt, L_qt, Q_qt, N_eff_qt = G, L, Q, N_eff
+            allele_G_mask_qt, allele_H_mask_qt = allele_G_mask, allele_H_mask
 
         if adjust_lanc:
-            test_args = (G_qt, L_qt, Y, Q_qt, N_eff_qt)
+            test_args = (
+                G_qt,
+                L_qt,
+                Y,
+                Q_qt,
+                N_eff_qt,
+                allele_G_mask_qt,
+                allele_H_mask_qt,
+            )
         else:
-            test_args = (G_qt, Y, Q_qt, N_eff_qt)
+            test_args = (G_qt, Y, Q_qt, N_eff_qt, allele_G_mask_qt, allele_H_mask_qt)
         test_func = _QT_FUNCTIONS[(test_type, adjust_lanc, impute)]
     else:
         if adjust_lanc:
-            test_args = (G, L, Y, Q, extra_args["offset"], M)
+            test_args = (G, L, Y, Q, extra_args["offset"], M, allele_G_mask, allele_H_mask)
         else:
-            test_args = (G, Y, Q, extra_args["offset"], M)
+            test_args = (G, Y, Q, extra_args["offset"], M, allele_G_mask, allele_H_mask)
         test_func = _BT_FUNCTIONS[(test_type, adjust_lanc)]
 
     selective_score_diff = test_type == TestType.SCORE and p_het_threshold < 1
@@ -345,10 +380,12 @@ def _step2_block(
             if trait_type == TraitType.QT:
                 diff_G, diff_L, diff_Q, diff_N_eff = G_qt, L_qt, Q_qt, N_eff_qt
                 diff_offset, diff_M = None, None
+                diff_allele_G_mask, diff_allele_H_mask = allele_G_mask_qt, allele_H_mask_qt
             else:
                 diff_G, diff_L, diff_Q = G, L, Q
                 diff_N_eff = N_eff
                 diff_offset, diff_M = extra_args["offset"], M
+                diff_allele_G_mask, diff_allele_H_mask = allele_G_mask, allele_H_mask
             diff_args = _selected_diff_args(
                 diff_G,
                 diff_L,
@@ -357,6 +394,8 @@ def _step2_block(
                 diff_N_eff,
                 diff_offset,
                 diff_M,
+                diff_allele_G_mask,
+                diff_allele_H_mask,
                 variant_idx,
                 phenotype_idx,
                 trait_type,
@@ -471,7 +510,8 @@ def _step2_dataset(
     test_type: TestType,
     chrom: str | None,
     B: int = 500,
-    min_ac: int = 1,
+    min_ac_g: int = 1,
+    min_ac_h: int = 1,
     variants: list[str] | None = None,
     adjust_lanc: bool = True,
     impute: bool = False,
@@ -492,7 +532,8 @@ def _step2_dataset(
         trait_type: either qt or bt
         test_type: either score or wald
         B: The block size (max number of variants to read at once)
-        min_ac: the minimum allele count threshold
+        min_ac_g: minimum allele count for ancestry-specific genotype columns
+        min_ac_h: minimum allele count for the homogeneous genotype column
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
@@ -567,7 +608,8 @@ def _step2_dataset(
                     test_type,
                     block,
                     idx_sample,
-                    min_ac,
+                    min_ac_g,
+                    min_ac_h,
                     extra_args,
                     adjust_lanc,
                     impute,
@@ -598,6 +640,8 @@ def step2(
     partition_phenotype: bool = True,
     max_rows: int | None = None,
     p_het_threshold: float = 1.0,
+    min_ac_g: int | None = None,
+    min_ac_h: int | None = None,
 ) -> None:
     """Perform agricola step 2
 
@@ -613,7 +657,12 @@ def step2(
         trait_type: either "qt" or "bt"
         test_type: Either "score" or "wald"
         B: The block size (max number of variants to read at once)
-        min_ac: the minimum allele count threshold
+        min_ac: legacy minimum allele count used for both models when the
+            model-specific thresholds are not supplied
+        min_ac_g: minimum allele count for ancestry-specific genotype columns.
+            Defaults to min_ac.
+        min_ac_h: minimum allele count for the homogeneous genotype column.
+            Defaults to min_ac.
         idx_sample: An optional numpy array with ordered indices of samples (in
             the psam file) to retain
         variants: An optional list of variant IDs to retain
@@ -630,6 +679,12 @@ def step2(
     """
     if not 0 <= p_het_threshold <= 1:
         raise ValueError("p_het_threshold must be in [0, 1].")
+    if min_ac_g is None:
+        min_ac_g = min_ac
+    if min_ac_h is None:
+        min_ac_h = min_ac
+    if min_ac_g < 0 or min_ac_h < 0:
+        raise ValueError("min_ac_g and min_ac_h must be non-negative.")
 
     ## Create writer
     outdir_path = Path(outdir)
@@ -690,7 +745,8 @@ def step2(
                 test_type_enum,
                 chrom,
                 B,
-                min_ac,
+                min_ac_g,
+                min_ac_h,
                 variants,
                 adjust_lanc,
                 impute,

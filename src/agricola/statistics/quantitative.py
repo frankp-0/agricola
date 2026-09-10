@@ -12,6 +12,7 @@ from jaxtyping import Array
 
 from .common import (
     adj_by_lanc,
+    apply_allele_masks,
     het_score,
     hom_score,
     make_blockwise,
@@ -26,7 +27,14 @@ from .common import (
 
 
 def _qt_score_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, N_eff: Array, perform_diff: bool = True
+    G: Array,
+    L: Array,
+    Y: Array,
+    Q: Array,
+    N_eff: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+    perform_diff: bool = True,
 ) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
@@ -35,6 +43,9 @@ def _qt_score_lanc(
 
     ## Residualize genotypes against a rank-aware ancestry basis.
     QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
+    Gl = Gl * G_mask
+    Hl = Hl * H_mask
     rank_L = jnp.sum(jnp.sum(QL**2, axis=0) > 0)
 
     ## Fit null model: Y ~ L
@@ -75,7 +86,13 @@ def _qt_score_lanc(
 
 
 def _qt_score_nolanc(
-    G: Array, Y: Array, Q: Array, N_eff: Array, perform_diff: bool = True
+    G: Array,
+    Y: Array,
+    Q: Array,
+    N_eff: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+    perform_diff: bool = True,
 ) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
@@ -88,7 +105,7 @@ def _qt_score_nolanc(
     G_mask = jnp.sum(G**2, axis=0) > 0
     G = G * G_mask[None, :]
     H_mask = jnp.sum(H**2, axis=0) > 0
-    H = H * H_mask
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
 
     ## Score test for the joint ancestry-specific effects.
     U = G.T @ Y
@@ -124,7 +141,15 @@ def _qt_score_nolanc(
     )
 
 
-def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
+def _qt_wald_lanc(
+    G: Array,
+    L: Array,
+    Y: Array,
+    Q: Array,
+    N_eff: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
 
     ## Get H and residualize all by covariates
@@ -132,6 +157,9 @@ def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple
 
     ## Residualize genotypes against a rank-aware ancestry basis.
     QL, G, Gl, G_mask, H, Hl, H_mask = adj_by_lanc(G, H, L)
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
+    Gl = Gl * G_mask
+    Hl = Hl * H_mask
     rank_L = jnp.sum(jnp.sum(QL**2, axis=0) > 0)
     H = H[:, None]
     Hl = Hl[:, None]
@@ -175,10 +203,15 @@ def _qt_wald_lanc(G: Array, L: Array, Y: Array, Q: Array, N_eff: Array) -> tuple
     )
 
 
-def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, ...]:
+def _qt_wald_nolanc(
+    G: Array,
+    Y: Array,
+    Q: Array,
+    N_eff: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+) -> tuple[Array, ...]:
     Y = jnp.reshape(Y, Y.shape + (1,) * (2 - Y.ndim))
-
-    K = G.shape[1]
 
     ## Get H and residualize all by covariates
     G, H = prep_geno(G, Q)
@@ -187,7 +220,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     G_mask = jnp.sum(G**2, axis=0) > 0
     G = G * G_mask[None, :]
     H_mask = jnp.sum(H**2, axis=0) > 0
-    H = H * H_mask
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
     H = H[:, None]
 
     ## Wald test for the joint ancestry-specific effects.
@@ -197,7 +230,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     beta_het = GtG_inv @ Gtr
     r_G = Y - G @ beta_het
     sse_het = jnp.sum(r_G**2, axis=0)
-    mse_het = sse_het / (N_eff - K)
+    mse_het = sse_het / (N_eff - jnp.sum(G_mask))
     chisq_anc = beta_het**2 / jnp.diagonal(GtG_inv)[:, None] / mse_het
     chisq_het = jnp.einsum("kp,kl,lp->p", Gtr, GtG_inv, Gtr) / mse_het
 
@@ -207,7 +240,7 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
     beta_hom = Htr / HtH
     r_H = Y - (H @ beta_hom)
     sse_hom = jnp.sum(r_H**2, axis=0)
-    mse_hom = sse_hom / (N_eff - 1)
+    mse_hom = sse_hom / (N_eff - jnp.sum(H_mask))
     chisq_hom = (Htr**2) / HtH / mse_hom
 
     chisq_diff = N_eff * jnp.log(sse_hom / sse_het)
@@ -228,39 +261,45 @@ def _qt_wald_nolanc(G: Array, Y: Array, Q: Array, N_eff: Array) -> tuple[Array, 
 ### Block-wise functions
 ### ─────────────────────────────────────────────────────────────
 
-qt_score_lanc = make_blockwise(_qt_score_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0))
+qt_score_lanc = make_blockwise(
+    _qt_score_lanc, (1, 1, None, None, None, 0, 0), (3, 3, 1, 2, 0, 2, 1)
+)
 qt_score_lanc_no_diff = make_blockwise(
-    partial(_qt_score_lanc, perform_diff=False), (1, 1, None, None, None), (3, 3, 1, 2, 0)
+    partial(_qt_score_lanc, perform_diff=False),
+    (1, 1, None, None, None, 0, 0),
+    (3, 3, 1, 2, 0, 2, 1),
 )
 
 qt_score_lanc_impute = jit(
-    vmap(_qt_score_lanc, in_axes=(1, 1, None, None, None)),
+    vmap(_qt_score_lanc, in_axes=(1, 1, None, None, None, 0, 0)),
 )
 qt_score_lanc_impute_no_diff = jit(
-    vmap(partial(_qt_score_lanc, perform_diff=False), in_axes=(1, 1, None, None, None)),
+    vmap(partial(_qt_score_lanc, perform_diff=False), in_axes=(1, 1, None, None, None, 0, 0)),
 )
 
-qt_score_nolanc = make_blockwise(_qt_score_nolanc, (1, None, None, None), (3, 1, 2, 0))
+qt_score_nolanc = make_blockwise(_qt_score_nolanc, (1, None, None, None, 0, 0), (3, 1, 2, 0, 2, 1))
 qt_score_nolanc_no_diff = make_blockwise(
-    partial(_qt_score_nolanc, perform_diff=False), (1, None, None, None), (3, 1, 2, 0)
+    partial(_qt_score_nolanc, perform_diff=False),
+    (1, None, None, None, 0, 0),
+    (3, 1, 2, 0, 2, 1),
 )
 
 
 qt_score_nolanc_impute = jit(
-    vmap(_qt_score_nolanc, in_axes=(1, None, None, None)),
+    vmap(_qt_score_nolanc, in_axes=(1, None, None, None, 0, 0)),
 )
 qt_score_nolanc_impute_no_diff = jit(
-    vmap(partial(_qt_score_nolanc, perform_diff=False), in_axes=(1, None, None, None)),
+    vmap(partial(_qt_score_nolanc, perform_diff=False), in_axes=(1, None, None, None, 0, 0)),
 )
 
-qt_wald_lanc = make_blockwise(_qt_wald_lanc, (1, 1, None, None, None), (3, 3, 1, 2, 0))
+qt_wald_lanc = make_blockwise(_qt_wald_lanc, (1, 1, None, None, None, 0, 0), (3, 3, 1, 2, 0, 2, 1))
 
 qt_wald_lanc_impute = jit(
-    vmap(_qt_wald_lanc, in_axes=(1, 1, None, None, None)),
+    vmap(_qt_wald_lanc, in_axes=(1, 1, None, None, None, 0, 0)),
 )
 
-qt_wald_nolanc = make_blockwise(_qt_wald_nolanc, (1, None, None, None), (3, 1, 2, 0))
+qt_wald_nolanc = make_blockwise(_qt_wald_nolanc, (1, None, None, None, 0, 0), (3, 1, 2, 0, 2, 1))
 
 qt_wald_nolanc_impute = jit(
-    vmap(_qt_wald_nolanc, in_axes=(1, None, None, None)),
+    vmap(_qt_wald_nolanc, in_axes=(1, None, None, None, 0, 0)),
 )

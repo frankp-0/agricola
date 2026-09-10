@@ -175,6 +175,22 @@ def adj_by_lanc(G: Array, H: Array, L: Array, mask: Array | None = None) -> tupl
     return QL, G, Gl, G_mask, H, Hl, H_mask
 
 
+def apply_allele_masks(
+    G: Array,
+    H: Array,
+    G_mask: Array,
+    H_mask: Array,
+    allele_G_mask: Array | None,
+    allele_H_mask: Array | None,
+) -> tuple[Array, Array, Array, Array]:
+    """Combine allele-count masks with rank/variation masks and zero inactive designs."""
+    if allele_G_mask is not None:
+        G_mask = G_mask & allele_G_mask
+    if allele_H_mask is not None:
+        H_mask = H_mask & allele_H_mask
+    return G * G_mask, H * H_mask, G_mask, H_mask
+
+
 def het_score(
     U: Array, covariance: Array, mask: Array, scale: Array = DEFAULT_SCALE
 ) -> tuple[Array, ...]:
@@ -211,7 +227,7 @@ def mask_result(
     """Apply genotype-variation masks and degrees of freedom to Wald outputs."""
     df_het = jnp.sum(G_mask)
     df_hom = jnp.sum(H_mask)
-    df_diff = df_het - df_hom
+    df_diff = jnp.maximum(df_het - df_hom, 0)
     return (
         _masked_nan(chisq_hom, H_mask),
         _masked_nan(beta_hom, H_mask),
@@ -219,7 +235,7 @@ def mask_result(
         _masked_nan(beta_het, G_mask),
         df_het,
         _masked_nan(chisq_anc, G_mask),
-        _masked_nan(chisq_diff, df_diff != 0),
+        _masked_nan(chisq_diff, df_diff > 0),
         df_diff,
     )
 

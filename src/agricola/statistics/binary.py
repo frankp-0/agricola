@@ -14,6 +14,7 @@ from jaxtyping import Array
 
 from .common import (
     adj_by_lanc,
+    apply_allele_masks,
     het_score,
     hom_score,
     lanc_basis,
@@ -29,7 +30,15 @@ from .common import (
 
 
 def _bt_score_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, offset: Array, M: Array, perform_diff: bool = True
+    G: Array,
+    L: Array,
+    Y: Array,
+    Q: Array,
+    offset: Array,
+    M: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+    perform_diff: bool = True,
 ) -> tuple[Array, ...]:
     ## Get H and residualize all by covariates
     G, L, H = prep_lanc_geno(G, L, Q)
@@ -58,7 +67,6 @@ def _bt_score_lanc(
     G = (Gw - Qw @ (Qw.T @ Gw)) * inv_W_L_sqrt[:, None]
     G_norm = jnp.sum((G * W_L_sqrt[:, None]) ** 2, axis=0)
     G_mask = G_norm > jnp.finfo(G.dtype).eps * max(G.shape) * G_scale
-    G = G * G_mask
     U = G.T @ R
 
     H_scale = jnp.sum((H * W_L_sqrt) ** 2)
@@ -66,7 +74,7 @@ def _bt_score_lanc(
     H = (Hw - Qw @ (Qw.T @ Hw)) * inv_W_L_sqrt
     H_norm = jnp.sum((H * W_L_sqrt) ** 2)
     H_mask = H_norm > jnp.finfo(H.dtype).eps * max(H.shape) * H_scale
-    H = H * H_mask
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
     UH = H.T @ R
 
     ## Score test for the joint ancestry-specific effects.
@@ -145,7 +153,14 @@ def _bt_score_lanc(
 
 
 def _bt_score_nolanc(
-    G: Array, Y: Array, Q: Array, offset: Array, M: Array, perform_diff: bool = True
+    G: Array,
+    Y: Array,
+    Q: Array,
+    offset: Array,
+    M: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+    perform_diff: bool = True,
 ) -> tuple[Array, ...]:
     ## Get H and residualize all by covariates
     G, H = prep_geno(G, Q)
@@ -153,6 +168,7 @@ def _bt_score_nolanc(
     ## Mask out low variation columns
     G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
     H_mask = jnp.sum((H * M) ** 2) > 0
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
 
     ## Null model
     mu = expit(offset)
@@ -219,7 +235,14 @@ def _bt_score_nolanc(
 
 
 def _bt_wald_lanc(
-    G: Array, L: Array, Y: Array, Q: Array, offset: Array, M: Array
+    G: Array,
+    L: Array,
+    Y: Array,
+    Q: Array,
+    offset: Array,
+    M: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
 ) -> tuple[Array, ...]:
     K = G.shape[1]
 
@@ -228,6 +251,7 @@ def _bt_wald_lanc(
 
     ## Fit G,H ~ L and mask out collinear columns
     QL, G, _, G_mask, H, _, H_mask = adj_by_lanc(G, H, L, M)
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
     H = H[:, None]
     L_mask = jnp.sum(QL**2, axis=0) > 0
     L = L * L_mask
@@ -275,7 +299,15 @@ def _bt_wald_lanc(
     return (*result, converged_het & converged_hom)
 
 
-def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tuple[Array, ...]:
+def _bt_wald_nolanc(
+    G: Array,
+    Y: Array,
+    Q: Array,
+    offset: Array,
+    M: Array,
+    allele_G_mask: Array | None = None,
+    allele_H_mask: Array | None = None,
+) -> tuple[Array, ...]:
     K = G.shape[1]
 
     ## Get H and residualize all by covariates
@@ -284,6 +316,8 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
     ## Wald test for the joint ancestry-specific effects.
     G_mask = jnp.sum((G * M[:, None]) ** 2, axis=0) > 0
+    H_mask = jnp.atleast_1d(jnp.sum((H * M) ** 2) > 0)
+    G, H, G_mask, H_mask = apply_allele_masks(G, H, G_mask, H_mask, allele_G_mask, allele_H_mask)
     beta_het, converged_het = logistic_with_convergence(G, Y, offset, M, G_mask, tol=1e-5)
     etag = G @ beta_het + offset
     mu = expit(etag)
@@ -295,7 +329,6 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
     chisq_het = beta_het[:K].T @ solve(GtGw_inv[:K, :K], beta_het[:K])
 
     ## Wald test for the common homogeneous effect.
-    H_mask = jnp.sum((H * M[:, None]) ** 2, axis=0) > 0
     beta_hom, converged_hom = logistic_with_convergence(H, Y, offset, M, H_mask, tol=1e-5)
     etah = H @ beta_hom + offset
     mu = expit(etah)
@@ -328,36 +361,36 @@ def _bt_wald_nolanc(G: Array, Y: Array, Q: Array, offset: Array, M: Array) -> tu
 
 bt_score_lanc = make_blockwise(
     _bt_score_lanc,
-    (1, 1, None, None, None, None),
-    (3, 3, 1, 2, 1, 1),
+    (1, 1, None, None, None, None, 0, 0),
+    (3, 3, 1, 2, 1, 1, 2, 1),
 )
 bt_score_lanc_no_diff = make_blockwise(
     partial(_bt_score_lanc, perform_diff=False),
-    (1, 1, None, None, None, None),
-    (3, 3, 1, 2, 1, 1),
+    (1, 1, None, None, None, None, 0, 0),
+    (3, 3, 1, 2, 1, 1, 2, 1),
 )
 
 bt_score_nolanc = make_blockwise(
     _bt_score_nolanc,
-    (1, None, None, None, None),
-    (3, 1, 2, 1, 1),
+    (1, None, None, None, None, 0, 0),
+    (3, 1, 2, 1, 1, 2, 1),
 )
 bt_score_nolanc_no_diff = make_blockwise(
     partial(_bt_score_nolanc, perform_diff=False),
-    (1, None, None, None, None),
-    (3, 1, 2, 1, 1),
+    (1, None, None, None, None, 0, 0),
+    (3, 1, 2, 1, 1, 2, 1),
 )
 
 bt_wald_lanc = make_blockwise(
     _bt_wald_lanc,
-    (1, 1, None, None, None, None),
-    (3, 3, 1, 2, 1, 1),
+    (1, 1, None, None, None, None, 0, 0),
+    (3, 3, 1, 2, 1, 1, 2, 1),
 )
 
 bt_wald_nolanc = make_blockwise(
     _bt_wald_nolanc,
-    (1, None, None, None, None),
-    (3, 1, 2, 1, 1),
+    (1, None, None, None, None, 0, 0),
+    (3, 1, 2, 1, 1, 2, 1),
 )
 
 __all__ = ["bt_score_lanc", "bt_score_nolanc", "bt_wald_lanc", "bt_wald_nolanc"]

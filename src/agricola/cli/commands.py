@@ -287,7 +287,16 @@ def step2(
     ),
     chrom: str | None = typer.Option(None, help="Chromosome"),
     block_size: int = typer.Option(1000, help="Number of variants per block"),
-    min_ac: int = typer.Option(1, help="Minimum allele count"),
+    min_ac: int = typer.Option(
+        1,
+        help="Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype)",
+    ),
+    min_ac_g: int | None = typer.Option(
+        None, help="Minimum allele count for ancestry-deconvoluted genotypes"
+    ),
+    min_ac_h: int | None = typer.Option(
+        None, help="Minimum allele count for the total genotype"
+    ),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),
     adjust_lanc: bool = typer.Option(True, help="Adjust single variant tests for local ancestry"),
@@ -407,6 +416,8 @@ def step2(
         partition_phenotypes,
         max_rows,
         p_het_threshold,
+        min_ac_g,
+        min_ac_h,
     )
 
 
@@ -489,7 +500,16 @@ def all_steps(
     ),
     block_size1: int = typer.Option(1000, help="Number of variants per block in step 1"),
     block_size2: int = typer.Option(500, help="Number of variants per block in step 2"),
-    min_ac: int = typer.Option(1, help="Minimum allele count"),
+    min_ac: int = typer.Option(
+        1,
+        help="Legacy minimum allele count for both G (ancestry-deconvoluted genotype) and H (genotype)",
+    ),
+    min_ac_g: int | None = typer.Option(
+        None, help="Minimum allele count for ancestry-deconvoluted genotypes"
+    ),
+    min_ac_h: int | None = typer.Option(
+        None, help="Minimum allele count for the total genotype"
+    ),
     seed: int = typer.Option(100, help="Random seed"),
     trait_type: str = typer.Option("qt", help="Trait type: quantitative (qt) or binary (bt)"),
     test_type: str = typer.Option("score", help="Test type: score or wald"),
@@ -642,6 +662,8 @@ def all_steps(
         partition_phenotypes,
         max_rows,
         p_het_threshold,
+        min_ac_g,
+        min_ac_h,
     )
 
 
