@@ -2,6 +2,22 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.3.3] - 2026-09-10
+
+[v1.3.3]: https://github.com/frankp-0/agricola/compare/v1.3.2...v1.3.3>
+
+### Fixed
+
+- Align NumPy datatypes with JAX
+
+## [v1.3.2] - 2026-09-10
+
+[v1.3.2]: https://github.com/frankp-0/agricola/compare/v1.3.1...v1.3.2>
+
+### Fixed
+
+- Bug in _bt_score_lanc computing chisq test before mask is applied
+
 ## [v1.3.1] - 2026-09-10
 
 [v1.3.1]: https://github.com/frankp-0/agricola/compare/v1.3.0...v1.3.1>
