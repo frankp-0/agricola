@@ -163,7 +163,9 @@ def load_pheno_and_covars(
         df_covar = df_covar.sort_values(by="IID").reset_index(drop=True)  # pyright: ignore[reportCallIssue]
         df_covar_noid = df_covar.drop("IID", axis=1).drop("FID", axis=1, errors="ignore")
         X = jnp.asarray(
-            pd.get_dummies(df_covar_noid, columns=catcovariates, dtype=float).to_numpy()
+            pd.get_dummies(
+                df_covar_noid, columns=catcovariates, drop_first=True, dtype=float
+            ).to_numpy()
         )
     else:
         X = None

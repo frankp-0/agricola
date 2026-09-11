@@ -5,12 +5,15 @@
 from pathlib import Path
 
 import jax
+import jax.numpy as jnp
 import pandas as pd
 import pyarrow.parquet as pq
 import pytest
 from typer.testing import CliRunner
 
 from agricola.cli import app
+from agricola.cli.data import load_pheno_and_covars
+from agricola.validation.inputs import _prepare_x
 
 runner = CliRunner()
 
@@ -77,6 +80,29 @@ def test_step1_toy(toy_data):
         ],
     )
     assert result.exit_code == 0
+
+
+def test_categorical_covariate_omits_reference_level(toy_data):
+    covars = pd.read_csv(toy_data["covar_file"], sep="\t")
+    covars["site"] = ["A", "B"] * (len(covars) // 2)
+    covars[["#IID", "site"]].to_csv(toy_data["covar_file"], sep="\t", index=False)
+
+    Y, X, _, _ = load_pheno_and_covars(
+        toy_data["pheno_file"],
+        toy_data["covar_file"],
+        None,
+        None,
+        ["site"],
+        None,
+        ["site"],
+        None,
+        [f"Sample_{i + 1}" for i in range(len(covars))],
+    )
+
+    assert X is not None
+    assert X.shape == (len(covars), 1)
+    assert set(jnp.unique(X).tolist()) == {0.0, 1.0}
+    _prepare_x(X, Y.shape[0])
 
 
 def test_step2_toy(toy_data):
