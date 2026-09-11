@@ -14,6 +14,7 @@ from lanctools import LancData
 
 from agricola import step2
 from agricola.pipeline.step2 import _prep_block
+from agricola.validation.inputs import validate_step2_inputs
 
 
 @pytest.fixture
@@ -141,6 +142,31 @@ def test_step2_phenotype_and_prediction_validation(tmp_path, toy_data):
     missing["20"] = missing["20"].drop(columns=["1"])
     with pytest.raises(KeyError):
         step2(toy_data, Y, X, missing, outdir, ["0", "1", "2"], "qt")
+
+
+def test_step2_predictions_match_jax_dtype(toy_data):
+    """Step-1 predictions retain the precision used by JAX computations."""
+    Y, X, step1_predictions = valid_inputs()
+    step1_predictions = {
+        chrom: prediction.astype(np.float64) for chrom, prediction in step1_predictions.items()
+    }
+    phenotypes = [str(i) for i in range(3)]
+
+    _, _, predictions, _, _, _ = validate_step2_inputs(
+        toy_data,
+        Y,
+        X,
+        phenotypes,
+        step1_predictions,
+        1000,
+        None,
+        None,
+        "score",
+        "qt",
+    )
+
+    assert predictions is not None
+    assert all(prediction.dtype == Y.dtype for prediction in predictions.values())
 
 
 def test_step2_enum_batch_and_variant_validation(tmp_path, toy_data):

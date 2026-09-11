@@ -215,7 +215,9 @@ def validate_step2_inputs(
                         f"All step1_predictions arrays must have same P; got {P_pred} "
                         f"vs {p_chrom} in step1_predictions[{chrom}]"
                     )
-            step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy()
+            step1_predictions_np[chrom] = step1_predictions[chrom][phenotypes].to_numpy(
+                dtype=Y.dtype
+            )
 
         if N_pred != N:
             raise ValueError(f"step1_predictions arrays have N={N_pred} but Y has N={N}")

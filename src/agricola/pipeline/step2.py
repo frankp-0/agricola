@@ -362,11 +362,11 @@ def _step2_block(
         )
         if trait_type == TraitType.BT and adjust_lanc:
             selected &= np.asarray(test_converged, dtype=bool)
-        log10p_het_vs_hom = np.full((B, P), np.nan)
+        log10p_het_vs_hom = np.full((B, P), np.nan, dtype=log10p_het.dtype)
         if trait_type == TraitType.BT:
             convergence = np.asarray(test_converged)
             test_converged = (
-                np.full((B, P), np.nan)
+                np.full((B, P), np.nan, dtype=log10p_het.dtype)
                 if convergence.ndim == 0
                 else np.array(convergence, copy=True)
             )
@@ -562,7 +562,7 @@ def _step2_dataset(
                 else:
                     step1_pred_chr = step1_predictions["all"]
             else:
-                step1_pred_chr = np.zeros(Y.shape)
+                step1_pred_chr = np.zeros(Y.shape, dtype=Y.dtype)
 
             ## Get indices for this chromosome
             idx_chrom = variants_by_chromosome[chrom]

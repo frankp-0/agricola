@@ -165,6 +165,7 @@ def test_level0_validation(toy_data, tmp_path: Path):
         for chrom in ["20", "21", "22"]:
             expected = np.load(f"tests/data/level0/{pheno}_{chrom}.npy")
             actual = np.load(level0_files[pheno][chrom])
+            assert actual.dtype == Y.dtype
             np.testing.assert_allclose(actual, expected, atol=1e-6, rtol=1e-5)
 
 
@@ -259,6 +260,9 @@ def test_level1_qt_validation():
     """Check valid level 1 qt"""
     level0_files, Y, X, phenos, train, test, h2 = valid_inputs_1()
     result = level1(level0_files, Y, X, phenos, train, test, h2, "qt")
+    for prediction in result.values():
+        assert all(dtype == Y.dtype for dtype in prediction.dtypes)
+
     for pheno in ["0", "1", "2"]:
         for chrom in ["20", "21", "22"]:
             actual = result[chrom][pheno]

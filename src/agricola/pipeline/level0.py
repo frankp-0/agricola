@@ -202,7 +202,7 @@ def level0(
             n_blocks = len(blocks)
 
             fnames = [str(output_dir / f"{pheno}_{chrom}.npy") for pheno in phenotypes]
-            Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=float)
+            Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=Y.dtype)
 
             col0 = 0
             with tqdm(total=n_blocks, desc=f"chr{chrom}", unit="block") as pbar:

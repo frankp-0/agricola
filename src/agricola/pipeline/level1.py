@@ -89,7 +89,7 @@ def _ridge_cv_qt(
     else:
         fit_ridge = _fit_ridge
     beta = fit_ridge(Z, Y[:, None], train_mask, alphas)[:, :, :, 0]  # AKB
-    beta_mask = np.zeros(shape=(B, C))
+    beta_mask = np.zeros(shape=(B, C), dtype=Z.dtype)
     col0 = 0
     for c in range(C):
         n_block = n_blocks[c]
@@ -148,7 +148,7 @@ def _ridge_cv_bt(
         beta = logistic_ridge_lowmem(Z, Y, offset, train_mask, alphas)
     else:
         beta = _fit_logistic_ridge(Z, Y, offset, train_mask, alphas)  # AKB
-    beta_mask = np.zeros(shape=(B, C))
+    beta_mask = np.zeros(shape=(B, C), dtype=Z.dtype)
     col0 = 0
     for c in range(C):
         n_block = n_blocks[c]
@@ -203,7 +203,7 @@ def _ridge_loocv_bt(
         else _fit_logistic_ridge_loo(Z, Y, offset, alphas)
     )  # ABN
     beta = jnp.moveaxis(beta, (0, 1, 2), (0, 2, 1))  # ANB
-    beta_mask = np.zeros(shape=(B, C))
+    beta_mask = np.zeros(shape=(B, C), dtype=Z.dtype)
     col0 = 0
     for c in range(C):
         n_block = n_blocks[c]
@@ -270,14 +270,14 @@ def level1(
         Q, _ = jnp.linalg.qr(X, mode="reduced")
         Y = stdize(Y - (Q @ (Q.T @ Y)))
 
-    loco_arr = np.zeros(shape=(N, P, C))
-    all_arr = np.zeros(shape=(N, P))
+    loco_arr = np.zeros(shape=(N, P, C), dtype=Y.dtype)
+    all_arr = np.zeros(shape=(N, P), dtype=Y.dtype)
     logger.info("Getting level 1 predictions")
     time_total_start = time.perf_counter()
     with tqdm(total=Y.shape[1], unit="phenotypes") as pbar:
         for p in range(P):
             pheno: str = phenotypes[p]
-            Zs = [np.load(v) for v in level0_files[pheno].values()]
+            Zs = [np.asarray(np.load(v), dtype=Y.dtype) for v in level0_files[pheno].values()]
             n_blocks = [z.shape[1] for z in Zs]
             Z = jnp.concatenate(Zs, axis=1)
 
