@@ -8,12 +8,14 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 from jax.scipy.special import expit
 from lanctools import LancData
 
 from agricola import step2
 from agricola.pipeline.step2 import _prep_block
+from agricola.pipeline.writer import ParquetRotatingWriter
 from agricola.validation.inputs import validate_step2_inputs
 
 
@@ -287,6 +289,33 @@ def test_step2_applies_independent_g_and_h_allele_thresholds(tmp_path, toy_data)
     assert not result.empty
     assert result["BETA_HOM"].isna().all()
     assert result["LOG10P_HOM"].isna().all()
+
+
+def test_step2_empty_blocks_use_string_phenotype_schema(tmp_path, toy_data, monkeypatch):
+    """Empty result tables must keep the partition column compatible with non-empty tables."""
+    tables = []
+
+    def capture_table(_, table):
+        tables.append(table)
+
+    monkeypatch.setattr(ParquetRotatingWriter, "write", capture_table)
+
+    Y, X, step1_predictions = valid_inputs()
+    step2(
+        toy_data,
+        Y,
+        X,
+        step1_predictions,
+        tmp_path / "result",
+        [str(i) for i in range(3)],
+        "qt",
+        chrom="20",
+        min_ac_g=10_000,
+        min_ac_h=10_000,
+    )
+
+    assert tables
+    assert all(table.schema.field("phenotype").type == pa.string() for table in tables)
 
 
 def test_prep_block_filters_on_minor_allele_count():

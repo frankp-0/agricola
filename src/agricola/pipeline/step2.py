@@ -490,7 +490,7 @@ def _step2_block(
         if converged is not None:
             columns["CONVERGED"] = pa.array(converged[idx, i])
 
-        columns["phenotype"] = pa.array([phenotypes[i]] * idx.sum())
+        columns["phenotype"] = pa.array([phenotypes[i]] * idx.sum(), type=pa.string())
 
         tables.append(pa.table(columns))
 
