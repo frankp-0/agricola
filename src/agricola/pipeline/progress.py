@@ -29,6 +29,7 @@ class ProgressReporter:
         self.desc = desc
         self.milestone_percent = milestone_percent
         self.next_milestone = milestone_percent
+        self.completed = 0
         self.pbar = tqdm(total=total, desc=desc, unit=unit, disable=None)
         self.start_time = time.monotonic()
         self.logger.info("Starting %s.", self._label(0))
@@ -41,18 +42,19 @@ class ProgressReporter:
 
     def update(self, n: int = 1) -> None:
         """Advance progress and log when crossing the next percentage milestone."""
+        self.completed += n
         self.pbar.update(n)
-        if self.total == 0 or self.pbar.n >= self.total:
+        if self.total == 0 or self.completed >= self.total:
             return
 
-        percent = 100 * self.pbar.n / self.total
+        percent = 100 * self.completed / self.total
         if percent >= self.next_milestone:
             elapsed = time.monotonic() - self.start_time
-            rate = self.pbar.n / elapsed if elapsed else 0.0
-            remaining = elapsed * (self.total - self.pbar.n) / self.pbar.n
+            rate = self.completed / elapsed if elapsed else 0.0
+            remaining = elapsed * (self.total - self.completed) / self.completed
             self.logger.info(
                 "Processed %s (%.1f%%, %.2f %s/s, ETA %s).",
-                self._label(self.pbar.n),
+                self._label(self.completed),
                 percent,
                 rate,
                 self.unit,
@@ -68,7 +70,7 @@ class ProgressReporter:
         elapsed = time.monotonic() - self.start_time
         status = "Completed" if completed else "Stopped"
         self.logger.info(
-            "%s %s in %s.", status, self._label(self.pbar.n), self._format_duration(elapsed)
+            "%s %s in %s.", status, self._label(self.completed), self._format_duration(elapsed)
         )
 
     def _label(self, completed: int) -> str:

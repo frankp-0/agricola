@@ -14,7 +14,8 @@ class FakeProgressBar:
         self.closed = False
 
     def update(self, n):
-        self.n += n
+        if not self.kwargs["disable"]:
+            self.n += n
 
     def close(self):
         self.closed = True
@@ -64,3 +65,25 @@ def test_progress_reporter_logs_stopped_status_after_error(monkeypatch, caplog):
             pass
 
     assert caplog.records[-1].message == "Stopped 0/20 block in 10s."
+
+
+def test_progress_reporter_counts_when_terminal_progress_is_disabled(monkeypatch, caplog):
+    times = iter([0.0, 10.0, 20.0])
+
+    def make_disabled_progress_bar(**kwargs):
+        kwargs["disable"] = True
+        return FakeProgressBar(**kwargs)
+
+    monkeypatch.setattr(progress, "tqdm", make_disabled_progress_bar)
+    monkeypatch.setattr(progress.time, "monotonic", lambda: next(times))
+
+    logger = logging.getLogger("test.progress.disabled")
+    with caplog.at_level(logging.INFO, logger=logger.name):
+        with progress.ProgressReporter(20, "block", logger) as reporter:
+            reporter.update()
+
+    assert [record.message for record in caplog.records] == [
+        "Starting 0/20 block.",
+        "Processed 1/20 block (5.0%, 0.10 block/s, ETA 3m 10s).",
+        "Completed 1/20 block in 20s.",
+    ]
