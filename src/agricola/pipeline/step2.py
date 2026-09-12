@@ -24,7 +24,6 @@ from jax.scipy.special import expit
 from jaxtyping import Array, ArrayLike
 from lanctools import LancData
 from scipy.stats import chi2
-from tqdm import tqdm
 
 from ..io.genotypes import get_geno_lanc_deconv
 from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
@@ -54,6 +53,7 @@ from ..statistics.quantitative import (
 )
 from ..types import TestType, TraitType
 from ..validation.inputs import validate_step2_inputs
+from .progress import ProgressReporter
 from .writer import ParquetRotatingWriter
 
 logger = logging.getLogger(__name__)
@@ -554,7 +554,7 @@ def _step2_dataset(
     n_blocks = sum((len(variants_by_chromosome[c]) + B - 1) // B for c in chroms)
 
     ## Perform step 2 for each chromosome and block
-    with tqdm(total=n_blocks, unit="block") as pbar:
+    with ProgressReporter(n_blocks, "block", logger) as pbar:
         for chrom in chroms:
             if step1_predictions is not None:
                 if chrom in step1_predictions.keys():

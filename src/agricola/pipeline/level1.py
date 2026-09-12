@@ -21,7 +21,6 @@ from jax.nn import softplus
 from jaxtyping import Array, ArrayLike
 from numpy.typing import NDArray
 from pandas import DataFrame, Index
-from tqdm import tqdm
 
 from ..models.logistic import (
     logistic_ridge,
@@ -34,6 +33,7 @@ from ..models.ridge import ridge, ridge_lowmem, ridge_lowmem_folds
 from ..numerical.linear_algebra import stdize
 from ..types import TraitType
 from ..validation.inputs import validate_level1_inputs
+from .progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +274,7 @@ def level1(
     all_arr = np.zeros(shape=(N, P), dtype=Y.dtype)
     logger.info("Getting level 1 predictions")
     time_total_start = time.perf_counter()
-    with tqdm(total=Y.shape[1], unit="phenotypes") as pbar:
+    with ProgressReporter(Y.shape[1], "phenotypes", logger) as pbar:
         for p in range(P):
             pheno: str = phenotypes[p]
             Zs = [np.asarray(np.load(v), dtype=Y.dtype) for v in level0_files[pheno].values()]

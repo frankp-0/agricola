@@ -21,13 +21,13 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, ArrayLike
 from numpy.typing import NDArray
-from tqdm import tqdm
 
 from ..io.genotypes import PgenData
 from ..io.variants import get_variant_indices, group_variant_indices_by_chromosome
 from ..models.ridge import ridge, ridge_lowmem, ridge_lowmem_folds
 from ..numerical.linear_algebra import stdize
 from ..validation.inputs import validate_level0_inputs
+from .progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ def level0(
             Zs = np.empty((N, len(phenotypes), n_blocks * K), dtype=Y.dtype)
 
             col0 = 0
-            with tqdm(total=n_blocks, desc=f"chr{chrom}", unit="block") as pbar:
+            with ProgressReporter(n_blocks, "block", logger, desc=f"chr{chrom}") as pbar:
                 for block in blocks:
                     Z_block = _level0_block(
                         ds,
