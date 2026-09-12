@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.3.5] - 2026-09-12
+
+[v1.3.5]: https://github.com/frankp-0/agricola/compare/v1.3.4...v1.3.5>
+
+### Fixed
+
+- Bug where phenotype column has NULL type in step 2
+
 ## [v1.3.4] - 2026-09-11
 
 [v1.3.4]: https://github.com/frankp-0/agricola/compare/v1.3.3...v1.3.4>
