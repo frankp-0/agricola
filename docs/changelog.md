@@ -2,6 +2,14 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.4.0] - 2026-09-12
+
+[v1.4.0]: https://github.com/frankp-0/agricola/compare/v1.3.5...v1.4.0>
+
+### Added
+
+- Milestone progress logging for batch jobs
+
 ## [v1.3.5] - 2026-09-12
 
 [v1.3.5]: https://github.com/frankp-0/agricola/compare/v1.3.4...v1.3.5>
