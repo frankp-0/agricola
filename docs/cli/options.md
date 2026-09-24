@@ -78,12 +78,19 @@ These are the non-global options for `step2`:
 | `--min-ac-h` | INTEGER | optional | Minimum allele count for the total genotype |
 | `--partition_phenotypes` | | optional | Whether to partition output parquet files by phenotyp. If True, output files are written to e.g. outdir/trait0/part-0_0.parquet [default: --partition-phenotypes] |
 | `--max-rows` | INTEGER | optional | Max number of rows/variants per phenotype to keep in memory before writing an output file. If unspecified, agricola will use 5000000 / len(phenotypes) |
+| `--debug-dump-path` | TEXT | optional | Developer option: write the selected statistics kernel inputs for the first variant block to this `.npz` file |
 
 !!! info
 
     `--no-impute` must be used for binary traits. If any quantitative traits have
     missing values, computational performance can be (often greatly) improved
     by using `--impute`, which mean-imputes all missing phenotype values.
+
+!!! info
+
+    `--debug-dump-path` writes the exact selected statistics-kernel inputs for
+    the first variant block to an `.npz` file. It is intended for troubleshooting
+    and is not needed for routine analyses.
 
 !!! info
 

@@ -338,6 +338,13 @@ def step2(
             "5000000 / len(phenotypes)"
         ),
     ),
+    debug_dump_path: str | None = typer.Option(
+        None,
+        help=(
+            "Developer option: write the selected statistics kernel inputs for the "
+            "first variant block to this .npz file"
+        ),
+    ),
     backend: str | None = typer.Option(
         None,
         help=(
@@ -421,6 +428,7 @@ def step2(
         p_het_threshold,
         min_ac_g,
         min_ac_h,
+        debug_dump_path,
     )
 
 

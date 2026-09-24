@@ -6,6 +6,7 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import pytest
@@ -106,6 +107,7 @@ def test_categorical_covariate_omits_reference_level(toy_data):
 
 
 def test_step2_toy(toy_data):
+    debug_dump_path = Path(toy_data["outdir"]).parent / "step2-debug.npz"
     result = runner.invoke(
         app,
         [
@@ -126,9 +128,13 @@ def test_step2_toy(toy_data):
             "0",
             "--min-ac",
             "1",
+            "--debug-dump-path",
+            str(debug_dump_path),
         ],
     )
     assert result.exit_code == 0
+    with np.load(debug_dump_path) as debug_dump:
+        assert debug_dump["test_func_name"].item().endswith("qt_score_lanc")
 
 
 def test_allsteps_toy(toy_data):
