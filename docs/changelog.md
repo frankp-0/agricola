@@ -2,6 +2,18 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
+## [v1.4.1] - 2026-09-24
+
+[v1.4.1]: https://github.com/frankp-0/agricola/compare/v1.4.0...v1.4.1>
+
+### Added
+
+- Debug option to dump block input in step 2
+
+### Fixed
+
+- Report pipeline progress in non-interactive jobs
+
 ## [v1.4.0] - 2026-09-12
 
 [v1.4.0]: https://github.com/frankp-0/agricola/compare/v1.3.5...v1.4.0>
