@@ -2,9 +2,9 @@
 
 Notable changes to agricola (starting with v1.0.0) will be documented here.
 
-## [v1.4.1] - 2026-09-24
+## [v1.5.0] - 2026-09-24
 
-[v1.4.1]: https://github.com/frankp-0/agricola/compare/v1.4.0...v1.4.1>
+[v1.5.0]: https://github.com/frankp-0/agricola/compare/v1.4.0...v1.5.0>
 
 ### Added
 
