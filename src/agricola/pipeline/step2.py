@@ -58,6 +58,28 @@ from .writer import ParquetRotatingWriter
 
 logger = logging.getLogger(__name__)
 
+
+def _dump_test_func_call(path: str | Path, test_func, test_args: tuple, metadata: dict) -> None:
+    """Write a statistics kernel call to an .npz file for troubleshooting.
+
+    Saves the positional arguments passed to a `test_func` (e.g. `qt_score_lanc`),
+    along with the function name and some block-level metadata, so that the exact
+    call can be reloaded and re-run in isolation outside of the full step-2 pipeline.
+
+    Args:
+        path: Output .npz file path
+        test_func: The statistics kernel that was called
+        test_args: The positional arguments passed to `test_func`
+        metadata: Extra scalar/array metadata to store alongside the arguments
+    """
+    path = Path(path)
+    payload = {f"arg_{i}": np.asarray(arg) for i, arg in enumerate(test_args)}
+    payload["test_func_name"] = np.array(getattr(test_func, "__name__", str(test_func)))
+    payload.update({key: np.asarray(value) for key, value in metadata.items()})
+    np.savez(path, **payload)
+    logger.info("Wrote debug dump of %s inputs to %s", payload["test_func_name"], path)
+
+
 _QT_FUNCTIONS = {
     (TestType.SCORE, True, False): qt_score_lanc,
     (TestType.SCORE, True, True): qt_score_lanc_impute,
@@ -201,6 +223,7 @@ def _step2_block(
     adjust_lanc: bool,
     impute: bool,
     p_het_threshold: float,
+    debug_dump_path: str | Path | None = None,
 ) -> pa.Table:
     """Run step 2 for a single block of variants
 
@@ -219,6 +242,9 @@ def _step2_block(
         extra_args: A dict containing extra arguments needed for trait_type="bt"
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
+        debug_dump_path: If provided, write the exact arguments passed to the
+            selected statistics kernel (`test_func`) for this block to an .npz
+            file, for troubleshooting. Intended for developer use on a single block.
     """
     G, L = get_geno_lanc_deconv(dataset, block)
     if idx_sample is not None:
@@ -279,6 +305,20 @@ def _step2_block(
             }[(adjust_lanc, impute)]
         else:
             test_func = {True: bt_score_lanc_no_diff, False: bt_score_nolanc_no_diff}[adjust_lanc]
+
+    if debug_dump_path is not None:
+        _dump_test_func_call(
+            debug_dump_path,
+            test_func,
+            test_args,
+            {
+                "block": block,
+                "trait_type": trait_type.value,
+                "test_type": test_type.value,
+                "adjust_lanc": adjust_lanc,
+                "impute": impute,
+            },
+        )
 
     log10p_het_vs_hom: np.ndarray | None = None
     test_converged = None
@@ -518,6 +558,7 @@ def _step2_dataset(
     adjust_lanc: bool = True,
     impute: bool = False,
     p_het_threshold: float = 1.0,
+    debug_dump_path: str | Path | None = None,
 ) -> None:
     """Run step 2 for a single dataset
 
@@ -539,6 +580,9 @@ def _step2_dataset(
         variants: An optional list of variant IDs to retain
         adjust_lanc: A boolean indicating whether to adjust tests for local ancestry
         impute: Whether to impute the phenotype. Much faster, but only available for qt traits
+        debug_dump_path: If provided, write the exact arguments passed to the
+            selected statistics kernel for only the first block processed to an
+            .npz file, for troubleshooting
     """
     if not 0 <= p_het_threshold <= 1:
         raise ValueError("p_het_threshold must be in [0, 1].")
@@ -616,7 +660,9 @@ def _step2_dataset(
                     adjust_lanc,
                     impute,
                     p_het_threshold,
+                    debug_dump_path,
                 )
+                debug_dump_path = None  # only dump the first block processed
 
                 writer.write(result_table)
                 pbar.update(1)
@@ -644,6 +690,7 @@ def step2(
     p_het_threshold: float = 1.0,
     min_ac_g: int | None = None,
     min_ac_h: int | None = None,
+    debug_dump_path: str | Path | None = None,
 ) -> None:
     """Perform agricola step 2
 
@@ -678,6 +725,11 @@ def step2(
         partition_phenotype: Whether to partition output parquet files by phenotype
         max_rows: Max number of rows/variants per phenotype to keep in memory
             before writing an output file. Defaults to 5000000 / len(phenotypes)
+        debug_dump_path: Developer option. If provided, write the exact
+            arguments passed to the selected statistics kernel (`test_func`) for
+            the very first variant block processed to an .npz file, for
+            troubleshooting. The file also stores the kernel's function name and
+            block-level metadata (variant indices, trait/test type, etc.).
     """
     if not 0 <= p_het_threshold <= 1:
         raise ValueError("p_het_threshold must be in [0, 1].")
@@ -753,7 +805,9 @@ def step2(
                 adjust_lanc,
                 impute,
                 p_het_threshold,
+                debug_dump_path,
             )
+            debug_dump_path = None  # only dump the first block of the first dataset
             time_ds = str(timedelta(seconds=int(time.perf_counter() - time_ds_start)))
             logger.info("Elapsed time: %s", time_ds)
 
